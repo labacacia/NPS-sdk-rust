@@ -51,15 +51,17 @@ nps-nop  = "1.0.0-alpha.1"
 
 ## Crates
 
-| Crate | Description |
-|-------|-------------|
-| `nps-core` | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, errors |
-| `nps-ncp`  | NCP frame types (`AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `ErrorFrame`) |
-| `nps-nwp`  | `QueryFrame`, `ActionFrame`; async `NwpClient` over `reqwest` |
-| `nps-nip`  | `Identity` (Ed25519), encrypted key store (AES-256-GCM + PBKDF2), Ident/Trust/Revoke frames |
-| `nps-ndp`  | Announce/Resolve/Graph frames, in-memory registry, signature validator |
-| `nps-nop`  | Task/Delegate/Sync/AlignStream frames, DAG models, async orchestrator client |
-| `nps-sdk`  | Meta-crate: re-exports the six protocol crates under `nps_sdk::{core, ncp, nwp, nip, ndp, nop}` |
+| Crate | Description | Reference |
+|-------|-------------|-----------|
+| `nps-core` | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, errors | [`doc/nps-rust.core.md`](./doc/nps-rust.core.md) |
+| `nps-ncp`  | NCP frame types (`AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `ErrorFrame`) | [`doc/nps-rust.ncp.md`](./doc/nps-rust.ncp.md) |
+| `nps-nwp`  | `QueryFrame`, `ActionFrame`; async `NwpClient` over `reqwest` | [`doc/nps-rust.nwp.md`](./doc/nps-rust.nwp.md) |
+| `nps-nip`  | `NipIdentity` (Ed25519), encrypted key store (AES-256-GCM + PBKDF2), Ident/Trust/Revoke frames | [`doc/nps-rust.nip.md`](./doc/nps-rust.nip.md) |
+| `nps-ndp`  | Announce/Resolve/Graph frames, in-memory registry, signature validator | [`doc/nps-rust.ndp.md`](./doc/nps-rust.ndp.md) |
+| `nps-nop`  | Task/Delegate/Sync/AlignStream frames, DAG models, async orchestrator client | [`doc/nps-rust.nop.md`](./doc/nps-rust.nop.md) |
+| `nps-sdk`  | Meta-crate: re-exports the six protocol crates under `nps_sdk::{core, ncp, nwp, nip, ndp, nop}` | — |
+
+Full API reference (per-crate class and method docs) lives under [`doc/`](./doc/) — start with [`doc/overview.md`](./doc/overview.md). For a narrative walkthrough see [`doc/sdk-usage.md`](./doc/sdk-usage.md) / [`doc/sdk-usage.cn.md`](./doc/sdk-usage.cn.md).
 
 ## Quick Start
 
