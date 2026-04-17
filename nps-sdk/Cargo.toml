@@ -1,9 +1,12 @@
 [package]
 name        = "nps-sdk"
+description = "NPS SDK — complete Neural Protocol Suite implementation (NCP+NWP+NIP+NDP+NOP) for AI agents"
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 
 [dependencies]
 nps-core    = { workspace = true }
