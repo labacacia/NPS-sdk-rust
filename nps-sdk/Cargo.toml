@@ -1,0 +1,21 @@
+[package]
+name        = "nps-sdk"
+version.workspace     = true
+edition.workspace     = true
+license.workspace     = true
+authors.workspace     = true
+
+[dependencies]
+nps-core    = { workspace = true }
+nps-ncp     = { workspace = true }
+nps-nwp     = { workspace = true, optional = true }
+nps-nip     = { workspace = true, optional = true }
+nps-ndp     = { workspace = true, optional = true }
+nps-nop     = { workspace = true, optional = true }
+
+[features]
+default = ["nwp", "nip", "ndp", "nop"]
+nwp     = ["dep:nps-nwp"]
+nip     = ["dep:nps-nip"]
+ndp     = ["dep:nps-ndp", "dep:nps-nip"]
+nop     = ["dep:nps-nop"]
