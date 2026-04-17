@@ -1,0 +1,15 @@
+[package]
+name        = "nps-ndp"
+version.workspace     = true
+edition.workspace     = true
+license.workspace     = true
+authors.workspace     = true
+
+[dev-dependencies]
+nps-core    = { workspace = true }
+
+[dependencies]
+nps-core    = { workspace = true }
+nps-nip     = { workspace = true }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
