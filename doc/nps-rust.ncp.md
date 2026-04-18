@@ -1,3 +1,5 @@
+English | [中文版](./nps-rust.ncp.cn.md)
+
 # `nps-ncp` — Reference
 
 > Spec: [NPS-1 NCP v0.4](https://github.com/labacacia/NPS-Release/blob/main/spec/NPS-1-NCP.md)
