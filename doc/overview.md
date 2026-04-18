@@ -1,3 +1,5 @@
+English | [中文版](./overview.cn.md)
+
 # NPS Rust SDK — API Reference
 
 > Async Rust SDK for the Neural Protocol Suite — Rust stable (1.75+), Tokio-based.
