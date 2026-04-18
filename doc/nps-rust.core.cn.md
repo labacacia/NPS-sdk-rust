@@ -1,16 +1,15 @@
-English | [中文版](./nps-rust.core.cn.md)
+[English Version](./nps-rust.core.md) | 中文版
 
-# `nps-core` — Reference
+# `nps-core` — 参考
 
-> Spec: [NPS-1 NCP v0.4](https://github.com/labacacia/NPS-Release/blob/main/spec/NPS-1-NCP.md)
+> 规范：[NPS-1 NCP v0.4](https://github.com/labacacia/NPS-Release/blob/main/spec/NPS-1-NCP.md)
 
-Foundation crate. Defines the wire header, encoding tiers, a
-registry-validated codec, the anchor-frame cache, and the `NpsError`
-hierarchy.
+基础 crate。定义线路帧头、编码 tier、注册表校验的编解码器、
+anchor-frame 缓存，以及 `NpsError` 层级。
 
 ---
 
-## Table of contents
+## 目录
 
 - [`FrameType`](#frametype)
 - [`EncodingTier`](#encodingtier)
@@ -37,7 +36,7 @@ pub enum FrameType {
 }
 
 impl FrameType {
-    pub fn from_u8(v: u8) -> NpsResult<Self>;   // Err(NpsError::Frame) on unknown
+    pub fn from_u8(v: u8) -> NpsResult<Self>;   // 未知时 Err(NpsError::Frame)
     pub fn as_u8(self) -> u8;
 }
 ```
@@ -53,14 +52,14 @@ pub enum EncodingTier {
 }
 ```
 
-The value is the bit-7 state of the `flags` byte — `MsgPack = 1` sets
-`0x80`, `Json = 0` leaves it clear.
+其值为 `flags` 字节的 bit-7 状态 —— `MsgPack = 1` 置 `0x80`，
+`Json = 0` 保持清零。
 
 ---
 
 ## `FrameHeader`
 
-Wire-format header.
+线路格式帧头。
 
 ```rust
 pub struct FrameHeader {
@@ -76,32 +75,32 @@ impl FrameHeader {
 
     pub fn encoding_tier(&self) -> EncodingTier;   // bit 7
     pub fn is_final(&self)      -> bool;           // bit 6
-    pub fn header_size(&self)   -> usize;          // 4 or 8
+    pub fn header_size(&self)   -> usize;          // 4 或 8
 
     pub fn parse(wire: &[u8])   -> NpsResult<Self>;
     pub fn to_bytes(&self)      -> Vec<u8>;
 }
 ```
 
-### Flags byte
+### Flags 字节
 
-| Bit | Mask   | Meaning |
-|-----|--------|---------|
-| 7   | `0x80` | TIER — `1` = MsgPack, `0` = JSON |
-| 6   | `0x40` | FINAL — last frame in a stream |
-| 0   | `0x01` | EXT — 8-byte extended header |
+| Bit | Mask   | 含义 |
+|-----|--------|------|
+| 7   | `0x80` | TIER —— `1` = MsgPack，`0` = JSON |
+| 6   | `0x40` | FINAL —— 流中最后一帧 |
+| 0   | `0x01` | EXT —— 8 字节扩展帧头 |
 
-### Wire layout
+### 线路布局
 
 ```
-Default (EXT=0, 4 bytes):
-  [frame_type][flags][len_hi][len_lo]         — u16 big-endian length
+默认（EXT=0，4 字节）：
+  [frame_type][flags][len_hi][len_lo]         — u16 大端长度
 
-Extended (EXT=1, 8 bytes):
-  [frame_type][flags][0][0][len_b3..len_b0]   — u32 big-endian length
+扩展（EXT=1，8 字节）：
+  [frame_type][flags][0][0][len_b3..len_b0]   — u32 大端长度
 ```
 
-`FrameHeader::new` auto-enables EXT when `payload_length > 0xFFFF`.
+`FrameHeader::new` 在 `payload_length > 0xFFFF` 时自动启用 EXT。
 
 ---
 
@@ -111,7 +110,7 @@ Extended (EXT=1, 8 bytes):
 pub type FrameDict = serde_json::Map<String, Value>;
 ```
 
-All frames round-trip through `FrameDict`. Helpers:
+所有帧都通过 `FrameDict` 往返。辅助函数：
 
 ```rust
 pub fn encode_json   (dict: &FrameDict) -> NpsResult<Vec<u8>>;
@@ -120,14 +119,14 @@ pub fn decode_json   (payload: &[u8])   -> NpsResult<FrameDict>;
 pub fn decode_msgpack(payload: &[u8])   -> NpsResult<FrameDict>;
 ```
 
-MsgPack encoding uses the **named-field** form (map keys stay as
-strings) — the wire is interoperable with the JSON tier, just smaller.
+MsgPack 编码使用**具名字段**形式（map 键保持字符串）—— 线路与 JSON
+tier 互操作，只是更小。
 
 ---
 
 ## `NpsFrameCodec`
 
-Registry-validated, tier-switchable codec.
+注册表校验、可切换 tier 的编解码器。
 
 ```rust
 pub const DEFAULT_MAX_PAYLOAD: u64 = 10 * 1024 * 1024;   // 10 MiB
@@ -151,12 +150,11 @@ impl NpsFrameCodec {
 }
 ```
 
-- `encode` fails with `NpsError::Codec` if the serialized payload
-  exceeds `max_payload`.
-- `decode` fails with `NpsError::Frame` if the header's frame type is
-  not registered against this codec's `FrameRegistry`.
-- `peek_header` is an associated function (no `&self`) — useful when
-  streaming to know the length before allocating the full frame.
+- 若序列化 payload 超过 `max_payload`，`encode` 以 `NpsError::Codec` 失败。
+- 若帧头的 frame type 未在此编解码器的 `FrameRegistry` 中注册，
+  `decode` 以 `NpsError::Frame` 失败。
+- `peek_header` 是关联函数（无 `&self`）—— 流式处理时用来在分配完整帧
+  之前得知长度。
 
 ---
 
@@ -166,37 +164,37 @@ impl NpsFrameCodec {
 pub struct FrameRegistry { /* … */ }
 
 impl FrameRegistry {
-    pub fn new()           -> Self;             // empty
+    pub fn new()           -> Self;             // 空
     pub fn register(&mut self, ft: FrameType);
     pub fn is_registered(&self, ft: FrameType) -> bool;
 
-    pub fn create_default() -> Self;            // NCP only (Anchor/Diff/Stream/Caps/Error)
+    pub fn create_default() -> Self;            // 仅 NCP（Anchor/Diff/Stream/Caps/Error）
     pub fn create_full()    -> Self;            // NCP + NWP + NIP + NDP + NOP
 }
 ```
 
-`FrameRegistry::default()` returns an **empty** registry — if you use
-`FrameRegistry::default()` with a codec, every `decode` will fail with
-`"unregistered frame type …"`. Prefer `create_default()` or
-`create_full()`.
+`FrameRegistry::default()` 返回一个**空**注册表 —— 若与编解码器配合
+使用 `FrameRegistry::default()`，每次 `decode` 都会以
+`"unregistered frame type …"` 失败。建议使用 `create_default()` 或
+`create_full()`。
 
 ---
 
 ## `AnchorFrameCache`
 
-Thread-safe-by-construction (not `Sync`: use `Arc<Mutex<_>>` for
-shared mutation) anchor-schema cache with lazy TTL expiry.
+构造上线程安全（非 `Sync`：共享可变时使用 `Arc<Mutex<_>>`）的
+anchor-schema 缓存，带惰性 TTL 过期。
 
 ```rust
 pub struct AnchorFrameCache {
-    pub clock: Box<dyn Fn() -> Instant + Send + Sync>,   // swap in tests
+    pub clock: Box<dyn Fn() -> Instant + Send + Sync>,   // 测试中替换
     // …
 }
 
 impl AnchorFrameCache {
     pub fn new() -> Self;
 
-    /// SHA-256 of canonical (sorted-key) JSON of `schema`, prefixed `sha256:`.
+    /// `schema` 的规范（键排序）JSON 的 SHA-256，前缀 `sha256:`。
     pub fn compute_anchor_id(schema: &Map<String, Value>) -> String;
 
     pub fn set(&mut self, schema: Map<String, Value>, ttl_secs: u64)
@@ -207,24 +205,22 @@ impl AnchorFrameCache {
     pub fn invalidate(&mut self, anchor_id: &str);
     pub fn evict_expired(&mut self);
 
-    pub fn len(&self)      -> usize;           // live entries only
+    pub fn len(&self)      -> usize;           // 仅活跃条目
     pub fn is_empty(&self) -> bool;
 }
 ```
 
-### Poisoning
+### 投毒
 
-`set` returns `NpsError::AnchorPoison` when the same `anchor_id` is
-already cached with a **different** schema (and still live). Re-inserts
-with an identical schema refresh the TTL.
+当同一 `anchor_id` 已以**不同** schema 缓存（且仍活跃）时，`set`
+返回 `NpsError::AnchorPoison`。以相同 schema 重新插入仅刷新 TTL。
 
-### Lazy expiry
+### 惰性过期
 
-`get` / `get_required` / `len` / `is_empty` filter by `expires > now`
-without mutating the store. Call `evict_expired()` to actually free
-memory.
+`get` / `get_required` / `len` / `is_empty` 按 `expires > now` 过滤，
+不改动存储。调用 `evict_expired()` 实际释放内存。
 
-### Injectable clock
+### 可注入 clock
 
 ```rust
 use std::time::{Duration, Instant};
@@ -251,4 +247,4 @@ pub enum NpsError {
 pub type NpsResult<T> = Result<T, NpsError>;
 ```
 
-`NpsError: Clone + Debug + Display + std::error::Error`.
+`NpsError: Clone + Debug + Display + std::error::Error`。

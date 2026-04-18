@@ -1,3 +1,5 @@
+English | [中文版](./README.cn.md)
+
 # NPS Rust SDK
 
 [![Crates.io](https://img.shields.io/crates/v/nps-sdk)](https://crates.io/crates/nps-sdk)
