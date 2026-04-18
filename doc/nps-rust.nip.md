@@ -1,3 +1,5 @@
+English | [中文版](./nps-rust.nip.cn.md)
+
 # `nps-nip` — Reference
 
 > Spec: [NPS-3 NIP v0.2](https://github.com/labacacia/NPS-Release/blob/main/spec/NPS-3-NIP.md)

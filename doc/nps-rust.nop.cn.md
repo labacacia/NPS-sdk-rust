@@ -1,15 +1,14 @@
-English | [中文版](./nps-rust.nop.cn.md)
+[English Version](./nps-rust.nop.md) | 中文版
 
-# `nps-nop` — Reference
+# `nps-nop` — 参考
 
-> Spec: [NPS-5 NOP v0.3](https://github.com/labacacia/NPS-Release/blob/main/spec/NPS-5-NOP.md)
+> 规范：[NPS-5 NOP v0.3](https://github.com/labacacia/NPS-Release/blob/main/spec/NPS-5-NOP.md)
 
-Orchestration layer — DAG submission, fan-in barriers, streaming
-progress, async status polling.
+编排层 —— DAG 提交、fan-in 屏障、流式进度、异步状态轮询。
 
 ---
 
-## Table of contents
+## 目录
 
 - [`BackoffStrategy`](#backoffstrategy)
 - [`TaskState`](#taskstate)
@@ -32,15 +31,15 @@ impl BackoffStrategy {
 }
 ```
 
-`compute_delay_ms` (0-indexed `attempt`):
+`compute_delay_ms`（`attempt` 从 0 开始）：
 
-| Strategy       | Formula                  |
+| 策略           | 公式                     |
 |----------------|--------------------------|
 | `Fixed`        | `base_ms`                |
 | `Linear`       | `base_ms * (attempt + 1)`|
 | `Exponential`  | `base_ms * 2^attempt`    |
 
-Result is clamped at `max_ms`.
+结果以 `max_ms` 截顶。
 
 ---
 
@@ -56,22 +55,21 @@ pub enum TaskState {
 }
 
 impl TaskState {
-    pub fn from_str(s: &str) -> Option<Self>;   // case-sensitive: "pending" | "running" | …
+    pub fn from_str(s: &str) -> Option<Self>;   // 区分大小写："pending" | "running" | …
     pub fn is_terminal(self) -> bool;           // Completed | Failed | Cancelled
 }
 ```
 
-> The Rust SDK exposes only the five common states above. Orchestrator
-> responses carrying `"preflight"`, `"waiting_sync"` or `"skipped"`
-> will decode with `state() == None` — use
-> `NopTaskStatus::raw()["state"]` to inspect the raw string when
-> needed.
+> Rust SDK 仅暴露以上五个常见状态。编排器响应若携带
+> `"preflight"`、`"waiting_sync"` 或 `"skipped"` 将以
+> `state() == None` 解码 —— 需要时用
+> `NopTaskStatus::raw()["state"]` 查看原始字符串。
 
 ---
 
 ## `NopTaskStatus`
 
-Thin view over the orchestrator's JSON status payload.
+对编排器 JSON 状态 payload 的薄视图。
 
 ```rust
 pub struct NopTaskStatus { /* raw: serde_json::Map<…, …> */ }
@@ -91,37 +89,35 @@ impl NopTaskStatus {
 impl Display for NopTaskStatus { /* "NopTaskStatus(task_id=…, state=…)" */ }
 ```
 
-Use `raw()` to reach orchestrator-specific fields that the typed
-accessors don't cover.
+用 `raw()` 访问有类型访问器未覆盖的编排器特有字段。
 
 ---
 
 ## `TaskFrame` (0x40)
 
-Submit a DAG for execution. The DAG itself is kept as a free-form
-`serde_json::Value` that matches the NPS-5 wire shape
-(`{"nodes": [...], "edges": [...]}`).
+提交一个 DAG 执行。DAG 本身以自由形式 `serde_json::Value` 保持，
+匹配 NPS-5 线路形状（`{"nodes": [...], "edges": [...]}`）。
 
 ```rust
 pub struct TaskFrame {
     pub task_id:      String,
-    pub dag:          Value,               // free-form DAG JSON
+    pub dag:          Value,               // 自由形式 DAG JSON
     pub timeout_ms:   Option<u64>,
-    pub callback_url: Option<String>,      // SSRF-validated by orchestrator
+    pub callback_url: Option<String>,      // 由编排器做 SSRF 校验
     pub context:      Option<Value>,       // { "session_key", "requester_nid", "trace_id" }
     pub priority:     Option<String>,      // "low" | "normal" | "high"
-    pub depth:        Option<i64>,         // delegate chain depth, max 3
+    pub depth:        Option<i64>,         // 委托链深度，最大 3
 }
 ```
 
-Spec limits the orchestrator enforces (NPS-5 §8.2): max 32 nodes per
-DAG, max 3 levels of delegate chain, max timeout 3 600 000 ms (1 h).
+编排器强制执行的规范限制（NPS-5 §8.2）：每 DAG 最多 32 节点、
+最多 3 层委托链、最大 timeout 3 600 000 ms（1 小时）。
 
 ---
 
 ## `DelegateFrame` (0x41)
 
-Per-node invocation emitted by the orchestrator to each agent.
+编排器为每个 agent 发出的逐节点调用。
 
 ```rust
 pub struct DelegateFrame {
@@ -135,42 +131,42 @@ pub struct DelegateFrame {
 }
 ```
 
-> Field naming differs from other SDKs: the Rust SDK uses
-> `target_nid` + `config` where the .NET / Python / Java SDKs use
-> `agent_nid` + `params`. Wire payloads follow the field names above.
+> 字段命名与其他 SDK 不同：Rust SDK 用 `target_nid` + `config`，
+> 而 .NET / Python / Java SDK 用 `agent_nid` + `params`。线路 payload
+> 跟随以上字段名。
 
 ---
 
 ## `SyncFrame` (0x42)
 
-Fan-in barrier — waits for K-of-N upstream subtasks.
+Fan-in 屏障 —— 等待上游 K-of-N 子任务。
 
 ```rust
 pub struct SyncFrame {
     pub task_id:      String,
     pub sync_id:      String,
     pub subtask_ids:  Vec<String>,
-    pub min_required: i64,               // 0 = strict all-of
+    pub min_required: i64,               // 0 = 严格全部
     pub aggregate:    String,            // "merge" | "first" | "fastest_k" | "all"
     pub timeout_ms:   Option<u64>,
 }
 ```
 
-`from_dict` defaults `min_required` to `0` and `aggregate` to
-`"merge"` when those fields are missing.
+字段缺失时 `from_dict` 将 `min_required` 缺省为 `0`，`aggregate`
+缺省为 `"merge"`。
 
-`min_required` semantics:
+`min_required` 语义：
 
-| Value | Meaning |
-|-------|---------|
-| `0`   | Wait for all of `subtask_ids` (strict fan-in). |
-| `K`   | Proceed as soon as K upstream subtasks have completed. |
+| 值 | 含义 |
+|----|------|
+| `0`| 等待全部 `subtask_ids`（严格 fan-in）|
+| `K`| K 个上游子任务完成后即推进 |
 
 ---
 
 ## `AlignStreamFrame` (0x43)
 
-Streaming progress / partial result frame for a delegated subtask.
+被委托子任务的流式进度 / 部分结果帧。
 
 ```rust
 pub struct AlignStreamFrame {
@@ -180,26 +176,26 @@ pub struct AlignStreamFrame {
     pub seq:         u64,
     pub is_final:    bool,
     pub source_nid:  Option<String>,
-    pub result:      Option<Value>,       // opaque payload
+    pub result:      Option<Value>,       // 不透明 payload
     pub error:       Option<Value>,       // { "error_code", "message" }
     pub window_size: Option<u64>,
 }
 
 impl AlignStreamFrame {
-    pub fn error_code(&self)    -> Option<&str>;   // shortcut for error["error_code"]
-    pub fn error_message(&self) -> Option<&str>;   // shortcut for error["message"]
+    pub fn error_code(&self)    -> Option<&str>;   // error["error_code"] 的快捷
+    pub fn error_message(&self) -> Option<&str>;   // error["message"] 的快捷
 }
 ```
 
-`AlignStreamFrame` replaces the deprecated `AlignFrame (0x05)` — it
-carries task context (`task_id` + `subtask_id` + `sync_id`) and binds
-the stream to a `source_nid`.
+`AlignStreamFrame` 替代已弃用的 `AlignFrame (0x05)` —— 携带 task
+上下文（`task_id` + `subtask_id` + `sync_id`）并将流绑定到
+`source_nid`。
 
 ---
 
 ## `NopClient`
 
-Async HTTP client for an NOP orchestrator.
+NOP 编排器的异步 HTTP 客户端。
 
 ```rust
 pub struct NopClient { /* … */ }
@@ -220,32 +216,31 @@ impl NopClient {
 }
 ```
 
-### HTTP routes
+### HTTP 路由
 
-| Method       | Path               | Request body                      | Response |
-|--------------|--------------------|-----------------------------------|----------|
-| `submit`     | `POST   /tasks`    | JSON of `TaskFrame::to_dict()`    | JSON `{ "task_id": … }` |
-| `get_status` | `GET    /tasks/{}` | —                                 | JSON status dict |
+| 方法         | 路径               | 请求体                            | 响应 |
+|--------------|--------------------|-----------------------------------|------|
+| `submit`     | `POST   /tasks`    | `TaskFrame::to_dict()` 的 JSON    | JSON `{ "task_id": … }` |
+| `get_status` | `GET    /tasks/{}` | —                                 | JSON 状态 dict |
 | `cancel`     | `DELETE /tasks/{}` | —                                 | — |
-| `wait`       | polls `get_status` until terminal or `timeout`; `tokio::time::sleep` between polls |
+| `wait`       | 轮询 `get_status` 直至终态或 `timeout`；轮询间用 `tokio::time::sleep` |
 
-Requests use `Content-Type: application/json` — the Rust NOP client
-submits the task dict as plain JSON, not as a framed
-`application/x-nps-frame` payload.
+请求使用 `Content-Type: application/json` —— Rust NOP 客户端以普通
+JSON 提交 task dict，而非成帧的 `application/x-nps-frame` payload。
 
-`wait` fails with `NpsError::Io("timeout waiting for task …")` if the
-deadline elapses before the task reaches a terminal state; it returns
-the terminal `NopTaskStatus` on success.
+若截止时间到达前任务未到达终态，`wait` 以
+`NpsError::Io("timeout waiting for task …")` 失败；成功时返回终态的
+`NopTaskStatus`。
 
-### Errors
+### 错误
 
-- Non-2xx HTTP → `NpsError::Io("NOP {path} failed: HTTP {status}")`.
-- Missing `task_id` in the submit response → `NpsError::Frame`.
-- Transport / decode failures → `NpsError::Io` / `NpsError::Codec`.
+- 非 2xx HTTP → `NpsError::Io("NOP {path} failed: HTTP {status}")`。
+- submit 响应缺少 `task_id` → `NpsError::Frame`。
+- 传输 / 解码失败 → `NpsError::Io` / `NpsError::Codec`。
 
 ---
 
-## End-to-end
+## 端到端
 
 ```rust
 use nps_nop::{NopClient, TaskFrame, BackoffStrategy};
@@ -282,6 +277,6 @@ let tid = nop.submit(&TaskFrame {
 let status = nop.wait(&tid, Duration::from_secs(60), Duration::from_millis(500)).await?;
 println!("{status}");
 
-// Backoff computation
+// Backoff 计算
 let delay = BackoffStrategy::Exponential.compute_delay_ms(500, 30_000, 2);  // → 2000
 ```
