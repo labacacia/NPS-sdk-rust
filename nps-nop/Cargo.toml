@@ -1,9 +1,12 @@
 [package]
 name        = "nps-nop"
+description = "NPS — Neural Orchestration Protocol frames (TaskFrame, DelegateFrame, SyncFrame, AlignStreamFrame) and async client."
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 
 [dev-dependencies]
 nps-core    = { workspace = true }
