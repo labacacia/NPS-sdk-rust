@@ -1,9 +1,12 @@
 [package]
 name        = "nps-nip"
+description = "NPS — Neural Identity Protocol frames and Ed25519 identity management with AES-256-GCM key encryption."
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 
 [dev-dependencies]
 nps-core    = { workspace = true }
