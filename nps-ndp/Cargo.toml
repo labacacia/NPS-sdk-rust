@@ -1,9 +1,12 @@
 [package]
 name        = "nps-ndp"
+description = "NPS — Neural Discovery Protocol frames and in-memory registry + announce validator."
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 
 [dev-dependencies]
 nps-core    = { workspace = true }

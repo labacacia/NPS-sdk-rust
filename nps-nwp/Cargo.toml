@@ -1,9 +1,12 @@
 [package]
 name        = "nps-nwp"
+description = "NPS — Neural Web Protocol frames (QueryFrame, ActionFrame) and async HTTP client."
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 
 [dependencies]
 nps-core    = { workspace = true }
