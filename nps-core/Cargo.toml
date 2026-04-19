@@ -1,12 +1,9 @@
 [package]
 name        = "nps-core"
-description = "NPS core — frame types, codec (JSON/MsgPack), AnchorFrame cache for the Neural Protocol Suite"
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
-repository.workspace  = true
-homepage.workspace    = true
 
 [dependencies]
 serde       = { workspace = true }

@@ -158,6 +158,90 @@ impl CapsFrame {
     }
 }
 
+// ── HelloFrame ────────────────────────────────────────────────────────────────
+
+/// Native-mode client handshake frame (NPS-1 §4.6).
+///
+/// The Agent MUST send this as the very first frame after opening a TCP/QUIC
+/// connection; the Node replies with a CapsFrame. Not used in HTTP mode.
+///
+/// Preferred encoding is Tier-1 JSON because the encoding has not yet been
+/// negotiated at handshake time.
+#[derive(Debug, Clone)]
+pub struct HelloFrame {
+    pub nps_version:            String,
+    pub supported_encodings:    Vec<String>,
+    pub supported_protocols:    Vec<String>,
+    pub min_version:            Option<String>,
+    pub agent_id:               Option<String>,
+    pub max_frame_payload:      u64,
+    pub ext_support:            bool,
+    pub max_concurrent_streams: u64,
+    pub e2e_enc_algorithms:     Option<Vec<String>>,
+}
+
+impl HelloFrame {
+    pub const DEFAULT_MAX_FRAME_PAYLOAD: u64      = 0xFFFF;
+    pub const DEFAULT_MAX_CONCURRENT_STREAMS: u64 = 32;
+
+    pub fn frame_type() -> FrameType { FrameType::Hello }
+
+    pub fn new(
+        nps_version:         impl Into<String>,
+        supported_encodings: Vec<String>,
+        supported_protocols: Vec<String>,
+    ) -> Self {
+        HelloFrame {
+            nps_version:            nps_version.into(),
+            supported_encodings,
+            supported_protocols,
+            min_version:            None,
+            agent_id:               None,
+            max_frame_payload:      Self::DEFAULT_MAX_FRAME_PAYLOAD,
+            ext_support:            false,
+            max_concurrent_streams: Self::DEFAULT_MAX_CONCURRENT_STREAMS,
+            e2e_enc_algorithms:     None,
+        }
+    }
+
+    pub fn to_dict(&self) -> FrameDict {
+        let mut m = serde_json::Map::new();
+        m.insert("nps_version".into(),            json!(self.nps_version));
+        m.insert("supported_encodings".into(),    json!(self.supported_encodings));
+        m.insert("supported_protocols".into(),    json!(self.supported_protocols));
+        m.insert("max_frame_payload".into(),      json!(self.max_frame_payload));
+        m.insert("ext_support".into(),            json!(self.ext_support));
+        m.insert("max_concurrent_streams".into(), json!(self.max_concurrent_streams));
+        if let Some(v) = &self.min_version        { m.insert("min_version".into(),        json!(v)); }
+        if let Some(v) = &self.agent_id           { m.insert("agent_id".into(),           json!(v)); }
+        if let Some(v) = &self.e2e_enc_algorithms { m.insert("e2e_enc_algorithms".into(), json!(v)); }
+        m
+    }
+
+    pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
+        let nps_version         = get_str(d, "nps_version")?.to_string();
+        let supported_encodings = d.get("supported_encodings").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect())
+            .unwrap_or_default();
+        let supported_protocols = d.get("supported_protocols").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect())
+            .unwrap_or_default();
+        let e2e_enc_algorithms  = d.get("e2e_enc_algorithms").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
+        Ok(HelloFrame {
+            nps_version,
+            supported_encodings,
+            supported_protocols,
+            min_version:            opt_str(d, "min_version").map(str::to_string),
+            agent_id:               opt_str(d, "agent_id").map(str::to_string),
+            max_frame_payload:      opt_u64(d, "max_frame_payload").unwrap_or(Self::DEFAULT_MAX_FRAME_PAYLOAD),
+            ext_support:            d.get("ext_support").and_then(Value::as_bool).unwrap_or(false),
+            max_concurrent_streams: opt_u64(d, "max_concurrent_streams").unwrap_or(Self::DEFAULT_MAX_CONCURRENT_STREAMS),
+            e2e_enc_algorithms,
+        })
+    }
+}
+
 // ── ErrorFrame ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]

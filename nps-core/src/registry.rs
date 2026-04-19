@@ -28,6 +28,7 @@ impl FrameRegistry {
         r.register(FrameType::Diff);
         r.register(FrameType::Stream);
         r.register(FrameType::Caps);
+        r.register(FrameType::Hello);
         r.register(FrameType::Error);
         r
     }
