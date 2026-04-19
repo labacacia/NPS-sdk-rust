@@ -1,9 +1,12 @@
 [package]
 name        = "nps-ncp"
+description = "NPS — Neural Communication Protocol frames (AnchorFrame, DiffFrame, StreamFrame, CapsFrame, HelloFrame, ErrorFrame)."
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 
 [dependencies]
 nps-core    = { workspace = true }
