@@ -1,145 +1,251 @@
 English | [中文版](./README.cn.md)
 
-# NPS Rust SDK
+# NPS Rust SDK (`nps-rs`)
 
-[![Crates.io](https://img.shields.io/crates/v/nps-sdk)](https://crates.io/crates/nps-sdk)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
-[![Rust](https://img.shields.io/badge/rust-stable-orange)](https://www.rust-lang.org/)
+Rust client library for the **Neural Protocol Suite (NPS)** — a complete internet protocol stack designed for AI agents and models.
 
-Async Rust SDK for the **Neural Protocol Suite (NPS)** — a complete internet protocol stack purpose-built for AI Agents and models.
-
-Workspace: `nps-core`, `nps-ncp`, `nps-nwp`, `nps-nip`, `nps-ndp`, `nps-nop`, `nps-sdk` (façade).
-
----
-
-## NPS Repositories
-
-| Repo | Role | Language |
-|------|------|----------|
-| [NPS-Release](https://github.com/labacacia/NPS-Release) | Protocol specifications (authoritative) | Markdown / YAML |
-| [NPS-sdk-dotnet](https://github.com/labacacia/NPS-sdk-dotnet) | Reference implementation | C# / .NET 10 |
-| [NPS-sdk-py](https://github.com/labacacia/NPS-sdk-py) | Async Python SDK | Python 3.11+ |
-| [NPS-sdk-ts](https://github.com/labacacia/NPS-sdk-ts) | Node/browser SDK | TypeScript |
-| [NPS-sdk-java](https://github.com/labacacia/NPS-sdk-java) | JVM SDK | Java 21+ |
-| **[NPS-sdk-rust](https://github.com/labacacia/NPS-sdk-rust)** (this repo) | Async SDK | Rust stable |
-| [NPS-sdk-go](https://github.com/labacacia/NPS-sdk-go) | Go SDK | Go 1.23+ |
-
----
+Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.1 — Phase 1 release**
+**v1.0.0-alpha.2 — Phase 2 sync release**
 
-Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP. 88 tests passing.
+Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP.
 
 ## Requirements
 
-- Rust 1.75+ (stable)
-- Core dependencies: `serde`, `rmp-serde`, `sha2`, `ed25519-dalek`, `aes-gcm`, `tokio`, `reqwest`
+- Rust stable (1.70+)
+- Cargo
 
-## Installation
+## Building & Testing
 
-```toml
-[dependencies]
-nps-sdk = "1.0.0-alpha.1"              # full-façade crate (re-exports everything)
-# or pick only what you need:
-nps-core = "1.0.0-alpha.1"
-nps-ncp  = "1.0.0-alpha.1"
-nps-nwp  = "1.0.0-alpha.1"
-nps-nip  = "1.0.0-alpha.1"
-nps-ndp  = "1.0.0-alpha.1"
-nps-nop  = "1.0.0-alpha.1"
+```bash
+# Run all tests
+cargo test --workspace
+
+# Build all crates
+cargo build --workspace
+
+# Build release
+cargo build --workspace --release
 ```
 
-## Crates
+## Workspace Crates
 
-| Crate | Description | Reference |
-|-------|-------------|-----------|
-| `nps-core` | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, errors | [`doc/nps-rust.core.md`](./doc/nps-rust.core.md) |
-| `nps-ncp`  | NCP frame types (`AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `ErrorFrame`) | [`doc/nps-rust.ncp.md`](./doc/nps-rust.ncp.md) |
-| `nps-nwp`  | `QueryFrame`, `ActionFrame`; async `NwpClient` over `reqwest` | [`doc/nps-rust.nwp.md`](./doc/nps-rust.nwp.md) |
-| `nps-nip`  | `NipIdentity` (Ed25519), encrypted key store (AES-256-GCM + PBKDF2), Ident/Trust/Revoke frames | [`doc/nps-rust.nip.md`](./doc/nps-rust.nip.md) |
-| `nps-ndp`  | Announce/Resolve/Graph frames, in-memory registry, signature validator | [`doc/nps-rust.ndp.md`](./doc/nps-rust.ndp.md) |
-| `nps-nop`  | Task/Delegate/Sync/AlignStream frames, DAG models, async orchestrator client | [`doc/nps-rust.nop.md`](./doc/nps-rust.nop.md) |
-| `nps-sdk`  | Meta-crate: re-exports the six protocol crates under `nps_sdk::{core, ncp, nwp, nip, ndp, nop}` | — |
-
-Full API reference (per-crate class and method docs) lives under [`doc/`](./doc/) — start with [`doc/overview.md`](./doc/overview.md). For a narrative walkthrough see [`doc/sdk-usage.md`](./doc/sdk-usage.md) / [`doc/sdk-usage.cn.md`](./doc/sdk-usage.cn.md).
+| Crate | Description |
+|-------|-------------|
+| `nps-core`  | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, error types |
+| `nps-ncp`   | NCP frames: `AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `HelloFrame`, `ErrorFrame` |
+| `nps-nwp`   | NWP frames: `QueryFrame`, `ActionFrame`, `AsyncActionResponse`; async `NwpClient` (reqwest) |
+| `nps-nip`   | NIP frames: `IdentFrame`, `TrustFrame`, `RevokeFrame`; `NipIdentity` (Ed25519 key management) |
+| `nps-ndp`   | NDP frames: `AnnounceFrame`, `ResolveFrame`, `GraphFrame`; `InMemoryNdpRegistry`; `NdpAnnounceValidator` |
+| `nps-nop`   | NOP frames: `TaskFrame`, `DelegateFrame`, `SyncFrame`, `AlignStreamFrame`; `BackoffStrategy`; `NopClient` |
+| `nps-sdk`   | Re-export umbrella crate — all protocols under `nps_sdk::` namespace |
 
 ## Quick Start
 
-### Encode / decode frames
+Add to your `Cargo.toml`:
 
-```rust
-use nps_core::{FrameCodec, Registry};
-use nps_ncp::{AnchorFrame, FrameSchema, SchemaField};
-
-let registry = Registry::default();
-let codec    = FrameCodec::new(&registry);
-
-let schema = FrameSchema {
-    fields: vec![
-        SchemaField { name: "id".into(),    r#type: "uint64".into(),  ..Default::default() },
-        SchemaField { name: "price".into(), r#type: "decimal".into(), semantic: Some("commerce.price.usd".into()), ..Default::default() },
-    ],
-};
-let frame = AnchorFrame::new(&schema, 3600);
-
-let wire  = codec.encode(&frame)?;            // Tier-2 MsgPack by default
-let back: AnchorFrame = codec.decode(&wire)?;
+```toml
+[dependencies]
+nps-sdk = { path = "impl/rust/nps-sdk" }
+tokio   = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
-### NWP client
+### Encoding / Decoding NCP Frames
+
+```rust
+use nps_core::codec::NpsFrameCodec;
+use nps_core::frames::EncodingTier;
+use nps_core::registry::FrameRegistry;
+use nps_ncp::AnchorFrame;
+use serde_json::json;
+
+let codec = NpsFrameCodec::new(FrameRegistry::create_full());
+
+let mut schema = serde_json::Map::new();
+schema.insert("fields".into(), json!([{"name": "id", "type": "uint64"}]));
+
+let frame = AnchorFrame {
+    anchor_id: "sha256:abc123".into(),
+    schema,
+    namespace:   None,
+    description: None,
+    node_type:   None,
+    ttl:         3600,
+};
+
+let wire = codec.encode(AnchorFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true)?;
+let (frame_type, dict) = codec.decode(&wire)?;
+let back = AnchorFrame::from_dict(&dict)?;
+```
+
+### NWP Client — Query
 
 ```rust
 use nps_nwp::{NwpClient, QueryFrame};
 
 let client = NwpClient::new("http://node.example.com:17433");
-let caps   = client.query(QueryFrame { anchor_ref: Some("sha256:…".into()), limit: 50, ..Default::default() }).await?;
+let query  = QueryFrame::new("sha256:abc123");
+let caps   = client.query(&query).await?;
 ```
 
-### NIP identity
+### NWP Client — Stream
 
 ```rust
-use nps_nip::Identity;
-
-let id = Identity::generate();
-id.save("node.key", "my-passphrase")?;     // AES-256-GCM + PBKDF2
-
-let loaded = Identity::load("node.key", "my-passphrase")?;
-let sig    = loaded.sign(&payload)?;
-let ok     = loaded.verify(&payload, &sig)?;
+let frames = client.stream(&query).await?;
+for sf in &frames {
+    println!("{:?}", sf.payload);
+    if sf.is_last { break; }
+}
 ```
 
-### NOP orchestration
+### NIP Identity — Sign & Verify
 
 ```rust
-use nps_nop::{NopClient, TaskFrame, TaskDag};
+use nps_nip::identity::NipIdentity;
+use std::path::Path;
 
-let client = NopClient::new("http://orchestrator.example.com:17433");
-let task_id = client.submit(TaskFrame { task_id: "job-1".into(), dag }).await?;
-let status  = client.wait(&task_id, std::time::Duration::from_secs(30)).await?;
+// Generate keypair
+let identity = NipIdentity::generate();
+println!("{}", identity.pub_key_string()); // "ed25519:<hex>"
+
+// Sign a payload
+let mut payload = serde_json::Map::new();
+payload.insert("nid".into(), serde_json::json!("urn:nps:node:example.com:data"));
+let sig = identity.sign(&payload);  // "ed25519:<base64>"
+let ok  = identity.verify(&payload, &sig); // true
+
+// Persist and load (AES-256-GCM + PBKDF2)
+identity.save(Path::new("my-node.key"), "my-passphrase")?;
+let loaded = NipIdentity::load(Path::new("my-node.key"), "my-passphrase")?;
 ```
 
-## Encoding Tiers
+### NDP Registry — Announce & Resolve
 
-| Tier | Value | Description |
-|------|-------|-------------|
-| Tier-1 JSON    | `0x00` | UTF-8 JSON, development / interop |
-| Tier-2 MsgPack | `0x01` | MsgPack binary, ~60% smaller, production default |
+```rust
+use nps_ndp::{AnnounceFrame, InMemoryNdpRegistry};
+use nps_nip::identity::NipIdentity;
+use serde_json::json;
 
-## NIP CA Server
+let identity = NipIdentity::generate();
+let mut addrs = serde_json::Map::new();
+addrs.insert("host".into(),     json!("example.com"));
+addrs.insert("port".into(),     json!(17433));
+addrs.insert("protocol".into(), json!("nwp"));
 
-A standalone NIP Certificate Authority server is bundled under [`nip-ca-server/`](./nip-ca-server/) — Axum, SQLite-backed, Docker-ready.
+let tmp = AnnounceFrame {
+    nid: "urn:nps:node:example.com:data".into(),
+    addresses: vec![addrs.clone()],
+    caps: vec!["nwp/query".into()],
+    ttl: 300,
+    timestamp: "2026-01-01T00:00:00Z".into(),
+    signature: "placeholder".into(),
+    node_type: None,
+};
+let sig   = identity.sign(&tmp.unsigned_dict());
+let frame = AnnounceFrame { signature: sig, ..tmp };
 
-## Build & Test
+let mut registry = InMemoryNdpRegistry::new();
+registry.announce(frame);
+
+let result = registry.resolve("nwp://example.com/data/sub").unwrap();
+// result.host == "example.com", result.port == 17433
+```
+
+### NDP Announce Validator
+
+```rust
+use nps_ndp::NdpAnnounceValidator;
+
+let mut validator = NdpAnnounceValidator::new();
+validator.register_public_key("urn:nps:node:example.com:data", identity.pub_key_string());
+
+let result = validator.validate(&frame);
+if result.is_valid {
+    println!("Announce accepted");
+} else {
+    println!("Rejected: {} — {}", result.error_code.unwrap(), result.message.unwrap());
+}
+```
+
+### NOP — Backoff Strategy
+
+```rust
+use nps_nop::models::BackoffStrategy;
+
+let delay_ms = BackoffStrategy::Exponential.compute_delay_ms(1000, 30_000, 2);
+// Returns 4000 (2^2 * 1000), capped at max_ms
+```
+
+## Frame Type Reference
+
+| Frame | Type Code | Protocol | Description |
+|-------|-----------|----------|-------------|
+| `AnchorFrame`      | 0x01 | NCP | Schema anchor (cached schema definition) |
+| `DiffFrame`        | 0x02 | NCP | Schema diff / patch |
+| `StreamFrame`      | 0x03 | NCP | Streaming data chunk (is_last = final) |
+| `CapsFrame`        | 0x04 | NCP | Capability advertisement |
+| `HelloFrame`       | 0x06 | NCP | Native-mode handshake (client → node, JSON) |
+| `ErrorFrame`       | 0xFE | NCP | Unified error frame (all protocols) |
+| `QueryFrame`       | 0x10 | NWP | Data query with anchor ref + filter |
+| `ActionFrame`      | 0x11 | NWP | Action invocation (sync or async) |
+| `IdentFrame`       | 0x20 | NIP | Node identity declaration (signed) |
+| `TrustFrame`       | 0x21 | NIP | Trust delegation between nodes |
+| `RevokeFrame`      | 0x22 | NIP | Revocation notice |
+| `AnnounceFrame`    | 0x30 | NDP | Node announcement with TTL |
+| `ResolveFrame`     | 0x31 | NDP | Address resolution request/response |
+| `GraphFrame`       | 0x32 | NDP | Network topology snapshot |
+| `TaskFrame`        | 0x40 | NOP | Orchestration DAG task |
+| `DelegateFrame`    | 0x41 | NOP | Subtask delegation |
+| `SyncFrame`        | 0x42 | NOP | K-of-N synchronization barrier |
+| `AlignStreamFrame` | 0x43 | NOP | Streaming alignment update |
+
+## Encoding
+
+| Tier | Variant | Description |
+|------|---------|-------------|
+| Tier-1 | `EncodingTier::Json`    | Human-readable JSON (debug, interop) |
+| Tier-2 | `EncodingTier::MsgPack` | MsgPack binary (default, ~60% smaller) |
+
+## Error Handling
+
+All operations return `NpsResult<T>` = `Result<T, NpsError>`.
+
+| Variant | When |
+|---------|------|
+| `NpsError::Frame(msg)` | Unknown frame type, invalid field |
+| `NpsError::Codec(msg)` | Encode/decode failure, oversized payload |
+| `NpsError::AnchorNotFound(id)` | `get_required()` for missing/expired anchor |
+| `NpsError::AnchorPoison(id)` | Attempt to overwrite anchor with different schema |
+| `NpsError::Identity(msg)` | Key generation, sign/verify, save/load failure |
+| `NpsError::Io(msg)` | Network or filesystem error |
+
+## Feature Flags (`nps-sdk`)
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `nwp`   | ✅ | Include NWP frames and client |
+| `nip`   | ✅ | Include NIP frames and identity |
+| `ndp`   | ✅ | Include NDP frames, registry, validator |
+| `nop`   | ✅ | Include NOP frames and client |
+
+## Testing
+
+88 tests across all protocol crates:
 
 ```bash
-cargo build --workspace
-cargo test  --workspace      # 88 tests
+cargo test --workspace
 ```
+
+| Crate | Tests |
+|-------|-------|
+| `nps-core` | 27 |
+| `nps-ndp`  | 25 |
+| `nps-nip`  | 16 |
+| `nps-nop`  | 20 |
+| **Total**  | **88** |
 
 ## License
 
-Apache 2.0 — see [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
-
-Copyright 2026 INNO LOTUS PTY LTD
+[Apache 2.0](../../LICENSE) © 2026 INNO LOTUS PTY LTD

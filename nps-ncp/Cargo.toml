@@ -1,12 +1,9 @@
 [package]
 name        = "nps-ncp"
-description = "NPS NCP — Neural Communication Protocol frames for the Neural Protocol Suite"
 version.workspace     = true
 edition.workspace     = true
 license.workspace     = true
 authors.workspace     = true
-repository.workspace  = true
-homepage.workspace    = true
 
 [dependencies]
 nps-core    = { workspace = true }
