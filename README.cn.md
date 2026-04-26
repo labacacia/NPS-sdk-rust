@@ -8,7 +8,7 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.2 — Phase 2 同步 alpha 发布**
+**v1.0.0-alpha.3 — Phase 2 同步 alpha 发布**
 
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议。
 
