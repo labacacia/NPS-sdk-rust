@@ -8,7 +8,7 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.2 — Phase 2 sync release**
+**v1.0.0-alpha.3 — Phase 2 sync release**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP.
 
