@@ -1,6 +1,8 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod preamble;
+
 use nps_core::codec::FrameDict;
 use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::FrameType;

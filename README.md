@@ -8,9 +8,17 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.3 — Phase 2 sync release**
+**v1.0.0-alpha.4 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
 
-Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP.
+Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
+
+Tests: 99 across the workspace, all passing.
+
+### alpha.4 additions (nps-nip)
+
+- `nps_nip::x509` — `issue_leaf` / `issue_root` / `verify` (built on `rcgen` + `x509-parser` + `ed25519-dalek`).
+- `nps_nip::acme` — `AcmeClient` (reqwest async) + in-process `AcmeServer` (tiny_http) + JWS / messages helpers (RFC 8555 + EdDSA per RFC 8037).
+- `IdentFrame` extended with non-breaking `assurance_level` / `cert_format` / `cert_chain` fields; v1 verifiers ignore the new fields.
 
 ## Requirements
 
