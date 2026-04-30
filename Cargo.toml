@@ -11,7 +11,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version     = "1.0.0-alpha.3"
+version     = "1.0.0-alpha.4"
 edition     = "2021"
 license     = "Apache-2.0"
 authors     = ["Ori Lynn <iamzerolin@gmail.com>"]
@@ -40,13 +40,19 @@ base64         = { version = "0.22" }
 tokio          = { version = "1",       features = ["rt-multi-thread", "macros", "time", "sync"] }
 reqwest        = { version = "0.12",    features = ["json"] }
 
+# X.509 + ACME (NPS-RFC-0002)
+rcgen          = { version = "0.13",    default-features = false, features = ["pem", "crypto", "ring", "x509-parser"] }
+x509-parser    = { version = "0.16" }
+tiny_http      = { version = "0.12" }
+time           = { version = "0.3",     default-features = false }
+
 # Testing
 tempfile       = { version = "3" }
 
 # Internal crates
-nps-core       = { path = "nps-core", version = "=1.0.0-alpha.3" }
-nps-ncp        = { path = "nps-ncp",  version = "=1.0.0-alpha.3" }
-nps-nwp        = { path = "nps-nwp",  version = "=1.0.0-alpha.3" }
-nps-nip        = { path = "nps-nip",  version = "=1.0.0-alpha.3" }
-nps-ndp        = { path = "nps-ndp",  version = "=1.0.0-alpha.3" }
-nps-nop        = { path = "nps-nop",  version = "=1.0.0-alpha.3" }
+nps-core       = { path = "nps-core", version = "=1.0.0-alpha.4" }
+nps-ncp        = { path = "nps-ncp",  version = "=1.0.0-alpha.4" }
+nps-nwp        = { path = "nps-nwp",  version = "=1.0.0-alpha.4" }
+nps-nip        = { path = "nps-nip",  version = "=1.0.0-alpha.4" }
+nps-ndp        = { path = "nps-ndp",  version = "=1.0.0-alpha.4" }
+nps-nop        = { path = "nps-nop",  version = "=1.0.0-alpha.4" }
