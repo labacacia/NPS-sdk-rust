@@ -8,9 +8,17 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.3 — Phase 2 同步 alpha 发布**
+**v1.0.0-alpha.4 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
 
-覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议。
+覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
+
+测试：workspace 共 99 个，全绿。
+
+### alpha.4 新增（nps-nip）
+
+- `nps_nip::x509` —— `issue_leaf` / `issue_root` / `verify`（基于 `rcgen` + `x509-parser` + `ed25519-dalek`）。
+- `nps_nip::acme` —— `AcmeClient`（reqwest 异步） + 进程内 `AcmeServer`（tiny_http） + JWS / messages helpers（RFC 8555 + RFC 8037 EdDSA）。
+- `IdentFrame` 扩展非破坏性可选字段 `assurance_level` / `cert_format` / `cert_chain`；v1 verifier 忽略新字段。
 
 ## 环境要求
 

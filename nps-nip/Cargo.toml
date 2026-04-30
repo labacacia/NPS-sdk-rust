@@ -11,6 +11,15 @@ homepage.workspace    = true
 [dev-dependencies]
 nps-core    = { workspace = true }
 tempfile    = { workspace = true }
+rand        = { workspace = true }
+hex         = { workspace = true }
+base64      = { workspace = true }
+serde_json  = { workspace = true }
+ed25519-dalek = { workspace = true }
+rcgen       = { workspace = true }
+time        = { workspace = true }
+tokio       = { workspace = true }
+reqwest     = { workspace = true }
 
 [dependencies]
 nps-core       = { workspace = true }
@@ -24,3 +33,11 @@ sha2           = { workspace = true }
 rand           = { workspace = true }
 hex            = { workspace = true }
 base64         = { workspace = true }
+
+# NPS-RFC-0002 — X.509 + in-process ACME server
+rcgen          = { workspace = true }
+x509-parser    = { workspace = true }
+tiny_http      = { workspace = true }
+reqwest        = { workspace = true }
+tokio          = { workspace = true }
+time           = { workspace = true }

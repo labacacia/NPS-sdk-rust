@@ -8,6 +8,53 @@
 
 ---
 
+## [1.0.0-alpha.4] —— 2026-04-30
+
+### 新增
+
+- **NPS-RFC-0001 Phase 2 —— NCP 连接前导（Rust helper 跟进）。**
+  `nps-ncp/src/preamble.rs` 暴露 `write_preamble()` /
+  `read_preamble()`，往返字面量 `b"NPS/1.0\n"` 哨兵；
+  `nps-ncp/tests/preamble_tests.rs` 覆盖。让 Rust SDK 与 .NET /
+  Python / TypeScript / Go / Java 在 alpha.4 的 preamble helper 持平。
+- **NPS-RFC-0002 Phase A/B —— X.509 NID 证书 + ACME `agent-01`
+  （Rust 端口）。** 新增 `nps-nip/` 子模块：
+  - `src/x509/` —— X.509 NID 证书 builder + verifier（基于 `rcgen`
+    + `x509-parser`）。
+  - `src/acme/` —— ACME `agent-01` 客户端 + 服务端参考实现（挑战
+    签发、key authorization、按 NPS-RFC-0002 Phase B 的 JWS 签名
+    wire 包络）。
+  - `src/assurance_level.rs` —— Agent 身份保证等级
+    （`anonymous` / `attested` / `verified`），承接 NPS-RFC-0003。
+  - `src/cert_format.rs` —— IdentFrame 的 `cert_format` 判别器
+    （`v1` Ed25519 vs. `x509`）。
+  - `src/error_codes.rs` —— NIP 错误码命名空间。
+  - `src/verifier.rs` —— dual-trust IdentFrame 验证器
+    （v1 + X.509）。
+- 新增测试：`preamble_tests.rs`、`nip_x509_tests.rs`、
+  `nip_acme_agent01_tests.rs`。总数：109 tests 全绿（alpha.3 时 88）。
+
+### 变更
+
+- workspace 内全部 crate 经 `version.workspace = true` 升至
+  `1.0.0-alpha.4`：`nps-core`、`nps-ncp`、`nps-nwp`、`nps-nip`、
+  `nps-ndp`、`nps-nop`、`nps-sdk`。
+- `nps-nip/src/frames.rs` —— `IdentFrame` 在原有 v1 Ed25519 字段
+  旁新增可选 `cert_format` 判别器 + `x509_chain` 字段。alpha.3
+  写出的 v1 IdentFrame 仍可被 alpha.4 验签。
+
+### 套件级 alpha.4 要点
+
+- **NPS-RFC-0002 X.509 + ACME** —— 完整跨 SDK 端口波（.NET / Java /
+  Python / TypeScript / Go / Rust）。
+- **NPS-CR-0002 —— Anchor Node topology 查询** —— `topology.snapshot`
+  / `topology.stream`（.NET 参考 + L2 conformance）。Rust 消费侧
+  helper 后续版本跟进。
+- **`nps-registry` SQLite 实仓** + **`nps-ledger` Phase 2**
+  （RFC 9162 Merkle + STH + inclusion proof）已在 daemon 仓库交付。
+
+---
+
 ## [1.0.0-alpha.3] —— 2026-04-25
 
 ### Changed
@@ -46,6 +93,7 @@
 
 作为 NPS 套件 `v1.0.0-alpha.1` 的一部分首次公开 alpha。
 
+[1.0.0-alpha.4]: https://gitee.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.4
 [1.0.0-alpha.3]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.3
 [1.0.0-alpha.2]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.2
 [1.0.0-alpha.1]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.1

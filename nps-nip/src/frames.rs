@@ -23,32 +23,61 @@ pub struct IdentFrame {
     pub pub_key:   String,
     pub meta:      Option<serde_json::Map<String, Value>>,
     pub signature: Option<String>,
+
+    /// NPS-RFC-0003 — optional assurance level.
+    pub assurance_level: Option<crate::assurance_level::AssuranceLevel>,
+    /// NPS-RFC-0002 — optional v2 X.509 dual-trust extensions.
+    /// `cert_format` wire form (`V1_PROPRIETARY` | `V2_X509`).
+    pub cert_format: Option<String>,
+    /// `cert_chain` is base64url(DER), `[leaf, intermediates..., root]`.
+    pub cert_chain: Option<Vec<String>>,
 }
 
 impl IdentFrame {
     pub fn frame_type() -> FrameType { FrameType::Ident }
 
-    /// Dict without signature — for signing
+    pub fn new(nid: String, pub_key: String) -> Self {
+        Self {
+            nid, pub_key, meta: None, signature: None,
+            assurance_level: None, cert_format: None, cert_chain: None,
+        }
+    }
+
+    /// Dict the v1 Ed25519 signature covers. Deliberately excludes
+    /// cert_format / cert_chain so the v1 sig stays covering exactly the
+    /// same payload as before NPS-RFC-0002.
     pub fn unsigned_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
         m.insert("nid".into(),     json!(self.nid));
         m.insert("pub_key".into(), json!(self.pub_key));
-        if let Some(v) = &self.meta { m.insert("meta".into(), Value::Object(v.clone())); }
+        if let Some(v) = &self.meta { m.insert("metadata".into(), Value::Object(v.clone())); }
+        if let Some(l) = &self.assurance_level { m.insert("assurance_level".into(), json!(l.wire)); }
         m
     }
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = self.unsigned_dict();
-        if let Some(s) = &self.signature { m.insert("signature".into(), json!(s)); }
+        if let Some(s) = &self.signature   { m.insert("signature".into(),   json!(s)); }
+        if let Some(s) = &self.cert_format { m.insert("cert_format".into(), json!(s)); }
+        if let Some(c) = &self.cert_chain  { m.insert("cert_chain".into(),  json!(c)); }
         m
     }
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
+        let assurance_level = d.get("assurance_level")
+            .and_then(Value::as_str)
+            .and_then(|s| crate::assurance_level::AssuranceLevel::from_wire(s).ok());
+        let cert_chain = d.get("cert_chain").and_then(Value::as_array).map(|a| {
+            a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+        });
         Ok(IdentFrame {
-            nid:       get_str(d, "nid")?.to_string(),
-            pub_key:   get_str(d, "pub_key")?.to_string(),
-            meta:      d.get("meta").and_then(Value::as_object).cloned(),
-            signature: opt_str(d, "signature").map(str::to_string),
+            nid:             get_str(d, "nid")?.to_string(),
+            pub_key:         get_str(d, "pub_key")?.to_string(),
+            meta:            d.get("metadata").and_then(Value::as_object).cloned(),
+            signature:       opt_str(d, "signature").map(str::to_string),
+            assurance_level,
+            cert_format:     opt_str(d, "cert_format").map(str::to_string),
+            cert_chain,
         })
     }
 }
