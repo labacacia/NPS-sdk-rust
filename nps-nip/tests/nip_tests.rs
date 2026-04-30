@@ -127,6 +127,9 @@ fn ident_frame_roundtrip() {
         pub_key:   "ed25519:aabbcc".into(),
         meta:      Some(meta),
         signature: Some("ed25519:sig".into()),
+        assurance_level: None,
+        cert_format: None,
+        cert_chain: None,
     };
     let wire = codec.encode(IdentFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true).unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
@@ -143,6 +146,9 @@ fn ident_frame_optional_fields_null() {
         pub_key:   "ed25519:aabb".into(),
         meta:      None,
         signature: None,
+        assurance_level: None,
+        cert_format: None,
+        cert_chain: None,
     };
     let wire = codec.encode(IdentFrame::frame_type(), &frame.to_dict(), EncodingTier::Json, true).unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
