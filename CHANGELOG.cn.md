@@ -8,6 +8,23 @@
 
 ---
 
+## [1.0.0-alpha.5] —— 2026-05-01
+
+### 新增
+
+- **`nps_nwp::error_codes` 模块** —— 新增模块，包含全部 30 个 NWP wire 错误码（auth、query、action、task、subscribe、infrastructure、manifest、topology、reserved-type）。通过 `nps_nwp::error_codes::*` 重新导出。此前版本均未提供。
+- **`nps_ndp::dns_txt` —— DNS TXT 回退解析** —— 新增异步 `InMemoryNdpRegistry::resolve_via_dns(target, lookup)`，当内存注册表无匹配时回退查询 `_nps-node.{host}` TXT 记录（NPS-4 §5）。`DnsTxtLookup` trait（通过 `Pin<Box<dyn Future>>` 实现对象安全）；`parse_nps_txt_record` + `extract_host_from_target` 位于 `nps_ndp::dns_txt`。测试数：109 → 119。
+
+### 变更
+
+- **版本升至 `1.0.0-alpha.5`** —— workspace 内全部 crate（`nps-core`、`nps-ncp`、`nps-nwp`、`nps-nip`、`nps-ndp`、`nps-nop`、`nps-sdk`）与 NPS 套件 alpha.5 同步。
+
+### 修复
+
+- **`nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID`** —— 新增两个 NIP 声誉 gossip 错误码（RFC-0004 Phase 3）。
+
+---
+
 ## [1.0.0-alpha.4] —— 2026-04-30
 
 ### 新增
@@ -93,6 +110,7 @@
 
 作为 NPS 套件 `v1.0.0-alpha.1` 的一部分首次公开 alpha。
 
+[1.0.0-alpha.5]: https://github.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.5
 [1.0.0-alpha.4]: https://gitee.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.4
 [1.0.0-alpha.3]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.3
 [1.0.0-alpha.2]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.2

@@ -8,11 +8,16 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.4 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
+**v1.0.0-alpha.5 —— NWP 错误码 + NIP gossip 错误码**
 
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
-测试：workspace 共 99 个，全绿。
+测试：workspace 共 119 个，全绿。
+
+**alpha.5 新增：**
+
+- `nps_nwp::error_codes` —— 30 个 NWP wire 错误码常量，通过 `nps_nwp::error_codes::*` 重新导出。
+- `nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID` —— RFC-0004 Phase 3 gossip 错误码。
 
 ### alpha.4 新增（nps-nip）
 
@@ -44,9 +49,9 @@ cargo build --workspace --release
 |-------|------|
 | `nps-core`  | 帧头、编解码器（Tier-1 JSON / Tier-2 MsgPack）、帧注册表、anchor 缓存、错误类型 |
 | `nps-ncp`   | NCP 帧：`AnchorFrame`、`DiffFrame`、`StreamFrame`、`CapsFrame`、`HelloFrame`、`ErrorFrame` |
-| `nps-nwp`   | NWP 帧：`QueryFrame`、`ActionFrame`、`AsyncActionResponse`；异步 `NwpClient`（reqwest） |
+| `nps-nwp`   | NWP 帧：`QueryFrame`、`ActionFrame`、`AsyncActionResponse`；异步 `NwpClient`（reqwest）；`error_codes` 模块 |
 | `nps-nip`   | NIP 帧：`IdentFrame`、`TrustFrame`、`RevokeFrame`；`NipIdentity`（Ed25519 密钥管理） |
-| `nps-ndp`   | NDP 帧：`AnnounceFrame`、`ResolveFrame`、`GraphFrame`；`InMemoryNdpRegistry`；`NdpAnnounceValidator` |
+| `nps-ndp`   | NDP 帧：`AnnounceFrame`、`ResolveFrame`、`GraphFrame`；`InMemoryNdpRegistry`；`NdpAnnounceValidator`；DNS TXT 回退（`resolve_via_dns`、`DnsTxtLookup` trait、`parse_nps_txt_record`） |
 | `nps-nop`   | NOP 帧：`TaskFrame`、`DelegateFrame`、`SyncFrame`、`AlignStreamFrame`；`BackoffStrategy`；`NopClient` |
 | `nps-sdk`   | 统一伞型 crate —— 所有协议挂在 `nps_sdk::` 命名空间下 |
 
@@ -240,7 +245,7 @@ let delay_ms = BackoffStrategy::Exponential.compute_delay_ms(1000, 30_000, 2);
 
 ## 测试
 
-五个协议 crate 共 88 个测试：
+五个协议 crate 共 119 个测试：
 
 ```bash
 cargo test --workspace
@@ -252,7 +257,7 @@ cargo test --workspace
 | `nps-ndp`  | 25 |
 | `nps-nip`  | 16 |
 | `nps-nop`  | 20 |
-| **总计**   | **88** |
+| **总计**   | **119** |
 
 ## 许可证
 
