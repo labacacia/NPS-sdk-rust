@@ -26,8 +26,10 @@ pub const ASSURANCE_MISMATCH: &str = "NIP-ASSURANCE-MISMATCH";
 pub const ASSURANCE_UNKNOWN:  &str = "NIP-ASSURANCE-UNKNOWN";
 
 // ── RFC-0004 (reputation log) ────────────────────────────────────────────────
-pub const REPUTATION_ENTRY_INVALID:    &str = "NIP-REPUTATION-ENTRY-INVALID";
-pub const REPUTATION_LOG_UNREACHABLE:  &str = "NIP-REPUTATION-LOG-UNREACHABLE";
+pub const REPUTATION_ENTRY_INVALID:      &str = "NIP-REPUTATION-ENTRY-INVALID";
+pub const REPUTATION_LOG_UNREACHABLE:    &str = "NIP-REPUTATION-LOG-UNREACHABLE";
+pub const REPUTATION_GOSSIP_FORK:        &str = "NIP-REPUTATION-GOSSIP-FORK";
+pub const REPUTATION_GOSSIP_SIG_INVALID: &str = "NIP-REPUTATION-GOSSIP-SIG-INVALID";
 
 // ── RFC-0002 (X.509 + ACME) ──────────────────────────────────────────────────
 pub const CERT_FORMAT_INVALID:       &str = "NIP-CERT-FORMAT-INVALID";

@@ -10,9 +10,14 @@ homepage.workspace    = true
 
 [dev-dependencies]
 nps-core    = { workspace = true }
+tokio       = { workspace = true, features = ["rt", "macros"] }
 
 [dependencies]
 nps-core    = { workspace = true }
 nps-nip     = { workspace = true }
 serde       = { workspace = true }
 serde_json  = { workspace = true }
+tokio       = { workspace = true }
+
+[features]
+dns-txt = []

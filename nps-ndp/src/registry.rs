@@ -3,6 +3,7 @@
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use crate::dns_txt::{DnsTxtLookup, extract_host_from_target, parse_nps_txt_record};
 use crate::frames::AnnounceFrame;
 
 #[derive(Debug, Clone)]
@@ -67,6 +68,42 @@ impl InMemoryNdpRegistry {
             .filter(|e| e.expires > now)
             .map(|e| &e.frame)
             .collect()
+    }
+
+    /// Resolve a target first from the in-memory registry, then via DNS TXT fallback.
+    ///
+    /// Lookup order:
+    /// 1. Call [`Self::resolve`] — return immediately if a live in-memory entry matches.
+    /// 2. Extract the hostname from `target` (expects `nwp://hostname/path` form).
+    /// 3. Look up `_nps-node.{hostname}` TXT records via the provided `lookup` implementation.
+    /// 4. Parse each record with [`parse_nps_txt_record`]; return the first valid result.
+    ///
+    /// Returns `None` if both the registry and DNS lookup yield no valid result.
+    pub async fn resolve_via_dns<L: DnsTxtLookup>(
+        &self,
+        target: &str,
+        lookup: &L,
+    ) -> Option<ResolveResult> {
+        // 1. Try in-memory registry first.
+        if let Some(result) = self.resolve(target) {
+            return Some(result);
+        }
+
+        // 2. Extract hostname from the NWP target URL.
+        let host = extract_host_from_target(target)?;
+
+        // 3. Query `_nps-node.{host}` for TXT records.
+        let dns_name = format!("_nps-node.{host}");
+        let records = lookup.lookup_txt(&dns_name).await.ok()?;
+
+        // 4. Parse records; return the first valid one.
+        for record in &records {
+            if let Some(result) = parse_nps_txt_record(record, host) {
+                return Some(result);
+            }
+        }
+
+        None
     }
 
     /// Match a `nwp://authority/path` URL against a `urn:nps:node:{host}:{path}` NID.

@@ -8,6 +8,23 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.5] — 2026-05-01
+
+### Added
+
+- **`nps_nwp::error_codes` module** — new module with all 30 NWP wire error code constants (auth, query, action, task, subscribe, infrastructure, manifest, topology, reserved-type). Missing from previous releases. Re-exported via `nps_nwp::error_codes::*`.
+- **`nps_ndp::dns_txt` — DNS TXT fallback resolution** — new async `InMemoryNdpRegistry::resolve_via_dns(target, lookup)` falls back to `_nps-node.{host}` TXT lookup (NPS-4 §5) when no in-memory entry matches. `DnsTxtLookup` trait (object-safe via `Pin<Box<dyn Future>>`); `parse_nps_txt_record` + `extract_host_from_target` in `nps_ndp::dns_txt`. Tests: 109 → 119.
+
+### Changed
+
+- **Version bump to `1.0.0-alpha.5`** — all workspace crates (`nps-core`, `nps-ncp`, `nps-nwp`, `nps-nip`, `nps-ndp`, `nps-nop`, `nps-sdk`) synchronized with NPS suite alpha.5 release.
+
+### Fixed
+
+- **`nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID`** — two new NIP reputation gossip error codes added (RFC-0004 Phase 3).
+
+---
+
 ## [1.0.0-alpha.4] — 2026-04-30
 
 ### Added
@@ -101,6 +118,7 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 First public alpha as part of the NPS suite `v1.0.0-alpha.1` release.
 
+[1.0.0-alpha.5]: https://github.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.5
 [1.0.0-alpha.4]: https://github.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.4
 [1.0.0-alpha.3]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.3
 [1.0.0-alpha.2]: https://github.com/LabAcacia/NPS-Dev/releases/tag/v1.0.0-alpha.2
