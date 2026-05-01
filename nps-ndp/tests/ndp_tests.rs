@@ -216,6 +216,147 @@ fn non_nwp_target()     { assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(N
 #[test]
 fn no_slash_in_target() { assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(NID, "nwp://example.com")); }
 
+// ── DNS TXT resolution ────────────────────────────────────────────────────────
+
+mod dns_txt_tests {
+    use super::*;
+    use nps_ndp::dns_txt::{
+        parse_nps_txt_record, extract_host_from_target, DnsTxtLookup, DNS_TXT_DEFAULT_TTL,
+    };
+    use nps_ndp::InMemoryNdpRegistry;
+    use std::pin::Pin;
+    use std::future::Future;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    // ── Mock lookup ───────────────────────────────────────────────────────────
+
+    struct MockDnsTxtLookup {
+        records: Vec<String>,
+        called:  AtomicBool,
+    }
+
+    impl MockDnsTxtLookup {
+        fn new(records: Vec<String>) -> Self {
+            Self { records, called: AtomicBool::new(false) }
+        }
+
+        fn was_called(&self) -> bool {
+            self.called.load(Ordering::SeqCst)
+        }
+    }
+
+    impl DnsTxtLookup for MockDnsTxtLookup {
+        fn lookup_txt<'a>(
+            &'a self,
+            _hostname: &'a str,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<String>, String>> + Send + 'a>> {
+            self.called.store(true, Ordering::SeqCst);
+            let records = self.records.clone();
+            Box::pin(async move { Ok(records) })
+        }
+    }
+
+    // ── parse_nps_txt_record ──────────────────────────────────────────────────
+
+    #[test]
+    fn test_parse_valid_record() {
+        let txt = "v=nps1 type=memory port=17434 nid=urn:nps:node:api.example.com:products fp=sha256:a3f9";
+        let result = parse_nps_txt_record(txt, "api.example.com").unwrap();
+        assert_eq!(result.host,     "api.example.com");
+        assert_eq!(result.port,     17434);
+        assert_eq!(result.protocol, "https");
+    }
+
+    #[test]
+    fn test_parse_missing_v() {
+        let txt = "type=memory port=17434 nid=urn:nps:node:api.example.com:products";
+        assert!(parse_nps_txt_record(txt, "api.example.com").is_none());
+    }
+
+    #[test]
+    fn test_parse_wrong_v() {
+        let txt = "v=nps2 nid=urn:nps:node:api.example.com:products";
+        assert!(parse_nps_txt_record(txt, "api.example.com").is_none());
+    }
+
+    #[test]
+    fn test_parse_missing_nid() {
+        let txt = "v=nps1 type=memory port=17434";
+        assert!(parse_nps_txt_record(txt, "api.example.com").is_none());
+    }
+
+    #[test]
+    fn test_parse_default_port() {
+        let txt = "v=nps1 nid=urn:nps:node:api.example.com:products";
+        let result = parse_nps_txt_record(txt, "api.example.com").unwrap();
+        assert_eq!(result.port, 17433);
+    }
+
+    // ── extract_host_from_target ──────────────────────────────────────────────
+
+    #[test]
+    fn test_extract_host_from_target() {
+        assert_eq!(
+            extract_host_from_target("nwp://api.example.com/products"),
+            Some("api.example.com"),
+        );
+        // No path separator → None
+        assert!(extract_host_from_target("nwp://api.example.com").is_none());
+        // Wrong scheme → None
+        assert!(extract_host_from_target("http://api.example.com/path").is_none());
+    }
+
+    // ── resolve_via_dns ───────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_resolve_via_dns_registry_hit() {
+        // Pre-populate registry; DNS should NOT be called.
+        let mut reg = InMemoryNdpRegistry::new();
+        reg.announce(make_announce(&NipIdentity::generate(), 300));
+
+        let mock = MockDnsTxtLookup::new(vec![]);
+        let result = reg.resolve_via_dns("nwp://example.com/data", &mock).await;
+        assert!(result.is_some());
+        assert!(!mock.was_called(), "DNS must not be queried when registry has a hit");
+        assert_eq!(result.unwrap().host, "example.com");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_via_dns_dns_fallback() {
+        // Empty registry → must fall back to DNS.
+        let reg  = InMemoryNdpRegistry::new();
+        let txt  = "v=nps1 nid=urn:nps:node:api.example.com:products port=17434".to_string();
+        let mock = MockDnsTxtLookup::new(vec![txt]);
+
+        let result = reg.resolve_via_dns("nwp://api.example.com/products", &mock).await;
+        assert!(result.is_some(), "should resolve via DNS TXT fallback");
+        assert!(mock.was_called());
+        let r = result.unwrap();
+        assert_eq!(r.host, "api.example.com");
+        assert_eq!(r.port, 17434);
+        assert_eq!(r.protocol, "https");
+    }
+
+    #[tokio::test]
+    async fn test_resolve_via_dns_invalid_txt() {
+        // DNS returns a record with wrong version; should return None.
+        let reg  = InMemoryNdpRegistry::new();
+        let txt  = "v=nps2 nid=urn:nps:node:api.example.com:products".to_string();
+        let mock = MockDnsTxtLookup::new(vec![txt]);
+
+        let result = reg.resolve_via_dns("nwp://api.example.com/products", &mock).await;
+        assert!(result.is_none(), "invalid TXT record must not resolve");
+        assert!(mock.was_called());
+    }
+
+    // ── constant sanity ───────────────────────────────────────────────────────
+
+    #[test]
+    fn test_dns_txt_default_ttl() {
+        assert_eq!(DNS_TXT_DEFAULT_TTL, 300);
+    }
+}
+
 // ── NdpAnnounceValidator ──────────────────────────────────────────────────────
 
 #[test]
