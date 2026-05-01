@@ -20,6 +20,9 @@ impl AssuranceLevel {
         self.rank >= required.rank
     }
 
+    /// Parse a wire string.  `""` → [`ANONYMOUS`] (backward compat per
+    /// NPS-RFC-0003 §5.1.1).  Any other unrecognised non-empty value returns
+    /// `Err` — callers MUST surface this as `NIP-ASSURANCE-UNKNOWN`.
     pub fn from_wire(wire: &str) -> Result<Self, String> {
         if wire.is_empty() { return Ok(ANONYMOUS); }
         for l in [ANONYMOUS, ATTESTED, VERIFIED] {
