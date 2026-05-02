@@ -21,6 +21,7 @@
 
 ### 修复
 
+- **`nps_nip::assurance_level::AssuranceLevel::from_wire("")` 现在返回 `ANONYMOUS`** —— `from_wire` 此前缺少空字符串判断。修复新增 `if wire.is_empty() { return Ok(ANONYMOUS); }`（NPS-RFC-0003 §5.1.1 向后兼容）。
 - **`nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID`** —— 新增两个 NIP 声誉 gossip 错误码（RFC-0004 Phase 3）。
 
 ---

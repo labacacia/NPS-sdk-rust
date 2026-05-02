@@ -21,6 +21,7 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ### Fixed
 
+- **`nps_nip::assurance_level::AssuranceLevel::from_wire("")` now returns `ANONYMOUS`** — `from_wire` previously had no empty-string guard. Fix adds `if wire.is_empty() { return Ok(ANONYMOUS); }` (NPS-RFC-0003 §5.1.1 backward compat).
 - **`nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID`** — two new NIP reputation gossip error codes added (RFC-0004 Phase 3).
 
 ---
