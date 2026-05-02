@@ -27,7 +27,7 @@ pub struct QueryFrame {
     pub anchor_ref:   String,                // 必填
     pub filter:       Option<Value>,         // NPS-2 §4 过滤 DSL（自由形式 JSON）
     pub order:        Option<Value>,         // 如 [{"field":"id","dir":"asc"}]
-    pub token_budget: Option<u64>,           // NPT Budget 上限（NPS Token Budget 规范）
+    pub token_budget: Option<u64>,           // CGN Budget 上限（Cognon Budget 规范）
     pub limit:        Option<u64>,
     pub offset:       Option<u64>,
 }

@@ -28,7 +28,7 @@ pub struct QueryFrame {
     pub anchor_ref:   String,                // required
     pub filter:       Option<Value>,         // NPS-2 §4 filter DSL (free-form JSON)
     pub order:        Option<Value>,         // e.g. [{"field":"id","dir":"asc"}]
-    pub token_budget: Option<u64>,           // NPT Budget cap (NPS Token Budget spec)
+    pub token_budget: Option<u64>,           // CGN Budget cap (Cognon Budget spec)
     pub limit:        Option<u64>,
     pub offset:       Option<u64>,
 }
