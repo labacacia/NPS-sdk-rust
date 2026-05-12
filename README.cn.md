@@ -256,4 +256,4 @@ cargo test --workspace
 
 ## 许可证
 
-[Apache 2.0](../../LICENSE) © 2026 INNO LOTUS PTY LTD
+[Apache 2.0](https://github.com/labacacia/NPS-Dev/blob/main/LICENSE) © 2026 INNO LOTUS PTY LTD
