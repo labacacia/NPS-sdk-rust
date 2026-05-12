@@ -8,18 +8,13 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.5 — NWP error codes + NIP gossip error codes**
+**v1.0.0-alpha.6 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
-Tests: 119 across the workspace, all passing.
+Tests: 99 across the workspace, all passing.
 
-**alpha.5 additions:**
-
-- `nps_nwp::error_codes` — 30 NWP wire error code constants, re-exported via `nps_nwp::error_codes::*`.
-- `nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID` — RFC-0004 Phase 3 gossip error codes.
-
-### alpha.4 additions (nps-nip)
+### Earlier additions (nps-nip)
 
 - `nps_nip::x509` — `issue_leaf` / `issue_root` / `verify` (built on `rcgen` + `x509-parser` + `ed25519-dalek`).
 - `nps_nip::acme` — `AcmeClient` (reqwest async) + in-process `AcmeServer` (tiny_http) + JWS / messages helpers (RFC 8555 + EdDSA per RFC 8037).
@@ -49,9 +44,9 @@ cargo build --workspace --release
 |-------|-------------|
 | `nps-core`  | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, error types |
 | `nps-ncp`   | NCP frames: `AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `HelloFrame`, `ErrorFrame` |
-| `nps-nwp`   | NWP frames: `QueryFrame`, `ActionFrame`, `AsyncActionResponse`; async `NwpClient` (reqwest); `error_codes` module |
+| `nps-nwp`   | NWP frames: `QueryFrame`, `ActionFrame`, `AsyncActionResponse`; async `NwpClient` (reqwest) |
 | `nps-nip`   | NIP frames: `IdentFrame`, `TrustFrame`, `RevokeFrame`; `NipIdentity` (Ed25519 key management) |
-| `nps-ndp`   | NDP frames: `AnnounceFrame`, `ResolveFrame`, `GraphFrame`; `InMemoryNdpRegistry`; `NdpAnnounceValidator`; DNS TXT fallback (`resolve_via_dns`, `DnsTxtLookup` trait, `parse_nps_txt_record`) |
+| `nps-ndp`   | NDP frames: `AnnounceFrame`, `ResolveFrame`, `GraphFrame`; `InMemoryNdpRegistry`; `NdpAnnounceValidator` |
 | `nps-nop`   | NOP frames: `TaskFrame`, `DelegateFrame`, `SyncFrame`, `AlignStreamFrame`; `BackoffStrategy`; `NopClient` |
 | `nps-sdk`   | Re-export umbrella crate — all protocols under `nps_sdk::` namespace |
 
@@ -245,7 +240,7 @@ All operations return `NpsResult<T>` = `Result<T, NpsError>`.
 
 ## Testing
 
-119 tests across all protocol crates:
+88 tests across all protocol crates:
 
 ```bash
 cargo test --workspace
@@ -257,7 +252,7 @@ cargo test --workspace
 | `nps-ndp`  | 25 |
 | `nps-nip`  | 16 |
 | `nps-nop`  | 20 |
-| **Total**  | **119** |
+| **Total**  | **88** |
 
 ## License
 
