@@ -3,17 +3,16 @@
 
 //! OID constants for NPS X.509 certificates per NPS-RFC-0002 §4.
 //!
-//! The 1.3.6.1.4.1.99999 arc is provisional pending IANA Private Enterprise
-//! Number assignment (RFC-0002 §10 OQ-2). All implementations MUST update
-//! these constants when the official PEN is granted.
+//! The 1.3.6.1.4.1.65715 arc is the LabAcacia IANA-assigned Private Enterprise
+//! Number (PEN 65715, NPS-CR-0004, 2026-05-08).
 
 // EKU OIDs (NPS-RFC-0002 §4.1).
-pub const EKU_AGENT_IDENTITY_OID:        &[u64] = &[1, 3, 6, 1, 4, 1, 99999, 1, 1];
-pub const EKU_NODE_IDENTITY_OID:         &[u64] = &[1, 3, 6, 1, 4, 1, 99999, 1, 2];
-pub const EKU_CA_INTERMEDIATE_AGENT_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 99999, 1, 3];
+pub const EKU_AGENT_IDENTITY_OID:        &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 1];
+pub const EKU_NODE_IDENTITY_OID:         &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 2];
+pub const EKU_CA_INTERMEDIATE_AGENT_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 3];
 
 // Custom extensions.
-pub const NID_ASSURANCE_LEVEL_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 99999, 2, 1];
+pub const NID_ASSURANCE_LEVEL_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 1];
 
 // Standard X.509 OID for ExtendedKeyUsage extension (id-ce-extKeyUsage).
 pub const EXTENSION_EXTENDED_KEY_USAGE_OID: &[u64] = &[2, 5, 29, 37];
