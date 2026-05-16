@@ -8,6 +8,102 @@
 
 ---
 
+## [1.0.0-alpha.6] —— 2026-05-14
+
+### 变更
+
+- **`nps-nip` — IANA PEN 65715（Breaking，CR-0004）**：`nps_nip::x509::oids` 中所有 OID 常量现在使用已分配的弧 `1.3.6.1.4.1.65715`（替换临时弧 `1.3.6.1.4.1.99999`）。在临时弧下签发的证书必须吊销并重新签发。
+
+- **版本升级至 `1.0.0-alpha.6`** —— 与 NPS 套件 alpha.6 版本同步。
+
+---
+
+## [1.0.0-alpha.5] —— 2026-05-01
+
+### 新增
+
+- **`nps_nwp::error_codes` 模块** —— 新增模块，包含全部 30 个 NWP wire 错误码（auth、query、action、task、subscribe、infrastructure、manifest、topology、reserved-type）。通过 `nps_nwp::error_codes::*` 重新导出。此前版本均未提供。
+- **`nps_ndp::dns_txt` —— DNS TXT 回退解析** —— 新增异步 `InMemoryNdpRegistry::resolve_via_dns(target, lookup)`，当内存注册表无匹配时回退查询 `_nps-node.{host}` TXT 记录（NPS-4 §5）。`DnsTxtLookup` trait（通过 `Pin<Box<dyn Future>>` 实现对象安全）；`parse_nps_txt_record` + `extract_host_from_target` 位于 `nps_ndp::dns_txt`。测试数：109 → 119。
+
+### 变更
+
+- **版本升至 `1.0.0-alpha.5`** —— workspace 内全部 crate（`nps-core`、`nps-ncp`、`nps-nwp`、`nps-nip`、`nps-ndp`、`nps-nop`、`nps-sdk`）与 NPS 套件 alpha.5 同步。
+
+### 修复
+
+- **`nps_nip::assurance_level::AssuranceLevel::from_wire("")` 现在返回 `ANONYMOUS`** —— `from_wire` 此前缺少空字符串判断。修复新增 `if wire.is_empty() { return Ok(ANONYMOUS); }`（NPS-RFC-0003 §5.1.1 向后兼容）。
+- **`nps_nip::error_codes::REPUTATION_GOSSIP_FORK` / `REPUTATION_GOSSIP_SIG_INVALID`** —— 新增两个 NIP 声誉 gossip 错误码（RFC-0004 Phase 3）。
+
+---
+
+## [1.0.0-alpha.4] —— 2026-04-30
+
+### 新增
+
+- **NPS-RFC-0001 Phase 2 —— NCP 连接前导（Rust helper 跟进）。**
+  `nps-ncp/src/preamble.rs` 暴露 `write_preamble()` /
+  `read_preamble()`，往返字面量 `b"NPS/1.0\n"` 哨兵；
+  `nps-ncp/tests/preamble_tests.rs` 覆盖。让 Rust SDK 与 .NET /
+  Python / TypeScript / Go / Java 在 alpha.4 的 preamble helper 持平。
+- **NPS-RFC-0002 Phase A/B —— X.509 NID 证书 + ACME `agent-01`
+  （Rust 端口）。** 新增 `nps-nip/` 子模块：
+  - `src/x509/` —— X.509 NID 证书 builder + verifier（基于 `rcgen`
+    + `x509-parser`）。
+  - `src/acme/` —— ACME `agent-01` 客户端 + 服务端参考实现（挑战
+    签发、key authorization、按 NPS-RFC-0002 Phase B 的 JWS 签名
+    wire 包络）。
+  - `src/assurance_level.rs` —— Agent 身份保证等级
+    （`anonymous` / `attested` / `verified`），承接 NPS-RFC-0003。
+  - `src/cert_format.rs` —— IdentFrame 的 `cert_format` 判别器
+    （`v1` Ed25519 vs. `x509`）。
+  - `src/error_codes.rs` —— NIP 错误码命名空间。
+  - `src/verifier.rs` —— dual-trust IdentFrame 验证器
+    （v1 + X.509）。
+- 新增测试：`preamble_tests.rs`、`nip_x509_tests.rs`、
+  `nip_acme_agent01_tests.rs`。总数：109 tests 全绿（alpha.3 时 88）。
+
+### 变更
+
+- workspace 内全部 crate 经 `version.workspace = true` 升至
+  `1.0.0-alpha.4`：`nps-core`、`nps-ncp`、`nps-nwp`、`nps-nip`、
+  `nps-ndp`、`nps-nop`、`nps-sdk`。
+- `nps-nip/src/frames.rs` —— `IdentFrame` 在原有 v1 Ed25519 字段
+  旁新增可选 `cert_format` 判别器 + `x509_chain` 字段。alpha.3
+  写出的 v1 IdentFrame 仍可被 alpha.4 验签。
+
+### 套件级 alpha.4 要点
+
+- **NPS-RFC-0002 X.509 + ACME** —— 完整跨 SDK 端口波（.NET / Java /
+  Python / TypeScript / Go / Rust）。
+- **NPS-CR-0002 —— Anchor Node topology 查询** —— `topology.snapshot`
+  / `topology.stream`（.NET 参考 + L2 conformance）。Rust 消费侧
+  helper 后续版本跟进。
+- **`nps-registry` SQLite 实仓** + **`nps-ledger` Phase 2**
+  （RFC 9162 Merkle + STH + inclusion proof）已在 daemon 仓库交付。
+
+---
+
+## [1.0.0-alpha.3] —— 2026-04-25
+
+### Changed
+
+- 版本升级至 `1.0.0-alpha.3`，与 NPS `v1.0.0-alpha.3` 套件同步。本次 Rust SDK 无功能变更。
+- 88 tests 仍全绿。
+
+### 套件级 alpha.3 要点（各语言 helper 在 alpha.4 跟进）
+
+- **NPS-RFC-0001 —— NCP 连接前导**（Accepted）。原生模式连接现以字面量 `b"NPS/1.0\n"`（8 字节）开头。.NET SDK 已落地参考实现；Rust helper 在 alpha.4 跟进。
+- **NPS-RFC-0003 —— Agent 身份保证等级**（Accepted）。NIP IdentFrame 与 NWM 新增三态 `assurance_level`（`anonymous`/`attested`/`verified`）。.NET 参考类型已落地；Rust 同步在 alpha.4。
+- **NPS-RFC-0004 —— NID 声誉日志（CT 风格）**（Accepted）。append-only Merkle 日志条目结构发布；.NET 参考签名器已落地（并以 `nps-ledger` daemon Phase 1 形态发布）。Rust helper 在 alpha.4 跟进。
+- **NPS-CR-0001 —— Anchor / Bridge 节点拆分。** 旧的 "Gateway Node" 角色更名为 **Anchor Node**；"NPS↔外部协议翻译" 单独成为 **Bridge Node** 类型。AnnounceFrame 新增 `node_kind` / `cluster_anchor` / `bridge_protocols`。源代码层面变更落在 `spec/` + .NET 参考实现。
+- **6 个 NPS 常驻 daemon。** NPS-Dev 新建 `daemons/` 目录，定义 `npsd` / `nps-runner` / `nps-gateway` / `nps-registry` / `nps-cloud-ca` / `nps-ledger`；其中 `npsd` 提供 L1 功能性参考实现，其余为 Phase 1 骨架。
+
+### 涵盖模块
+
+- nps-core / nps-ncp / nps-nwp / nps-nip / nps-ndp / nps-nop / nps-sdk
+
+---
+
 ## [1.0.0-alpha.2] —— 2026-04-19
 
 ### Changed
