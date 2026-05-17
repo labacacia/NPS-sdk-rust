@@ -89,6 +89,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-stream"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5a71a6f37880a80d1d7f19efd781e4b5de42c88f0722cc13bcb6cc2cfe8476"
+dependencies = [
+ "async-stream-impl",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "async-stream-impl"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7c24de15d275a1ecfd47a380fb4d5ec9bfe0933f309ed5e705b775596a3574d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -425,12 +447,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b147ee9d1f6d097cef9ce628cd2ee62288d963e16fb287bd9286455b241382d"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07bbe89c50d7a535e539b8c17bc0b49bdb77747034daa8087407d655f3f7cc1d"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -438,6 +476,34 @@ name = "futures-core"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e3450815272ef58cec6d564423f6e755e25379b217b0bc688e295ba24df6b1d"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf29c38818342a3b26b5b923639e7b1f4a61fc5e76102d4b1981c6dc7a7579d"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-io"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cecba35d7ad927e23624b22ad55235f2239cfa44fd10428eecbeba6d6a717718"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e835b70203e41293343137df5c0664546da5745f82ec9b84d40be8336958447b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "futures-sink"
@@ -457,8 +523,13 @@ version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "389ca41296e6190b48053de0321d02a77f32f8a5d2461dd38762c0593805c6d6"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project-lite",
  "slab",
 ]
@@ -942,7 +1013,7 @@ dependencies = [
 
 [[package]]
 name = "nps-core"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
  "hex",
  "rmp-serde",
@@ -953,7 +1024,7 @@ dependencies = [
 
 [[package]]
 name = "nps-ncp"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
  "nps-core",
  "serde",
@@ -962,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "nps-ndp"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
  "nps-core",
  "nps-nip",
@@ -973,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "nps-nip"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
  "aes-gcm",
  "base64",
@@ -989,6 +1060,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "thiserror",
  "time",
  "tiny_http",
  "tokio",
@@ -997,7 +1069,7 @@ dependencies = [
 
 [[package]]
 name = "nps-nop"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
  "nps-core",
  "reqwest",
@@ -1008,19 +1080,24 @@ dependencies = [
 
 [[package]]
 name = "nps-nwp"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
+ "async-stream",
+ "bytes",
+ "futures",
  "nps-core",
  "nps-ncp",
  "reqwest",
  "serde",
  "serde_json",
+ "thiserror",
+ "tiny_http",
  "tokio",
 ]
 
 [[package]]
 name = "nps-sdk"
-version = "1.0.0-alpha.6"
+version = "1.0.0-alpha.7"
 dependencies = [
  "nps-core",
  "nps-ncp",
@@ -1301,6 +1378,7 @@ dependencies = [
  "bytes",
  "encoding_rs",
  "futures-core",
+ "futures-util",
  "h2",
  "http",
  "http-body",
@@ -1322,12 +1400,14 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-native-tls",
+ "tokio-util",
  "tower",
  "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
 ]
 
@@ -2042,6 +2122,19 @@ dependencies = [
  "indexmap",
  "wasm-encoder",
  "wasmparser",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15053d8d85c7eccdbefef60f06769760a563c7f0a9d6902a13d35c7800b0ad65"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

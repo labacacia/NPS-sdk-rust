@@ -8,6 +8,20 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.7] — 2026-05-17
+
+### Added
+
+- **`nps-nip` — `reputation` module (NPS-RFC-0004 Phase 2)**: Full async HTTP client for the reputation-log operator API (`reqwest`). `submit_entry`, `query_entries`, `get_sth`, `get_proof`, `get_gossip_sth`. `verify_inclusion` performs RFC 9162 §2.1.3.2 Merkle audit-path verification locally using `sha2`. `sign_entry` / `verify_entry` with `ed25519-dalek`. Wire types: `ReputationLogEntry`, `SignedTreeHead`, `InclusionProof`. Manual serde for `IncidentType` (kebab-case wire, forward-compat unknown → `Other`) and `Severity` (ordered 5-level enum, strict). `ReputationLogError` via `thiserror`. `nps-nip` adds `thiserror` as a dependency. 31 regression tests.
+
+- **`nps-nwp` — `AnchorNodeClient` (NPS-CR-0002)**: Async `reqwest`-based client for Anchor Node topology queries. `get_snapshot` and `subscribe` (async `Stream` of `TopologyEvent`). Typed event enum: `MemberJoined`, `MemberLeft`, `MemberUpdated`, `AnchorState`, `ResyncRequired`. `AnchorTopologyError` for protocol errors. `with_path_prefix`, `with_client` builder methods. 25 regression tests using `tiny_http`.
+
+### Tracking the suite
+
+This release tracks NPS suite `v1.0.0-alpha.7`.
+
+---
+
 ## [1.0.0-alpha.6] — 2026-05-14
 
 ### Changed
@@ -129,5 +143,6 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 First public alpha as part of the NPS suite `v1.0.0-alpha.1` release.
 
+[1.0.0-alpha.7]: https://github.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.7
 [1.0.0-alpha.2]: https://github.com/LabAcacia/nps/releases/tag/v1.0.0-alpha.2
 [1.0.0-alpha.1]: https://github.com/LabAcacia/nps/releases/tag/v1.0.0-alpha.1
