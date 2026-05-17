@@ -19,3 +19,7 @@ futures      = { workspace = true }
 thiserror    = { workspace = true }
 async-stream = { workspace = true }
 bytes        = { workspace = true }
+
+[dev-dependencies]
+tiny_http = { workspace = true }
+tokio     = { workspace = true }
