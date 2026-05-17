@@ -46,6 +46,12 @@ x509-parser    = { version = "0.16" }
 tiny_http      = { version = "0.12" }
 time           = { version = "0.3",     default-features = false }
 
+# Async streams / errors
+futures        = { version = "0.3" }
+thiserror      = { version = "1" }
+async-stream   = { version = "0.3" }
+bytes          = { version = "1" }
+
 # Testing
 tempfile       = { version = "3" }
 
