@@ -8,6 +8,20 @@
 
 ---
 
+## [1.0.0-alpha.7] —— 2026-05-17
+
+### 新增
+
+- **`nps-nip` — `reputation` 模块（NPS-RFC-0004 Phase 2）**：基于 `reqwest` 的完整异步声誉日志 operator HTTP 客户端。`submit_entry`、`query_entries`、`get_sth`、`get_proof`、`get_gossip_sth`。`verify_inclusion` 使用 `sha2` 在本地执行 RFC 9162 §2.1.3.2 Merkle audit-path 验证。`sign_entry` / `verify_entry` 使用 `ed25519-dalek`。Wire 类型：`ReputationLogEntry`、`SignedTreeHead`、`InclusionProof`。`IncidentType`（kebab-case wire，未知值向前兼容 → `Other`）和 `Severity`（5 级有序枚举，严格模式）的手写 serde。`ReputationLogError` 通过 `thiserror` 实现。`nps-nip` 新增 `thiserror` 依赖。31 条回归测试。
+
+- **`nps-nwp` — `AnchorNodeClient`（NPS-CR-0002）**：基于 `reqwest` 的异步 Anchor Node 拓扑查询客户端。`get_snapshot` 和 `subscribe`（返回 `TopologyEvent` 的异步 `Stream`）。类型化事件枚举：`MemberJoined`、`MemberLeft`、`MemberUpdated`、`AnchorState`、`ResyncRequired`。`AnchorTopologyError` 处理协议错误。`with_path_prefix`、`with_client` builder 方法。使用 `tiny_http` 的 25 条回归测试。
+
+### 跟随套件
+
+本次跟随 NPS 套件 `v1.0.0-alpha.7`。
+
+---
+
 ## [1.0.0-alpha.6] —— 2026-05-14
 
 ### 变更
@@ -121,5 +135,6 @@
 
 作为 NPS 套件 `v1.0.0-alpha.1` 的一部分首次公开 alpha。
 
+[1.0.0-alpha.7]: https://github.com/labacacia/NPS-sdk-rust/releases/tag/v1.0.0-alpha.7
 [1.0.0-alpha.2]: https://github.com/LabAcacia/nps/releases/tag/v1.0.0-alpha.2
 [1.0.0-alpha.1]: https://github.com/LabAcacia/nps/releases/tag/v1.0.0-alpha.1
