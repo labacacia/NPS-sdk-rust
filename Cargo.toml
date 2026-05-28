@@ -11,7 +11,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version     = "1.0.0-alpha.7"
+version     = "1.0.0-alpha.8"
 edition     = "2021"
 license     = "Apache-2.0"
 authors     = ["Ori Lynn <iamzerolin@gmail.com>"]
@@ -56,9 +56,9 @@ bytes          = { version = "1" }
 tempfile       = { version = "3" }
 
 # Internal crates
-nps-core       = { path = "nps-core", version = "=1.0.0-alpha.7" }
-nps-ncp        = { path = "nps-ncp",  version = "=1.0.0-alpha.7" }
-nps-nwp        = { path = "nps-nwp",  version = "=1.0.0-alpha.7" }
-nps-nip        = { path = "nps-nip",  version = "=1.0.0-alpha.7" }
-nps-ndp        = { path = "nps-ndp",  version = "=1.0.0-alpha.7" }
-nps-nop        = { path = "nps-nop",  version = "=1.0.0-alpha.7" }
+nps-core       = { path = "nps-core", version = "=1.0.0-alpha.8" }
+nps-ncp        = { path = "nps-ncp",  version = "=1.0.0-alpha.8" }
+nps-nwp        = { path = "nps-nwp",  version = "=1.0.0-alpha.8" }
+nps-nip        = { path = "nps-nip",  version = "=1.0.0-alpha.8" }
+nps-ndp        = { path = "nps-ndp",  version = "=1.0.0-alpha.8" }
+nps-nop        = { path = "nps-nop",  version = "=1.0.0-alpha.8" }

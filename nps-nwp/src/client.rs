@@ -5,10 +5,12 @@ use nps_core::codec::{FrameDict, NpsFrameCodec};
 use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
 use nps_core::registry::FrameRegistry;
-use nps_ncp::{AnchorFrame, CapsFrame, StreamFrame};
-use crate::frames::{ActionFrame, AsyncActionResponse, QueryFrame};
+use nps_ncp::{CapsFrame, StreamFrame};
+use crate::frames::{ActionFrame, AsyncActionResponse, QueryFrame, SubscribeFrame};
 
-const CONTENT_TYPE: &str = "application/x-nps-frame";
+const MIME_FRAME:    &str = "application/nwp-frame";
+const MIME_CAPSULE:  &str = "application/nwp-capsule";
+const MIME_MANIFEST: &str = "application/nwp-manifest+json";
 
 pub struct NwpClient {
     base_url: String,
@@ -34,19 +36,11 @@ impl NwpClient {
         self
     }
 
-    // ── sendAnchor ────────────────────────────────────────────────────────────
-
-    pub async fn send_anchor(&self, frame: &AnchorFrame) -> NpsResult<()> {
-        let wire = self.codec.encode(AnchorFrame::frame_type(), &frame.to_dict(), self.tier, true)?;
-        let res  = self.post(&format!("{}/anchor", self.base_url), wire).await?;
-        self.check_ok(res.status(), "/anchor")
-    }
-
     // ── query ─────────────────────────────────────────────────────────────────
 
     pub async fn query(&self, frame: &QueryFrame) -> NpsResult<CapsFrame> {
         let wire = self.codec.encode(QueryFrame::frame_type(), &frame.to_dict(), self.tier, true)?;
-        let res  = self.post(&format!("{}/query", self.base_url), wire).await?;
+        let res  = self.post_frame(&format!("{}/query", self.base_url), wire).await?;
         self.check_ok(res.status(), "/query")?;
         let body = res.bytes().await.map_err(|e| NpsError::Io(e.to_string()))?;
         let (ft, dict) = self.codec.decode(&body)?;
@@ -60,7 +54,7 @@ impl NwpClient {
 
     pub async fn stream(&self, frame: &QueryFrame) -> NpsResult<Vec<StreamFrame>> {
         let wire = self.codec.encode(QueryFrame::frame_type(), &frame.to_dict(), self.tier, true)?;
-        let res  = self.post(&format!("{}/stream", self.base_url), wire).await?;
+        let res  = self.post_frame(&format!("{}/stream", self.base_url), wire).await?;
         self.check_ok(res.status(), "/stream")?;
         let body: Vec<u8> = res.bytes().await
             .map_err(|e| NpsError::Io(e.to_string()))?.to_vec();
@@ -87,7 +81,7 @@ impl NwpClient {
 
     pub async fn invoke(&self, frame: &ActionFrame) -> NpsResult<InvokeResult> {
         let wire = self.codec.encode(ActionFrame::frame_type(), &frame.to_dict(), self.tier, true)?;
-        let res  = self.post(&format!("{}/invoke", self.base_url), wire).await?;
+        let res  = self.post_frame(&format!("{}/invoke", self.base_url), wire).await?;
         self.check_ok(res.status(), "/invoke")?;
         let ct   = res.headers().get("content-type")
             .and_then(|v| v.to_str().ok())
@@ -101,7 +95,7 @@ impl NwpClient {
                 .map_err(|e| NpsError::Codec(e.to_string()))?;
             return Ok(InvokeResult::Async(AsyncActionResponse::from_dict(&dict)?));
         }
-        if ct.contains(CONTENT_TYPE) {
+        if ct.contains(MIME_FRAME) {
             let (_, dict) = self.codec.decode(&body)?;
             return Ok(InvokeResult::Frame(dict));
         }
@@ -110,13 +104,70 @@ impl NwpClient {
         Ok(InvokeResult::Json(dict))
     }
 
+    // ── fetch_manifest ────────────────────────────────────────────────────────
+
+    pub async fn fetch_manifest(&self) -> NpsResult<serde_json::Value> {
+        let res = self.get(&format!("{}/.nwm", self.base_url)).await?;
+        self.check_ok(res.status(), "/.nwm")?;
+        let body = res.bytes().await.map_err(|e| NpsError::Io(e.to_string()))?;
+        serde_json::from_slice(&body).map_err(|e| NpsError::Codec(e.to_string()))
+    }
+
+    // ── fetch_schema ──────────────────────────────────────────────────────────
+
+    pub async fn fetch_schema(&self) -> NpsResult<serde_json::Value> {
+        let res = self.get(&format!("{}/.schema", self.base_url)).await?;
+        self.check_ok(res.status(), "/.schema")?;
+        let body = res.bytes().await.map_err(|e| NpsError::Io(e.to_string()))?;
+        serde_json::from_slice(&body).map_err(|e| NpsError::Codec(e.to_string()))
+    }
+
+    // ── list_actions ──────────────────────────────────────────────────────────
+
+    pub async fn list_actions(&self) -> NpsResult<serde_json::Value> {
+        let res = self.get(&format!("{}/actions", self.base_url)).await?;
+        self.check_ok(res.status(), "/actions")?;
+        let body = res.bytes().await.map_err(|e| NpsError::Io(e.to_string()))?;
+        serde_json::from_slice(&body).map_err(|e| NpsError::Codec(e.to_string()))
+    }
+
+    // ── subscribe ─────────────────────────────────────────────────────────────
+
+    pub async fn subscribe(&self, frame: &SubscribeFrame) -> NpsResult<CapsFrame> {
+        let body = serde_json::to_vec(frame)
+            .map_err(|e| NpsError::Codec(e.to_string()))?;
+        let res = self.http
+            .post(&format!("{}/subscribe", self.base_url))
+            .header("Content-Type", "application/json")
+            .header("Accept", MIME_CAPSULE)
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| NpsError::Io(e.to_string()))?;
+        self.check_ok(res.status(), "/subscribe")?;
+        let resp_body = res.bytes().await.map_err(|e| NpsError::Io(e.to_string()))?;
+        let (ft, dict) = self.codec.decode(&resp_body)?;
+        if ft != FrameType::Caps {
+            return Err(NpsError::Frame(format!("expected Caps, got {ft:?}")));
+        }
+        CapsFrame::from_dict(&dict)
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    async fn post(&self, url: &str, body: Vec<u8>) -> NpsResult<reqwest::Response> {
+    async fn post_frame(&self, url: &str, body: Vec<u8>) -> NpsResult<reqwest::Response> {
         self.http.post(url)
-            .header("Content-Type", CONTENT_TYPE)
-            .header("Accept",       CONTENT_TYPE)
+            .header("Content-Type", MIME_FRAME)
+            .header("Accept",       MIME_FRAME)
             .body(body)
+            .send()
+            .await
+            .map_err(|e| NpsError::Io(e.to_string()))
+    }
+
+    async fn get(&self, url: &str) -> NpsResult<reqwest::Response> {
+        self.http.get(url)
+            .header("Accept", MIME_MANIFEST)
             .send()
             .await
             .map_err(|e| NpsError::Io(e.to_string()))

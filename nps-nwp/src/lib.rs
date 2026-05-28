@@ -5,7 +5,7 @@ pub mod frames;
 pub mod client;
 pub mod anchor_client;
 
-pub use frames::{QueryFrame, ActionFrame, AsyncActionResponse};
+pub use frames::{QueryFrame, ActionFrame, AsyncActionResponse, SubscribeFrame};
 pub use client::NwpClient;
 pub use anchor_client::{
     AnchorNodeClient,

@@ -8,6 +8,17 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.8] — 2026-05-28
+
+### Tracking the suite
+
+This release tracks NPS suite `v1.0.0-alpha.8`.
+
+Suite highlights: RFC-0005 `ReputationPolicyEvaluator` in .NET SDK; cgn_limit
+pre-execution enforcement; RFC-0002 and RFC-0005 promoted to Accepted.
+
+---
+
 ## [1.0.0-alpha.7] — 2026-05-17
 
 ### Added
