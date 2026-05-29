@@ -4,11 +4,11 @@
 // NPS-RFC-0004 — Reputation module tests.
 
 use nps_nip::reputation::{
-    IncidentType, InclusionProof, ObservationWindow, ReputationLogClient, ReputationLogEntry,
-    Severity, SignedTreeHead, sign_entry, verify_entry,
+    sign_entry, verify_entry, IncidentType, InclusionProof, ObservationWindow, ReputationLogClient,
+    ReputationLogEntry, Severity, SignedTreeHead,
 };
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
@@ -43,15 +43,27 @@ fn leaf_hash(entry: &ReputationLogEntry) -> Vec<u8> {
     let mut m: BTreeMap<String, serde_json::Value> = BTreeMap::new();
 
     m.insert("v".into(), serde_json::Value::Number(entry.v.into()));
-    m.insert("log_id".into(), serde_json::Value::String(entry.log_id.clone()));
+    m.insert(
+        "log_id".into(),
+        serde_json::Value::String(entry.log_id.clone()),
+    );
     m.insert("seq".into(), serde_json::Value::Number(entry.seq.into()));
-    m.insert("timestamp".into(), serde_json::Value::String(entry.timestamp.clone()));
-    m.insert("subject_nid".into(), serde_json::Value::String(entry.subject_nid.clone()));
+    m.insert(
+        "timestamp".into(),
+        serde_json::Value::String(entry.timestamp.clone()),
+    );
+    m.insert(
+        "subject_nid".into(),
+        serde_json::Value::String(entry.subject_nid.clone()),
+    );
     m.insert(
         "incident".into(),
         serde_json::to_value(&entry.incident).unwrap(),
     );
-    m.insert("severity".into(), serde_json::to_value(&entry.severity).unwrap());
+    m.insert(
+        "severity".into(),
+        serde_json::to_value(&entry.severity).unwrap(),
+    );
     if let Some(w) = &entry.window {
         m.insert("window".into(), serde_json::to_value(w).unwrap());
     }
@@ -62,10 +74,19 @@ fn leaf_hash(entry: &ReputationLogEntry) -> Vec<u8> {
         m.insert("evidence_ref".into(), serde_json::Value::String(r.clone()));
     }
     if let Some(s) = &entry.evidence_sha256 {
-        m.insert("evidence_sha256".into(), serde_json::Value::String(s.clone()));
+        m.insert(
+            "evidence_sha256".into(),
+            serde_json::Value::String(s.clone()),
+        );
     }
-    m.insert("issuer_nid".into(), serde_json::Value::String(entry.issuer_nid.clone()));
-    m.insert("signature".into(), serde_json::Value::String(entry.signature.clone()));
+    m.insert(
+        "issuer_nid".into(),
+        serde_json::Value::String(entry.issuer_nid.clone()),
+    );
+    m.insert(
+        "signature".into(),
+        serde_json::Value::String(entry.signature.clone()),
+    );
 
     let canonical = serde_json::to_string(&m).unwrap();
     let mut h = Sha256::new();
@@ -87,10 +108,7 @@ fn b64url(b: &[u8]) -> String {
 }
 
 /// Build a signed ReputationLogEntry with the given subject_nid and a fresh key.
-fn make_signed(
-    signing_key: &ed25519_dalek::SigningKey,
-    subject_nid: &str,
-) -> ReputationLogEntry {
+fn make_signed(signing_key: &ed25519_dalek::SigningKey, subject_nid: &str) -> ReputationLogEntry {
     sign_entry(signing_key, make_unsigned(subject_nid))
 }
 
@@ -549,8 +567,16 @@ fn verify_inclusion_two_leaf_tree() {
     let entries = [e0, e1];
     let (proofs, sth) = proofs_for_two(&entries);
 
-    assert!(ReputationLogClient::verify_inclusion(&proofs[0], &sth, &entries[0]));
-    assert!(ReputationLogClient::verify_inclusion(&proofs[1], &sth, &entries[1]));
+    assert!(ReputationLogClient::verify_inclusion(
+        &proofs[0],
+        &sth,
+        &entries[0]
+    ));
+    assert!(ReputationLogClient::verify_inclusion(
+        &proofs[1],
+        &sth,
+        &entries[1]
+    ));
 }
 
 #[test]
@@ -594,7 +620,9 @@ fn verify_inclusion_false_on_tampered_entry() {
     let mut tampered = entry.clone();
     tampered.subject_nid = "urn:nps:node:attacker:1".into();
 
-    assert!(!ReputationLogClient::verify_inclusion(&proof, &sth, &tampered));
+    assert!(!ReputationLogClient::verify_inclusion(
+        &proof, &sth, &tampered
+    ));
 }
 
 #[test]
@@ -643,5 +671,9 @@ fn verify_inclusion_false_on_corrupted_audit_path() {
     // Corrupt the sibling hash in the audit path for leaf 0
     proofs[0].audit_path[0] = b64url(&[0xbbu8; 32]);
 
-    assert!(!ReputationLogClient::verify_inclusion(&proofs[0], &sth, &entries[0]));
+    assert!(!ReputationLogClient::verify_inclusion(
+        &proofs[0],
+        &sth,
+        &entries[0]
+    ));
 }

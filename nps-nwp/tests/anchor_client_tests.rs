@@ -10,8 +10,8 @@
 
 use futures::StreamExt;
 use nps_nwp::{
-    AnchorNodeClient, AnchorTopologyError, TopologyEvent,
-    TopologyFilter, SCOPE_CLUSTER, SCOPE_MEMBER,
+    AnchorNodeClient, AnchorTopologyError, TopologyEvent, TopologyFilter, SCOPE_CLUSTER,
+    SCOPE_MEMBER,
 };
 use std::str::FromStr;
 use tiny_http::{Header, Response, Server};
@@ -29,17 +29,11 @@ fn bind_server() -> (Server, String) {
 /// Send a single JSON response from a background thread and return the guard.
 fn serve_once_json(server: Server, body: String) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        if let Ok(Some(req)) =
-            server.recv_timeout(std::time::Duration::from_secs(5))
-        {
+        if let Ok(Some(req)) = server.recv_timeout(std::time::Duration::from_secs(5)) {
             let len = body.len();
             let resp = Response::from_string(body)
-                .with_header(
-                    Header::from_str("Content-Type: application/json").unwrap(),
-                )
-                .with_header(
-                    Header::from_str(&format!("Content-Length: {}", len)).unwrap(),
-                );
+                .with_header(Header::from_str("Content-Type: application/json").unwrap())
+                .with_header(Header::from_str(&format!("Content-Length: {}", len)).unwrap());
             let _ = req.respond(resp);
         }
     })
@@ -48,18 +42,12 @@ fn serve_once_json(server: Server, body: String) -> std::thread::JoinHandle<()> 
 /// Send a single plain-text response from a background thread.
 fn serve_once_status(server: Server, status: u16, body: String) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        if let Ok(Some(req)) =
-            server.recv_timeout(std::time::Duration::from_secs(5))
-        {
+        if let Ok(Some(req)) = server.recv_timeout(std::time::Duration::from_secs(5)) {
             let len = body.len();
             let resp = Response::from_string(body)
                 .with_status_code(status as i32)
-                .with_header(
-                    Header::from_str("Content-Type: text/plain").unwrap(),
-                )
-                .with_header(
-                    Header::from_str(&format!("Content-Length: {}", len)).unwrap(),
-                );
+                .with_header(Header::from_str("Content-Type: text/plain").unwrap())
+                .with_header(Header::from_str(&format!("Content-Length: {}", len)).unwrap());
             let _ = req.respond(resp);
         }
     })
@@ -68,17 +56,11 @@ fn serve_once_status(server: Server, status: u16, body: String) -> std::thread::
 /// Send a single NDJSON response (all lines pre-joined with '\n').
 fn serve_once_ndjson(server: Server, body: String) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
-        if let Ok(Some(req)) =
-            server.recv_timeout(std::time::Duration::from_secs(5))
-        {
+        if let Ok(Some(req)) = server.recv_timeout(std::time::Duration::from_secs(5)) {
             let len = body.len();
             let resp = Response::from_string(body)
-                .with_header(
-                    Header::from_str("Content-Type: application/x-ndjson").unwrap(),
-                )
-                .with_header(
-                    Header::from_str(&format!("Content-Length: {}", len)).unwrap(),
-                );
+                .with_header(Header::from_str("Content-Type: application/x-ndjson").unwrap())
+                .with_header(Header::from_str(&format!("Content-Length: {}", len)).unwrap());
             let _ = req.respond(resp);
         }
     })
@@ -105,7 +87,10 @@ async fn test_get_snapshot_success() {
     let _guard = serve_once_json(server, snapshot_json(42, "anc-x", 3));
 
     let client = AnchorNodeClient::new(&url);
-    let snap = client.get_snapshot().await.expect("get_snapshot should succeed");
+    let snap = client
+        .get_snapshot()
+        .await
+        .expect("get_snapshot should succeed");
 
     assert_eq!(snap.version, 42);
     assert_eq!(snap.anchor_nid, "anc-x");
@@ -180,7 +165,10 @@ async fn test_get_snapshot_empty_data_array() {
     let _guard = serve_once_json(server, r#"{"data":[]}"#.to_string());
 
     let client = AnchorNodeClient::new(&url);
-    let err = client.get_snapshot().await.expect_err("should fail on empty data");
+    let err = client
+        .get_snapshot()
+        .await
+        .expect_err("should fail on empty data");
 
     match err {
         AnchorTopologyError::Http { status, .. } => assert_eq!(status, 200),
@@ -239,20 +227,25 @@ async fn test_subscribe_success_all_event_types() {
 
     // event 2 — member_updated
     match &events[2] {
-        Ok(TopologyEvent::MemberUpdated { version, nid, changes }) => {
+        Ok(TopologyEvent::MemberUpdated {
+            version,
+            nid,
+            changes,
+        }) => {
             assert_eq!(*version, 3);
             assert_eq!(nid, "m-3");
-            assert_eq!(
-                changes.activation_mode.as_deref(),
-                Some("manual")
-            );
+            assert_eq!(changes.activation_mode.as_deref(), Some("manual"));
         }
         other => panic!("expected MemberUpdated, got {:?}", other),
     }
 
     // event 3 — anchor_state
     match &events[3] {
-        Ok(TopologyEvent::AnchorState { version, field, details }) => {
+        Ok(TopologyEvent::AnchorState {
+            version,
+            field,
+            details,
+        }) => {
             assert_eq!(*version, 4);
             assert_eq!(field, "version_rebased");
             assert!(details.is_some());
@@ -327,8 +320,8 @@ async fn test_subscribe_mid_stream_error_envelope() {
 #[tokio::test]
 async fn test_subscribe_non_2xx_returns_error() {
     let (server, url) = bind_server();
-    let body = r#"{"error":"NWP-0001","status":"auth.required","message":"missing token"}"#
-        .to_string();
+    let body =
+        r#"{"error":"NWP-0001","status":"auth.required","message":"missing token"}"#.to_string();
     let _guard = serve_once_status(server, 401, body);
 
     let client = AnchorNodeClient::new(&url);
@@ -344,9 +337,7 @@ async fn test_subscribe_non_2xx_returns_error() {
 /// Test 10 — subscribe_with filter is forwarded (server just responds successfully).
 #[tokio::test]
 async fn test_subscribe_with_filter() {
-    let lines = [
-        r#"{"type":"topology.stream","action":"subscribed","stream_id":"s","seq":0}"#,
-    ];
+    let lines = [r#"{"type":"topology.stream","action":"subscribed","stream_id":"s","seq":0}"#];
     let body = lines.join("\n") + "\n";
 
     let (server, url) = bind_server();
@@ -372,9 +363,7 @@ async fn test_subscribe_with_filter() {
 /// Test 11 — subscribe_with since_version is forwarded.
 #[tokio::test]
 async fn test_subscribe_with_since_version() {
-    let lines = [
-        r#"{"type":"topology.stream","action":"subscribed","stream_id":"s","seq":0}"#,
-    ];
+    let lines = [r#"{"type":"topology.stream","action":"subscribed","stream_id":"s","seq":0}"#];
     let body = lines.join("\n") + "\n";
 
     let (server, url) = bind_server();
@@ -411,9 +400,7 @@ async fn test_path_prefix_prepended() {
 
     // The server checks that the path starts with "/anchor/query"
     let _guard = std::thread::spawn(move || {
-        if let Ok(Some(req)) =
-            server.recv_timeout(std::time::Duration::from_secs(5))
-        {
+        if let Ok(Some(req)) = server.recv_timeout(std::time::Duration::from_secs(5)) {
             let path = req.url().to_string();
             assert!(
                 path.starts_with("/anchor/query"),
@@ -425,9 +412,7 @@ async fn test_path_prefix_prepended() {
             let _ = req.respond(
                 Response::from_string(body)
                     .with_header(Header::from_str("Content-Type: application/json").unwrap())
-                    .with_header(
-                        Header::from_str(&format!("Content-Length: {}", len)).unwrap(),
-                    ),
+                    .with_header(Header::from_str(&format!("Content-Length: {}", len)).unwrap()),
             );
         }
     });
@@ -468,10 +453,7 @@ async fn test_member_joined_payload_fields() {
             assert_eq!(member.activation_mode, "manual");
             assert_eq!(member.child_anchor, Some(true));
             assert_eq!(member.member_count, Some(5));
-            assert_eq!(
-                member.tags.as_deref(),
-                Some(&["env:dev".to_string()][..])
-            );
+            assert_eq!(member.tags.as_deref(), Some(&["env:dev".to_string()][..]));
             assert_eq!(member.joined_at.as_deref(), Some("2026-01-02T00:00:00Z"));
             assert!(member.capabilities.is_some());
             assert!(member.metrics.is_some());
@@ -524,17 +506,18 @@ async fn test_member_updated_nid_and_changes() {
 
     assert_eq!(events.len(), 1);
     match &events[0] {
-        Ok(TopologyEvent::MemberUpdated { version, nid, changes }) => {
+        Ok(TopologyEvent::MemberUpdated {
+            version,
+            nid,
+            changes,
+        }) => {
             assert_eq!(*version, 20);
             assert_eq!(nid, "upd-node");
             assert_eq!(
                 changes.node_roles.as_deref(),
                 Some(&["coordinator".to_string()][..])
             );
-            assert_eq!(
-                changes.tags.as_deref(),
-                Some(&["tier:1".to_string()][..])
-            );
+            assert_eq!(changes.tags.as_deref(), Some(&["tier:1".to_string()][..]));
             assert_eq!(changes.member_count, Some(8));
         }
         other => panic!("expected MemberUpdated, got {:?}", other),
@@ -559,7 +542,11 @@ async fn test_anchor_state_field_and_details() {
 
     assert_eq!(events.len(), 1);
     match &events[0] {
-        Ok(TopologyEvent::AnchorState { version, field, details }) => {
+        Ok(TopologyEvent::AnchorState {
+            version,
+            field,
+            details,
+        }) => {
             assert_eq!(*version, 30);
             assert_eq!(field, "leader_changed");
             let d = details.as_ref().expect("details should be present");
@@ -631,7 +618,11 @@ async fn test_anchor_topology_error_protocol_attributes() {
     // Verify Display and Debug work and expose expected content
     let display = format!("{}", err);
     assert!(display.contains("NWP-ERR-9"), "display: {}", display);
-    assert!(display.contains("topology.forbidden"), "display: {}", display);
+    assert!(
+        display.contains("topology.forbidden"),
+        "display: {}",
+        display
+    );
     assert!(display.contains("access denied"), "display: {}", display);
 
     let debug_str = format!("{:?}", err);

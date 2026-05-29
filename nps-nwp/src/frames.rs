@@ -77,16 +77,6 @@ pub struct TopologyMember {
 }
 
 #[derive(Debug, Clone)]
-pub struct TopologyEvent {
-    pub event_id: String,
-    pub event_type: String,
-    pub node_id: Option<String>,
-    pub anchor_ref: Option<String>,
-    pub timestamp: Option<String>,
-    pub payload: Option<Value>,
-}
-
-#[derive(Debug, Clone)]
 pub struct BridgeNodeSpec {
     pub bridge_id: String,
     pub source_protocol: String,

@@ -25,24 +25,24 @@
 //! # }
 //! ```
 
-use std::pin::Pin;
 use bytes::Bytes;
 use futures::Stream;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::pin::Pin;
 
 // ── Wire constants ────────────────────────────────────────────────────────────
 
 pub const SCOPE_CLUSTER: &str = "cluster";
-pub const SCOPE_MEMBER:  &str = "member";
+pub const SCOPE_MEMBER: &str = "member";
 
 const TYPE_SNAPSHOT: &str = "topology.snapshot";
-const TYPE_STREAM:   &str = "topology.stream";
+const TYPE_STREAM: &str = "topology.stream";
 
-const EVENT_MEMBER_JOINED:   &str = "member_joined";
-const EVENT_MEMBER_LEFT:     &str = "member_left";
-const EVENT_MEMBER_UPDATED:  &str = "member_updated";
-const EVENT_ANCHOR_STATE:    &str = "anchor_state";
+const EVENT_MEMBER_JOINED: &str = "member_joined";
+const EVENT_MEMBER_LEFT: &str = "member_left";
+const EVENT_MEMBER_UPDATED: &str = "member_updated";
+const EVENT_ANCHOR_STATE: &str = "anchor_state";
 const EVENT_RESYNC_REQUIRED: &str = "resync_required";
 
 // ── Data types ────────────────────────────────────────────────────────────────
@@ -109,9 +109,17 @@ pub enum TopologyEvent {
     /// A member left (or was removed from) the cluster.
     MemberLeft { version: u64, nid: String },
     /// A member's fields changed; only modified fields are present.
-    MemberUpdated { version: u64, nid: String, changes: MemberChanges },
+    MemberUpdated {
+        version: u64,
+        nid: String,
+        changes: MemberChanges,
+    },
     /// Anchor internal state change (e.g. `version_rebased`).
-    AnchorState { version: u64, field: String, details: Option<Value> },
+    AnchorState {
+        version: u64,
+        field: String,
+        details: Option<Value>,
+    },
     /// The requested `since_version` is no longer replayable; caller MUST
     /// fetch a fresh snapshot before resubscribing.
     ResyncRequired { reason: String },
@@ -144,18 +152,18 @@ pub enum AnchorTopologyError {
 /// [`with_path_prefix`][Self::with_path_prefix] and
 /// [`with_client`][Self::with_client].
 pub struct AnchorNodeClient {
-    base_url:    String,
+    base_url: String,
     path_prefix: String,
-    http:        reqwest::Client,
+    http: reqwest::Client,
 }
 
 impl AnchorNodeClient {
     /// Build a new client pointing at `base_url` (trailing slashes are stripped).
     pub fn new(base_url: impl Into<String>) -> Self {
         AnchorNodeClient {
-            base_url:    base_url.into().trim_end_matches('/').to_string(),
+            base_url: base_url.into().trim_end_matches('/').to_string(),
             path_prefix: String::new(),
-            http:        reqwest::Client::new(),
+            http: reqwest::Client::new(),
         }
     }
 
@@ -192,15 +200,18 @@ impl AnchorNodeClient {
     /// * `target_nid` — required when `scope == "member"`.
     pub async fn get_snapshot_with(
         &self,
-        scope:      &str,
-        include:    &[&str],
-        depth:      u8,
+        scope: &str,
+        include: &[&str],
+        depth: u8,
         target_nid: Option<&str>,
     ) -> Result<TopologySnapshot, AnchorTopologyError> {
         let mut topology = serde_json::json!({ "scope": scope });
         if !include.is_empty() {
             topology["include"] = Value::Array(
-                include.iter().map(|s| Value::String(s.to_string())).collect(),
+                include
+                    .iter()
+                    .map(|s| Value::String(s.to_string()))
+                    .collect(),
             );
         }
         if depth != 1 {
@@ -216,10 +227,11 @@ impl AnchorNodeClient {
         });
 
         let url = format!("{}{}/query", self.base_url, self.path_prefix);
-        let resp = self.http
+        let resp = self
+            .http
             .post(&url)
             .header("Content-Type", "application/json")
-            .header("Accept",       "application/json")
+            .header("Accept", "application/json")
             .json(&body)
             .send()
             .await?;
@@ -234,7 +246,13 @@ impl AnchorNodeClient {
         let mut caps: serde_json::Value = resp.json().await?;
         let snapshot_value = caps["data"]
             .as_array_mut()
-            .and_then(|arr| if arr.is_empty() { None } else { Some(arr.swap_remove(0)) })
+            .and_then(|arr| {
+                if arr.is_empty() {
+                    None
+                } else {
+                    Some(arr.swap_remove(0))
+                }
+            })
             .ok_or_else(|| AnchorTopologyError::Http {
                 status: 200,
                 body: "topology.snapshot: data array missing or empty".to_string(),
@@ -270,8 +288,8 @@ impl AnchorNodeClient {
     /// resubscribing.
     pub async fn subscribe_with(
         &self,
-        scope:         &str,
-        filter:        Option<&TopologyFilter>,
+        scope: &str,
+        filter: Option<&TopologyFilter>,
         since_version: Option<u64>,
     ) -> Result<
         Pin<Box<dyn Stream<Item = Result<TopologyEvent, AnchorTopologyError>> + Send>>,
@@ -301,10 +319,11 @@ impl AnchorNodeClient {
         });
 
         let url = format!("{}{}/subscribe", self.base_url, self.path_prefix);
-        let resp = self.http
+        let resp = self
+            .http
             .post(&url)
             .header("Content-Type", "application/json")
-            .header("Accept",       "application/x-ndjson")
+            .header("Accept", "application/x-ndjson")
             .json(&body)
             .send()
             .await?;
@@ -419,14 +438,15 @@ fn parse_event_line(line: &str) -> Result<Option<TopologyEvent>, AnchorTopologyE
     if root.get("event_type").is_none() {
         if let (Some(err), Some(st)) = (root.get("error"), root.get("status")) {
             if let (Some(e_str), Some(s_str)) = (err.as_str(), st.as_str()) {
-                let msg = root.get("message")
+                let msg = root
+                    .get("message")
                     .and_then(|m| m.as_str())
                     .unwrap_or("")
                     .to_string();
                 return Err(AnchorTopologyError::Protocol {
                     nwp_error_code: e_str.to_string(),
-                    nps_status:     s_str.to_string(),
-                    message:        msg,
+                    nps_status: s_str.to_string(),
+                    message: msg,
                 });
             }
         }
@@ -436,45 +456,61 @@ fn parse_event_line(line: &str) -> Result<Option<TopologyEvent>, AnchorTopologyE
 
     let event_type = match root["event_type"].as_str() {
         Some(s) => s,
-        None    => return Ok(None),
+        None => return Ok(None),
     };
 
     let seq: u64 = root.get("seq").and_then(|v| v.as_u64()).unwrap_or(0);
-    let payload  = root.get("payload").cloned().unwrap_or(Value::Null);
+    let payload = root.get("payload").cloned().unwrap_or(Value::Null);
 
     let ev = match event_type {
         EVENT_MEMBER_JOINED => {
             let member: MemberInfo = serde_json::from_value(payload)?;
-            TopologyEvent::MemberJoined { version: seq, member }
+            TopologyEvent::MemberJoined {
+                version: seq,
+                member,
+            }
         }
         EVENT_MEMBER_LEFT => {
-            let nid = payload.get("nid")
+            let nid = payload
+                .get("nid")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
             TopologyEvent::MemberLeft { version: seq, nid }
         }
         EVENT_MEMBER_UPDATED => {
-            let nid = payload.get("nid")
+            let nid = payload
+                .get("nid")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let changes_val = payload.get("changes")
+            let changes_val = payload
+                .get("changes")
                 .cloned()
                 .unwrap_or(Value::Object(Default::default()));
             let changes: MemberChanges = serde_json::from_value(changes_val)?;
-            TopologyEvent::MemberUpdated { version: seq, nid, changes }
+            TopologyEvent::MemberUpdated {
+                version: seq,
+                nid,
+                changes,
+            }
         }
         EVENT_ANCHOR_STATE => {
-            let field = payload.get("field")
+            let field = payload
+                .get("field")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
             let details = payload.get("details").cloned();
-            TopologyEvent::AnchorState { version: seq, field, details }
+            TopologyEvent::AnchorState {
+                version: seq,
+                field,
+                details,
+            }
         }
         EVENT_RESYNC_REQUIRED => {
-            let reason = payload.get("reason")
+            let reason = payload
+                .get("reason")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown")
                 .to_string();
@@ -492,14 +528,15 @@ fn parse_error_body(status: u16, body: &str) -> AnchorTopologyError {
     if let Ok(v) = serde_json::from_str::<serde_json::Value>(body) {
         if let (Some(err), Some(st)) = (v.get("error"), v.get("status")) {
             if let (Some(e_str), Some(s_str)) = (err.as_str(), st.as_str()) {
-                let msg = v.get("message")
+                let msg = v
+                    .get("message")
                     .and_then(|m| m.as_str())
                     .unwrap_or(body)
                     .to_string();
                 return AnchorTopologyError::Protocol {
                     nwp_error_code: e_str.to_string(),
-                    nps_status:     s_str.to_string(),
-                    message:        msg,
+                    nps_status: s_str.to_string(),
+                    message: msg,
                 };
             }
         }
