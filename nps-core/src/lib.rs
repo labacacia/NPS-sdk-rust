@@ -6,6 +6,7 @@ pub mod codec;
 pub mod error;
 pub mod frames;
 pub mod registry;
+pub mod status_codes;
 
 pub use cache::AnchorFrameCache;
 pub use codec::NpsFrameCodec;

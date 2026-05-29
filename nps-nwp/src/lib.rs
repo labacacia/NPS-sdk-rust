@@ -3,6 +3,7 @@
 
 pub mod anchor_client;
 pub mod client;
+pub mod error_codes;
 pub mod frames;
 
 pub use anchor_client::{

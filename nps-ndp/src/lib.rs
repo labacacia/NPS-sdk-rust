@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod dns_txt;
+pub mod error_codes;
 pub mod frames;
 pub mod registry;
 pub mod validator;
