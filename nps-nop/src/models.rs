@@ -16,8 +16,8 @@ impl BackoffStrategy {
     /// Compute retry delay in milliseconds.
     pub fn compute_delay_ms(self, base_ms: u64, max_ms: u64, attempt: u32) -> u64 {
         let raw = match self {
-            BackoffStrategy::Fixed       => base_ms,
-            BackoffStrategy::Linear      => base_ms * (attempt as u64 + 1),
+            BackoffStrategy::Fixed => base_ms,
+            BackoffStrategy::Linear => base_ms * (attempt as u64 + 1),
             BackoffStrategy::Exponential => base_ms * (1u64 << attempt),
         };
         raw.min(max_ms)
@@ -38,17 +38,20 @@ pub enum TaskState {
 impl TaskState {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "pending"   => Some(TaskState::Pending),
-            "running"   => Some(TaskState::Running),
+            "pending" => Some(TaskState::Pending),
+            "running" => Some(TaskState::Running),
             "completed" => Some(TaskState::Completed),
-            "failed"    => Some(TaskState::Failed),
+            "failed" => Some(TaskState::Failed),
             "cancelled" => Some(TaskState::Cancelled),
-            _           => None,
+            _ => None,
         }
     }
 
     pub fn is_terminal(self) -> bool {
-        matches!(self, TaskState::Completed | TaskState::Failed | TaskState::Cancelled)
+        matches!(
+            self,
+            TaskState::Completed | TaskState::Failed | TaskState::Cancelled
+        )
     }
 }
 
@@ -65,11 +68,16 @@ impl NopTaskStatus {
     }
 
     pub fn task_id(&self) -> &str {
-        self.raw.get("task_id").and_then(Value::as_str).unwrap_or("")
+        self.raw
+            .get("task_id")
+            .and_then(Value::as_str)
+            .unwrap_or("")
     }
 
     pub fn state(&self) -> Option<TaskState> {
-        self.raw.get("state").and_then(Value::as_str)
+        self.raw
+            .get("state")
+            .and_then(Value::as_str)
             .and_then(TaskState::from_str)
     }
 
@@ -96,6 +104,11 @@ impl NopTaskStatus {
 
 impl std::fmt::Display for NopTaskStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "NopTaskStatus(task_id={}, state={:?})", self.task_id(), self.state())
+        write!(
+            f,
+            "NopTaskStatus(task_id={}, state={:?})",
+            self.task_id(),
+            self.state()
+        )
     }
 }

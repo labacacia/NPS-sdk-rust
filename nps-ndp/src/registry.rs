@@ -1,20 +1,20 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::dns_txt::{extract_host_from_target, parse_nps_txt_record, DnsTxtLookup};
+use crate::frames::AnnounceFrame;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use crate::dns_txt::{DnsTxtLookup, extract_host_from_target, parse_nps_txt_record};
-use crate::frames::AnnounceFrame;
 
 #[derive(Debug, Clone)]
 pub struct ResolveResult {
-    pub host:     String,
-    pub port:     u64,
+    pub host: String,
+    pub port: u64,
     pub protocol: String,
 }
 
 struct Entry {
-    frame:   AnnounceFrame,
+    frame: AnnounceFrame,
     expires: Instant,
 }
 
@@ -38,33 +38,45 @@ impl InMemoryNdpRegistry {
             return;
         }
         let expires = (self.clock)() + Duration::from_secs(frame.ttl);
-        self.store.insert(frame.nid.clone(), Entry { frame, expires });
+        self.store
+            .insert(frame.nid.clone(), Entry { frame, expires });
     }
 
     pub fn get_by_nid(&self, nid: &str) -> Option<&AnnounceFrame> {
         let now = (self.clock)();
-        self.store.get(nid)
+        self.store
+            .get(nid)
             .filter(|e| e.expires > now)
             .map(|e| &e.frame)
     }
 
     pub fn resolve(&self, target: &str) -> Option<ResolveResult> {
         let now = (self.clock)();
-        self.store.values()
+        self.store
+            .values()
             .filter(|e| e.expires > now)
             .find(|e| Self::nwp_target_matches_nid(&e.frame.nid, target))
             .and_then(|e| {
                 e.frame.addresses.first().map(|addr| ResolveResult {
-                    host:     addr.get("host").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                    port:     addr.get("port").and_then(|v| v.as_u64()).unwrap_or(17433),
-                    protocol: addr.get("protocol").and_then(|v| v.as_str()).unwrap_or("nwp").to_string(),
+                    host: addr
+                        .get("host")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    port: addr.get("port").and_then(|v| v.as_u64()).unwrap_or(17433),
+                    protocol: addr
+                        .get("protocol")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("nwp")
+                        .to_string(),
                 })
             })
     }
 
     pub fn get_all(&self) -> Vec<&AnnounceFrame> {
         let now = (self.clock)();
-        self.store.values()
+        self.store
+            .values()
             .filter(|e| e.expires > now)
             .map(|e| &e.frame)
             .collect()
@@ -114,21 +126,23 @@ impl InMemoryNdpRegistry {
             return false;
         }
         let nid_host = parts[3];
-        let nid_path = parts[4..].join("/");  // e.g. "data"
+        let nid_path = parts[4..].join("/"); // e.g. "data"
 
         // Parse target URL: nwp://authority/path...
         let rest = match target.strip_prefix("nwp://") {
             Some(r) => r,
-            None    => return false,
+            None => return false,
         };
         let slash = match rest.find('/') {
             Some(i) => i,
-            None    => return false,
+            None => return false,
         };
         let authority = &rest[..slash];
-        let path      = &rest[slash + 1..]; // without leading /
+        let path = &rest[slash + 1..]; // without leading /
 
-        if authority != nid_host { return false; }
+        if authority != nid_host {
+            return false;
+        }
 
         // Path must be equal or a sub-path (must not match siblings like "dataset" vs "data")
         path == nid_path || path.starts_with(&format!("{nid_path}/"))

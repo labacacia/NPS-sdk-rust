@@ -1,14 +1,16 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
-use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
-use nps_core::codec::{NpsFrameCodec, FrameDict, encode_json, encode_msgpack, decode_json, decode_msgpack};
-use nps_core::registry::FrameRegistry;
 use nps_core::cache::AnchorFrameCache;
+use nps_core::codec::{
+    decode_json, decode_msgpack, encode_json, encode_msgpack, FrameDict, NpsFrameCodec,
+};
 use nps_core::error::NpsError;
+use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
+use nps_core::registry::FrameRegistry;
 use serde_json::{json, Map};
-use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 // ── FrameType ─────────────────────────────────────────────────────────────────
 
@@ -26,14 +28,14 @@ fn frame_type_from_u8_unknown() {
 #[test]
 fn frame_type_as_u8_roundtrip() {
     assert_eq!(FrameType::Stream.as_u8(), 0x03);
-    assert_eq!(FrameType::Query.as_u8(),  0x10);
+    assert_eq!(FrameType::Query.as_u8(), 0x10);
 }
 
 // ── FrameHeader ───────────────────────────────────────────────────────────────
 
 #[test]
 fn frame_header_default_roundtrip() {
-    let hdr  = FrameHeader::new(FrameType::Anchor, EncodingTier::MsgPack, true, 256);
+    let hdr = FrameHeader::new(FrameType::Anchor, EncodingTier::MsgPack, true, 256);
     let wire = hdr.to_bytes();
     assert_eq!(wire.len(), 4);
     let back = FrameHeader::parse(&wire).unwrap();
@@ -46,7 +48,7 @@ fn frame_header_default_roundtrip() {
 
 #[test]
 fn frame_header_extended_roundtrip() {
-    let hdr  = FrameHeader::new(FrameType::Stream, EncodingTier::Json, false, 70_000);
+    let hdr = FrameHeader::new(FrameType::Stream, EncodingTier::Json, false, 70_000);
     let wire = hdr.to_bytes();
     assert_eq!(wire.len(), 8);
     let back = FrameHeader::parse(&wire).unwrap();
@@ -85,7 +87,7 @@ fn sample_dict() -> FrameDict {
 
 #[test]
 fn encode_decode_json_roundtrip() {
-    let d    = sample_dict();
+    let d = sample_dict();
     let wire = encode_json(&d).unwrap();
     let back = decode_json(&wire).unwrap();
     assert_eq!(back["key"].as_str().unwrap(), "value");
@@ -93,7 +95,7 @@ fn encode_decode_json_roundtrip() {
 
 #[test]
 fn encode_decode_msgpack_roundtrip() {
-    let d    = sample_dict();
+    let d = sample_dict();
     let wire = encode_msgpack(&d).unwrap();
     let back = decode_msgpack(&wire).unwrap();
     assert_eq!(back["num"].as_i64().unwrap(), 42);
@@ -113,10 +115,12 @@ fn decode_msgpack_invalid_returns_err() {
 
 #[test]
 fn codec_encode_decode_msgpack() {
-    let reg   = FrameRegistry::create_default();
+    let reg = FrameRegistry::create_default();
     let codec = NpsFrameCodec::new(reg);
-    let dict  = sample_dict();
-    let wire  = codec.encode(FrameType::Anchor, &dict, EncodingTier::MsgPack, true).unwrap();
+    let dict = sample_dict();
+    let wire = codec
+        .encode(FrameType::Anchor, &dict, EncodingTier::MsgPack, true)
+        .unwrap();
     let (ft, back) = codec.decode(&wire).unwrap();
     assert_eq!(ft, FrameType::Anchor);
     assert_eq!(back["key"].as_str().unwrap(), "value");
@@ -124,43 +128,50 @@ fn codec_encode_decode_msgpack() {
 
 #[test]
 fn codec_encode_decode_json() {
-    let reg   = FrameRegistry::create_default();
+    let reg = FrameRegistry::create_default();
     let codec = NpsFrameCodec::new(reg);
-    let dict  = sample_dict();
-    let wire  = codec.encode(FrameType::Stream, &dict, EncodingTier::Json, false).unwrap();
+    let dict = sample_dict();
+    let wire = codec
+        .encode(FrameType::Stream, &dict, EncodingTier::Json, false)
+        .unwrap();
     let (ft, _) = codec.decode(&wire).unwrap();
     assert_eq!(ft, FrameType::Stream);
 }
 
 #[test]
 fn codec_rejects_unregistered_frame_type() {
-    let reg   = FrameRegistry::create_default(); // NCP only
+    let reg = FrameRegistry::create_default(); // NCP only
     let codec = NpsFrameCodec::new(reg);
     // Encode a Query frame (NWP, not registered)
     let dict = sample_dict();
     let wire = {
         let full = NpsFrameCodec::new(FrameRegistry::create_full());
-        full.encode(FrameType::Query, &dict, EncodingTier::MsgPack, true).unwrap()
+        full.encode(FrameType::Query, &dict, EncodingTier::MsgPack, true)
+            .unwrap()
     };
     assert!(codec.decode(&wire).is_err());
 }
 
 #[test]
 fn codec_rejects_oversized_payload() {
-    let reg   = FrameRegistry::create_default();
+    let reg = FrameRegistry::create_default();
     let codec = NpsFrameCodec::new(reg).with_max_payload(10);
     let mut big = Map::new();
     big.insert("data".into(), json!("x".repeat(1000)));
-    assert!(codec.encode(FrameType::Anchor, &big, EncodingTier::Json, true).is_err());
+    assert!(codec
+        .encode(FrameType::Anchor, &big, EncodingTier::Json, true)
+        .is_err());
 }
 
 #[test]
 fn codec_peek_header() {
-    let reg   = FrameRegistry::create_full();
+    let reg = FrameRegistry::create_full();
     let codec = NpsFrameCodec::new(reg);
-    let dict  = sample_dict();
-    let wire  = codec.encode(FrameType::Caps, &dict, EncodingTier::MsgPack, true).unwrap();
-    let hdr   = NpsFrameCodec::peek_header(&wire).unwrap();
+    let dict = sample_dict();
+    let wire = codec
+        .encode(FrameType::Caps, &dict, EncodingTier::MsgPack, true)
+        .unwrap();
+    let hdr = NpsFrameCodec::peek_header(&wire).unwrap();
     assert_eq!(hdr.frame_type, FrameType::Caps);
 }
 
@@ -192,17 +203,20 @@ fn make_schema(key: &str) -> serde_json::Map<String, serde_json::Value> {
 
 #[test]
 fn anchor_cache_set_get_roundtrip() {
-    let mut cache  = AnchorFrameCache::new();
-    let schema     = make_schema("id");
-    let anchor_id  = cache.set(schema.clone(), 3600).unwrap();
-    let retrieved  = cache.get(&anchor_id).unwrap();
+    let mut cache = AnchorFrameCache::new();
+    let schema = make_schema("id");
+    let anchor_id = cache.set(schema.clone(), 3600).unwrap();
+    let retrieved = cache.get(&anchor_id).unwrap();
     assert_eq!(retrieved["fields"], schema["fields"]);
 }
 
 #[test]
 fn anchor_cache_get_required_missing_returns_err() {
     let cache = AnchorFrameCache::new();
-    assert!(matches!(cache.get_required("sha256:missing"), Err(NpsError::AnchorNotFound(_))));
+    assert!(matches!(
+        cache.get_required("sha256:missing"),
+        Err(NpsError::AnchorNotFound(_))
+    ));
 }
 
 #[test]
@@ -215,7 +229,7 @@ fn anchor_cache_invalidate_removes_entry() {
 
 #[test]
 fn anchor_cache_ttl_expiry() {
-    let base    = Instant::now();
+    let base = Instant::now();
     let elapsed = Arc::new(Mutex::new(0u64));
     let elapsed2 = elapsed.clone();
     let mut cache = AnchorFrameCache::new();
@@ -232,8 +246,8 @@ fn anchor_cache_ttl_expiry() {
 fn anchor_cache_poison_same_schema_idempotent() {
     let mut cache = AnchorFrameCache::new();
     let schema = make_schema("z");
-    let id1    = cache.set(schema.clone(), 3600).unwrap();
-    let id2    = cache.set(schema, 3600).unwrap();
+    let id1 = cache.set(schema.clone(), 3600).unwrap();
+    let id2 = cache.set(schema, 3600).unwrap();
     assert_eq!(id1, id2);
 }
 
@@ -275,7 +289,7 @@ fn anchor_cache_compute_id_is_field_order_independent() {
 
 #[test]
 fn anchor_cache_len_counts_active() {
-    let base    = Instant::now();
+    let base = Instant::now();
     let elapsed = Arc::new(Mutex::new(0u64));
     let elapsed2 = elapsed.clone();
     let mut cache = AnchorFrameCache::new();

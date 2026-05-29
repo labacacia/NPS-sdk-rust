@@ -1,52 +1,66 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
-use nps_core::error::{NpsError, NpsResult};
 use crate::frames::TaskFrame;
 use crate::models::NopTaskStatus;
+use nps_core::error::{NpsError, NpsResult};
 
 pub struct NopClient {
     base_url: String,
-    http:     reqwest::Client,
+    http: reqwest::Client,
 }
 
 impl NopClient {
     pub fn new(base_url: impl Into<String>) -> Self {
         NopClient {
             base_url: base_url.into().trim_end_matches('/').to_string(),
-            http:     reqwest::Client::new(),
+            http: reqwest::Client::new(),
         }
     }
 
     pub async fn submit(&self, frame: &TaskFrame) -> NpsResult<String> {
-        let body = serde_json::to_vec(&frame.to_dict())
-            .map_err(|e| NpsError::Codec(e.to_string()))?;
-        let res = self.http.post(format!("{}/tasks", self.base_url))
+        let body =
+            serde_json::to_vec(&frame.to_dict()).map_err(|e| NpsError::Codec(e.to_string()))?;
+        let res = self
+            .http
+            .post(format!("{}/tasks", self.base_url))
             .header("Content-Type", "application/json")
             .body(body)
-            .send().await
+            .send()
+            .await
             .map_err(|e| NpsError::Io(e.to_string()))?;
         self.check_ok(res.status(), "/tasks")?;
-        let v: serde_json::Value = res.json().await
+        let v: serde_json::Value = res
+            .json()
+            .await
             .map_err(|e| NpsError::Codec(e.to_string()))?;
-        v["task_id"].as_str()
+        v["task_id"]
+            .as_str()
             .map(str::to_string)
             .ok_or_else(|| NpsError::Frame("no task_id in response".into()))
     }
 
     pub async fn get_status(&self, task_id: &str) -> NpsResult<NopTaskStatus> {
-        let res = self.http.get(format!("{}/tasks/{task_id}", self.base_url))
-            .send().await
+        let res = self
+            .http
+            .get(format!("{}/tasks/{task_id}", self.base_url))
+            .send()
+            .await
             .map_err(|e| NpsError::Io(e.to_string()))?;
         self.check_ok(res.status(), "/tasks/{id}")?;
-        let v: serde_json::Map<String, serde_json::Value> = res.json().await
+        let v: serde_json::Map<String, serde_json::Value> = res
+            .json()
+            .await
             .map_err(|e| NpsError::Codec(e.to_string()))?;
         Ok(NopTaskStatus::from_dict(v))
     }
 
     pub async fn cancel(&self, task_id: &str) -> NpsResult<()> {
-        let res = self.http.delete(format!("{}/tasks/{task_id}", self.base_url))
-            .send().await
+        let res = self
+            .http
+            .delete(format!("{}/tasks/{task_id}", self.base_url))
+            .send()
+            .await
             .map_err(|e| NpsError::Io(e.to_string()))?;
         self.check_ok(res.status(), "/tasks/{id}")
     }
@@ -71,7 +85,13 @@ impl NopClient {
     }
 
     fn check_ok(&self, status: reqwest::StatusCode, path: &str) -> NpsResult<()> {
-        if status.is_success() { Ok(()) }
-        else { Err(NpsError::Io(format!("NOP {path} failed: HTTP {}", status.as_u16()))) }
+        if status.is_success() {
+            Ok(())
+        } else {
+            Err(NpsError::Io(format!(
+                "NOP {path} failed: HTTP {}",
+                status.as_u16()
+            )))
+        }
     }
 }

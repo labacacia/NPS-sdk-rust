@@ -71,6 +71,6 @@ fn write_emits_exactly_the_constant_bytes() {
 
 #[test]
 fn status_and_error_code_constants_match_spec() {
-    assert_eq!(preamble::ERROR_CODE,  "NCP-PREAMBLE-INVALID");
+    assert_eq!(preamble::ERROR_CODE, "NCP-PREAMBLE-INVALID");
     assert_eq!(preamble::STATUS_CODE, "NPS-PROTO-PREAMBLE-INVALID");
 }

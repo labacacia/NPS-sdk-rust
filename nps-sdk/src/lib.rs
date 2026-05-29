@@ -3,7 +3,7 @@
 //! NPS Rust SDK — re-exports all NPS protocol crates under a single namespace.
 
 pub use nps_core as core;
-pub use nps_ncp  as ncp;
+pub use nps_ncp as ncp;
 
 #[cfg(feature = "nwp")]
 pub use nps_nwp as nwp;

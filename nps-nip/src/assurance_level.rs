@@ -11,9 +11,18 @@ pub struct AssuranceLevel {
     pub rank: u8,
 }
 
-pub const ANONYMOUS: AssuranceLevel = AssuranceLevel { wire: "anonymous", rank: 0 };
-pub const ATTESTED:  AssuranceLevel = AssuranceLevel { wire: "attested",  rank: 1 };
-pub const VERIFIED:  AssuranceLevel = AssuranceLevel { wire: "verified",  rank: 2 };
+pub const ANONYMOUS: AssuranceLevel = AssuranceLevel {
+    wire: "anonymous",
+    rank: 0,
+};
+pub const ATTESTED: AssuranceLevel = AssuranceLevel {
+    wire: "attested",
+    rank: 1,
+};
+pub const VERIFIED: AssuranceLevel = AssuranceLevel {
+    wire: "verified",
+    rank: 2,
+};
 
 impl AssuranceLevel {
     pub fn meets_or_exceeds(&self, required: &AssuranceLevel) -> bool {
@@ -21,16 +30,22 @@ impl AssuranceLevel {
     }
 
     pub fn from_wire(wire: &str) -> Result<Self, String> {
-        if wire.is_empty() { return Ok(ANONYMOUS); }
+        if wire.is_empty() {
+            return Ok(ANONYMOUS);
+        }
         for l in [ANONYMOUS, ATTESTED, VERIFIED] {
-            if l.wire == wire { return Ok(l); }
+            if l.wire == wire {
+                return Ok(l);
+            }
         }
         Err(format!("unknown assurance_level: {wire:?}"))
     }
 
     pub fn from_rank(rank: u8) -> Result<Self, String> {
         for l in [ANONYMOUS, ATTESTED, VERIFIED] {
-            if l.rank == rank { return Ok(l); }
+            if l.rank == rank {
+                return Ok(l);
+            }
         }
         Err(format!("unknown assurance_level rank: {rank}"))
     }

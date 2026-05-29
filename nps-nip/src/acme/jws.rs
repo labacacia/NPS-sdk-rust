@@ -18,42 +18,49 @@ use ed25519_dalek::{Signature, Signer, SigningKey, Verifier as _, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-pub const ALG_EDDSA:   &str = "EdDSA";   // RFC 8037 §3.1
-pub const KTY_OKP:     &str = "OKP";     // RFC 8037 §2
+pub const ALG_EDDSA: &str = "EdDSA"; // RFC 8037 §3.1
+pub const KTY_OKP: &str = "OKP"; // RFC 8037 §2
 pub const CRV_ED25519: &str = "Ed25519"; // RFC 8037 §2
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Jwk {
     pub kty: String,
     pub crv: String,
-    pub x:   String,
+    pub x: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProtectedHeader {
-    pub alg:   String,
+    pub alg: String,
     pub nonce: String,
-    pub url:   String,
+    pub url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub jwk:   Option<Jwk>,
+    pub jwk: Option<Jwk>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub kid:   Option<String>,
+    pub kid: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Envelope {
     pub protected: String,
-    pub payload:   String,
+    pub payload: String,
     pub signature: String,
 }
 
 pub fn jwk_from_public_key(raw: &[u8; 32]) -> Jwk {
-    Jwk { kty: KTY_OKP.into(), crv: CRV_ED25519.into(), x: b64u_encode(raw) }
+    Jwk {
+        kty: KTY_OKP.into(),
+        crv: CRV_ED25519.into(),
+        x: b64u_encode(raw),
+    }
 }
 
 pub fn public_key_from_jwk(jwk: &Jwk) -> Result<VerifyingKey, String> {
     if jwk.kty != KTY_OKP || jwk.crv != CRV_ED25519 {
-        return Err(format!("JWK is not OKP/Ed25519: kty={} crv={}", jwk.kty, jwk.crv));
+        return Err(format!(
+            "JWK is not OKP/Ed25519: kty={} crv={}",
+            jwk.kty, jwk.crv
+        ));
     }
     let raw = b64u_decode(&jwk.x).map_err(|e| format!("jwk x: {e}"))?;
     if raw.len() != 32 {
@@ -66,7 +73,10 @@ pub fn public_key_from_jwk(jwk: &Jwk) -> Result<VerifyingKey, String> {
 
 /// RFC 7638 §3 thumbprint of an Ed25519 JWK (lex-sorted compact JSON, SHA-256, base64url).
 pub fn thumbprint(jwk: &Jwk) -> String {
-    let canonical = format!(r#"{{"crv":"{}","kty":"{}","x":"{}"}}"#, jwk.crv, jwk.kty, jwk.x);
+    let canonical = format!(
+        r#"{{"crv":"{}","kty":"{}","x":"{}"}}"#,
+        jwk.crv, jwk.kty, jwk.x
+    );
     let mut hasher = Sha256::new();
     hasher.update(canonical.as_bytes());
     b64u_encode(&hasher.finalize())
@@ -74,9 +84,9 @@ pub fn thumbprint(jwk: &Jwk) -> String {
 
 /// Sign a flattened JWS envelope. payload may be `None` for POST-as-GET.
 pub fn sign<P: Serialize>(
-    header:  &ProtectedHeader,
+    header: &ProtectedHeader,
     payload: Option<&P>,
-    sk:      &SigningKey,
+    sk: &SigningKey,
 ) -> Result<Envelope, String> {
     let header_bytes = serde_json::to_vec(header).map_err(|e| format!("marshal header: {e}"))?;
     let header_b64u = b64u_encode(&header_bytes);
@@ -91,7 +101,7 @@ pub fn sign<P: Serialize>(
     let sig: Signature = sk.sign(signing_input.as_bytes());
     Ok(Envelope {
         protected: header_b64u,
-        payload:   payload_b64u,
+        payload: payload_b64u,
         signature: b64u_encode(&sig.to_bytes()),
     })
 }
@@ -122,7 +132,8 @@ pub fn b64u_encode(bytes: &[u8]) -> String {
 }
 
 pub fn b64u_decode(s: &str) -> Result<Vec<u8>, String> {
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(s)
+    base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(s)
         .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(s))
         .map_err(|e| format!("{e}"))
 }

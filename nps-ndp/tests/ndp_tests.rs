@@ -4,15 +4,15 @@
 use nps_core::codec::NpsFrameCodec;
 use nps_core::frames::EncodingTier;
 use nps_core::registry::FrameRegistry;
-use nps_ndp::{AnnounceFrame, ResolveFrame, GraphFrame};
+use nps_ndp::{AnnounceFrame, GraphFrame, ResolveFrame};
 use nps_ndp::{InMemoryNdpRegistry, NdpAnnounceValidator};
 use nps_nip::identity::NipIdentity;
 use serde_json::{json, Map};
-use std::time::{Duration, Instant};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
-const NID: &str  = "urn:nps:node:example.com:data";
-const TS:  &str  = "2026-01-01T00:00:00Z";
+const NID: &str = "urn:nps:node:example.com:data";
+const TS: &str = "2026-01-01T00:00:00Z";
 
 fn full_codec() -> NpsFrameCodec {
     NpsFrameCodec::new(FrameRegistry::create_full())
@@ -20,23 +20,33 @@ fn full_codec() -> NpsFrameCodec {
 
 fn make_addr() -> Map<String, serde_json::Value> {
     let mut m = Map::new();
-    m.insert("host".into(),     json!("example.com"));
-    m.insert("port".into(),     json!(17433));
+    m.insert("host".into(), json!("example.com"));
+    m.insert("port".into(), json!(17433));
     m.insert("protocol".into(), json!("nwp"));
     m
 }
 
 fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
     let addrs = vec![make_addr()];
-    let caps  = vec!["nwp/query".to_string(), "nwp/stream".to_string()];
-    let tmp   = AnnounceFrame {
-        nid: NID.into(), addresses: addrs.clone(), caps: caps.clone(),
-        ttl, timestamp: TS.into(), signature: "placeholder".into(), node_type: None,
+    let caps = vec!["nwp/query".to_string(), "nwp/stream".to_string()];
+    let tmp = AnnounceFrame {
+        nid: NID.into(),
+        addresses: addrs.clone(),
+        caps: caps.clone(),
+        ttl,
+        timestamp: TS.into(),
+        signature: "placeholder".into(),
+        node_type: None,
     };
     let sig = id.sign(&tmp.unsigned_dict());
     AnnounceFrame {
-        nid: NID.into(), addresses: addrs, caps, ttl,
-        timestamp: TS.into(), signature: sig, node_type: None,
+        nid: NID.into(),
+        addresses: addrs,
+        caps,
+        ttl,
+        timestamp: TS.into(),
+        signature: sig,
+        node_type: None,
     }
 }
 
@@ -44,9 +54,9 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
 
 #[test]
 fn announce_frame_roundtrip() {
-    let id    = NipIdentity::generate();
+    let id = NipIdentity::generate();
     let frame = make_announce(&id, 300);
-    let back  = AnnounceFrame::from_dict(&frame.to_dict()).unwrap();
+    let back = AnnounceFrame::from_dict(&frame.to_dict()).unwrap();
     assert_eq!(back.nid, NID);
     assert_eq!(back.ttl, 300);
     assert!(back.unsigned_dict().get("signature").is_none());
@@ -55,11 +65,18 @@ fn announce_frame_roundtrip() {
 #[test]
 fn announce_frame_codec_roundtrip() {
     let codec = full_codec();
-    let id    = NipIdentity::generate();
+    let id = NipIdentity::generate();
     let frame = make_announce(&id, 300);
-    let wire  = codec.encode(AnnounceFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true).unwrap();
+    let wire = codec
+        .encode(
+            AnnounceFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::MsgPack,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
-    let back  = AnnounceFrame::from_dict(&dict).unwrap();
+    let back = AnnounceFrame::from_dict(&dict).unwrap();
     assert_eq!(back.nid, NID);
 }
 
@@ -70,11 +87,11 @@ fn resolve_frame_roundtrip() {
     let mut resolved = Map::new();
     resolved.insert("host".into(), json!("example.com"));
     resolved.insert("port".into(), json!(17433));
-    resolved.insert("ttl".into(),  json!(300));
+    resolved.insert("ttl".into(), json!(300));
     let frame = ResolveFrame {
-        target:        "nwp://example.com/data".into(),
+        target: "nwp://example.com/data".into(),
         requester_nid: Some("urn:nps:node:a:1".into()),
-        resolved:      Some(resolved),
+        resolved: Some(resolved),
     };
     let back = ResolveFrame::from_dict(&frame.to_dict()).unwrap();
     assert_eq!(back.target, "nwp://example.com/data");
@@ -99,11 +116,19 @@ fn resolve_frame_optional_fields_null() {
 fn graph_frame_roundtrip() {
     let codec = full_codec();
     let frame = GraphFrame {
-        seq: 1, initial_sync: true,
+        seq: 1,
+        initial_sync: true,
         nodes: vec![json!({"nid": NID})],
         patch: None,
     };
-    let wire = codec.encode(GraphFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true).unwrap();
+    let wire = codec
+        .encode(
+            GraphFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::MsgPack,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = GraphFrame::from_dict(&dict).unwrap();
     assert_eq!(back.seq, 1);
@@ -116,8 +141,8 @@ fn graph_frame_roundtrip() {
 #[test]
 fn announce_and_get_by_nid() {
     let mut reg = InMemoryNdpRegistry::new();
-    let id      = NipIdentity::generate();
-    let frame   = make_announce(&id, 300);
+    let id = NipIdentity::generate();
+    let frame = make_announce(&id, 300);
     reg.announce(frame);
     assert!(reg.get_by_nid(NID).is_some());
 }
@@ -131,7 +156,7 @@ fn get_by_nid_returns_none_for_unknown() {
 #[test]
 fn ttl_zero_deregisters() {
     let mut reg = InMemoryNdpRegistry::new();
-    let id      = NipIdentity::generate();
+    let id = NipIdentity::generate();
     reg.announce(make_announce(&id, 300));
     reg.announce(make_announce(&id, 0));
     assert!(reg.get_by_nid(NID).is_none());
@@ -139,10 +164,10 @@ fn ttl_zero_deregisters() {
 
 #[test]
 fn ttl_expiry() {
-    let base    = Instant::now();
+    let base = Instant::now();
     let elapsed = Arc::new(Mutex::new(0u64));
     let elapsed2 = elapsed.clone();
-    let mut reg  = InMemoryNdpRegistry::new();
+    let mut reg = InMemoryNdpRegistry::new();
     reg.clock = Box::new(move || base + Duration::from_secs(*elapsed2.lock().unwrap()));
 
     let id = NipIdentity::generate();
@@ -156,7 +181,7 @@ fn ttl_expiry() {
 #[test]
 fn resolve_returns_matching_entry() {
     let mut reg = InMemoryNdpRegistry::new();
-    let id      = NipIdentity::generate();
+    let id = NipIdentity::generate();
     reg.announce(make_announce(&id, 300));
     let r = reg.resolve("nwp://example.com/data/sub").unwrap();
     assert_eq!(r.host, "example.com");
@@ -172,10 +197,10 @@ fn resolve_returns_none_for_non_match() {
 
 #[test]
 fn get_all_returns_active_entries() {
-    let base    = Instant::now();
+    let base = Instant::now();
     let elapsed = Arc::new(Mutex::new(0u64));
     let elapsed2 = elapsed.clone();
-    let mut reg  = InMemoryNdpRegistry::new();
+    let mut reg = InMemoryNdpRegistry::new();
     reg.clock = Box::new(move || base + Duration::from_secs(*elapsed2.lock().unwrap()));
 
     let id1 = NipIdentity::generate();
@@ -183,15 +208,47 @@ fn get_all_returns_active_entries() {
     let nid1 = "urn:nps:node:a.com:x";
     let nid2 = "urn:nps:node:b.com:y";
     let addrs = vec![make_addr()];
-    let caps  = vec!["nwp/query".to_string()];
+    let caps = vec!["nwp/query".to_string()];
 
-    let tmp1 = AnnounceFrame { nid: nid1.into(), addresses: addrs.clone(), caps: caps.clone(), ttl: 100, timestamp: TS.into(), signature: "ph".into(), node_type: None };
-    let tmp2 = AnnounceFrame { nid: nid2.into(), addresses: addrs.clone(), caps: caps.clone(), ttl: 1,   timestamp: TS.into(), signature: "ph".into(), node_type: None };
+    let tmp1 = AnnounceFrame {
+        nid: nid1.into(),
+        addresses: addrs.clone(),
+        caps: caps.clone(),
+        ttl: 100,
+        timestamp: TS.into(),
+        signature: "ph".into(),
+        node_type: None,
+    };
+    let tmp2 = AnnounceFrame {
+        nid: nid2.into(),
+        addresses: addrs.clone(),
+        caps: caps.clone(),
+        ttl: 1,
+        timestamp: TS.into(),
+        signature: "ph".into(),
+        node_type: None,
+    };
     let sig1 = id1.sign(&tmp1.unsigned_dict());
     let sig2 = id2.sign(&tmp2.unsigned_dict());
 
-    reg.announce(AnnounceFrame { nid: nid1.into(), addresses: addrs.clone(), caps: caps.clone(), ttl: 100, timestamp: TS.into(), signature: sig1, node_type: None });
-    reg.announce(AnnounceFrame { nid: nid2.into(), addresses: addrs.clone(), caps: caps.clone(), ttl: 1,   timestamp: TS.into(), signature: sig2, node_type: None });
+    reg.announce(AnnounceFrame {
+        nid: nid1.into(),
+        addresses: addrs.clone(),
+        caps: caps.clone(),
+        ttl: 100,
+        timestamp: TS.into(),
+        signature: sig1,
+        node_type: None,
+    });
+    reg.announce(AnnounceFrame {
+        nid: nid2.into(),
+        addresses: addrs.clone(),
+        caps: caps.clone(),
+        ttl: 1,
+        timestamp: TS.into(),
+        signature: sig2,
+        node_type: None,
+    });
 
     *elapsed.lock().unwrap() = 2;
     let all = reg.get_all();
@@ -202,42 +259,80 @@ fn get_all_returns_active_entries() {
 // ── nwp_target_matches_nid ────────────────────────────────────────────────────
 
 #[test]
-fn exact_match()        { assert!( InMemoryNdpRegistry::nwp_target_matches_nid(NID, "nwp://example.com/data")); }
+fn exact_match() {
+    assert!(InMemoryNdpRegistry::nwp_target_matches_nid(
+        NID,
+        "nwp://example.com/data"
+    ));
+}
 #[test]
-fn sub_path_match()     { assert!( InMemoryNdpRegistry::nwp_target_matches_nid(NID, "nwp://example.com/data/sub")); }
+fn sub_path_match() {
+    assert!(InMemoryNdpRegistry::nwp_target_matches_nid(
+        NID,
+        "nwp://example.com/data/sub"
+    ));
+}
 #[test]
-fn different_authority(){ assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(NID, "nwp://other.com/data")); }
+fn different_authority() {
+    assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(
+        NID,
+        "nwp://other.com/data"
+    ));
+}
 #[test]
-fn sibling_path()       { assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(NID, "nwp://example.com/dataset")); }
+fn sibling_path() {
+    assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(
+        NID,
+        "nwp://example.com/dataset"
+    ));
+}
 #[test]
-fn invalid_nid()        { assert!(!InMemoryNdpRegistry::nwp_target_matches_nid("invalid", "nwp://example.com/data")); }
+fn invalid_nid() {
+    assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(
+        "invalid",
+        "nwp://example.com/data"
+    ));
+}
 #[test]
-fn non_nwp_target()     { assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(NID, "http://example.com/data")); }
+fn non_nwp_target() {
+    assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(
+        NID,
+        "http://example.com/data"
+    ));
+}
 #[test]
-fn no_slash_in_target() { assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(NID, "nwp://example.com")); }
+fn no_slash_in_target() {
+    assert!(!InMemoryNdpRegistry::nwp_target_matches_nid(
+        NID,
+        "nwp://example.com"
+    ));
+}
 
 // ── DNS TXT resolution ────────────────────────────────────────────────────────
 
 mod dns_txt_tests {
     use super::*;
     use nps_ndp::dns_txt::{
-        parse_nps_txt_record, extract_host_from_target, DnsTxtLookup, DNS_TXT_DEFAULT_TTL,
+        extract_host_from_target, parse_nps_txt_record, DnsTxtLookup, DNS_TXT_DEFAULT_TTL,
     };
     use nps_ndp::InMemoryNdpRegistry;
-    use std::pin::Pin;
     use std::future::Future;
+    use std::pin::Pin;
     use std::sync::atomic::{AtomicBool, Ordering};
 
     // ── Mock lookup ───────────────────────────────────────────────────────────
 
     struct MockDnsTxtLookup {
         records: Vec<String>,
-        called:  AtomicBool,
+        called: AtomicBool,
     }
 
     impl MockDnsTxtLookup {
         fn new(records: Vec<String>) -> Self {
-            Self { records, called: AtomicBool::new(false) }
+            Self {
+                records,
+                called: AtomicBool::new(false),
+            }
         }
 
         fn was_called(&self) -> bool {
@@ -262,8 +357,8 @@ mod dns_txt_tests {
     fn test_parse_valid_record() {
         let txt = "v=nps1 type=memory port=17434 nid=urn:nps:node:api.example.com:products fp=sha256:a3f9";
         let result = parse_nps_txt_record(txt, "api.example.com").unwrap();
-        assert_eq!(result.host,     "api.example.com");
-        assert_eq!(result.port,     17434);
+        assert_eq!(result.host, "api.example.com");
+        assert_eq!(result.port, 17434);
         assert_eq!(result.protocol, "https");
     }
 
@@ -317,18 +412,23 @@ mod dns_txt_tests {
         let mock = MockDnsTxtLookup::new(vec![]);
         let result = reg.resolve_via_dns("nwp://example.com/data", &mock).await;
         assert!(result.is_some());
-        assert!(!mock.was_called(), "DNS must not be queried when registry has a hit");
+        assert!(
+            !mock.was_called(),
+            "DNS must not be queried when registry has a hit"
+        );
         assert_eq!(result.unwrap().host, "example.com");
     }
 
     #[tokio::test]
     async fn test_resolve_via_dns_dns_fallback() {
         // Empty registry → must fall back to DNS.
-        let reg  = InMemoryNdpRegistry::new();
-        let txt  = "v=nps1 nid=urn:nps:node:api.example.com:products port=17434".to_string();
+        let reg = InMemoryNdpRegistry::new();
+        let txt = "v=nps1 nid=urn:nps:node:api.example.com:products port=17434".to_string();
         let mock = MockDnsTxtLookup::new(vec![txt]);
 
-        let result = reg.resolve_via_dns("nwp://api.example.com/products", &mock).await;
+        let result = reg
+            .resolve_via_dns("nwp://api.example.com/products", &mock)
+            .await;
         assert!(result.is_some(), "should resolve via DNS TXT fallback");
         assert!(mock.was_called());
         let r = result.unwrap();
@@ -340,11 +440,13 @@ mod dns_txt_tests {
     #[tokio::test]
     async fn test_resolve_via_dns_invalid_txt() {
         // DNS returns a record with wrong version; should return None.
-        let reg  = InMemoryNdpRegistry::new();
-        let txt  = "v=nps2 nid=urn:nps:node:api.example.com:products".to_string();
+        let reg = InMemoryNdpRegistry::new();
+        let txt = "v=nps2 nid=urn:nps:node:api.example.com:products".to_string();
         let mock = MockDnsTxtLookup::new(vec![txt]);
 
-        let result = reg.resolve_via_dns("nwp://api.example.com/products", &mock).await;
+        let result = reg
+            .resolve_via_dns("nwp://api.example.com/products", &mock)
+            .await;
         assert!(result.is_none(), "invalid TXT record must not resolve");
         assert!(mock.was_called());
     }
@@ -382,8 +484,13 @@ fn rejects_wrong_signature_prefix() {
     let mut v = NdpAnnounceValidator::new();
     v.register_public_key(NID, id.pub_key_string());
     let frame = AnnounceFrame {
-        nid: NID.into(), addresses: vec![make_addr()], caps: vec![], ttl: 300,
-        timestamp: TS.into(), signature: "rsa:invalid".into(), node_type: None,
+        nid: NID.into(),
+        addresses: vec![make_addr()],
+        caps: vec![],
+        ttl: 300,
+        timestamp: TS.into(),
+        signature: "rsa:invalid".into(),
+        node_type: None,
     };
     let r = v.validate(&frame);
     assert!(!r.is_valid);

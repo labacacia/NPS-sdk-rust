@@ -54,8 +54,8 @@ pub fn parse_nps_txt_record(txt: &str, host: &str) -> Option<ResolveResult> {
     for token in txt.split_whitespace() {
         if let Some((key, value)) = token.split_once('=') {
             match key {
-                "v"    => version = Some(value),
-                "nid"  => nid     = Some(value),
+                "v" => version = Some(value),
+                "nid" => nid = Some(value),
                 "port" => {
                     if let Ok(p) = value.parse::<u64>() {
                         port = p;
@@ -75,7 +75,7 @@ pub fn parse_nps_txt_record(txt: &str, host: &str) -> Option<ResolveResult> {
     nid?; // ensures nid was present; value itself is not used in ResolveResult
 
     Some(ResolveResult {
-        host:     host.to_string(),
+        host: host.to_string(),
         port,
         protocol: "https".to_string(),
     })

@@ -37,7 +37,7 @@ The NPS Rust SDK (`nps-sdk`) provides a complete, production-ready implementatio
 
 ```toml
 [dependencies]
-nps-sdk = "1.0.0-alpha.1"
+nps-sdk = "1.0.0-alpha.11"
 tokio   = { version = "1", features = ["full"] }
 ```
 
@@ -45,19 +45,19 @@ By default all protocol features (`nwp`, `nip`, `ndp`, `nop`) are enabled. To se
 
 ```toml
 [dependencies]
-nps-sdk = { version = "1.0.0-alpha.1", default-features = false, features = ["nwp", "nip"] }
+nps-sdk = { version = "1.0.0-alpha.11", default-features = false, features = ["nwp", "nip"] }
 ```
 
 ### Using Individual Crates
 
 ```toml
 [dependencies]
-nps-core = "1.0.0-alpha.1"
-nps-ncp  = "1.0.0-alpha.1"
-nps-nwp  = "1.0.0-alpha.1"
-nps-nip  = "1.0.0-alpha.1"
-nps-ndp  = "1.0.0-alpha.1"
-nps-nop  = "1.0.0-alpha.1"
+nps-core = "1.0.0-alpha.11"
+nps-ncp  = "1.0.0-alpha.11"
+nps-nwp  = "1.0.0-alpha.11"
+nps-nip  = "1.0.0-alpha.11"
+nps-ndp  = "1.0.0-alpha.11"
+nps-nop  = "1.0.0-alpha.11"
 tokio    = { version = "1", features = ["full"] }
 ```
 

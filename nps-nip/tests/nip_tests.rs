@@ -1,11 +1,11 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
-use nps_core::codec::{NpsFrameCodec, FrameDict};
+use nps_core::codec::{FrameDict, NpsFrameCodec};
 use nps_core::frames::EncodingTier;
 use nps_core::registry::FrameRegistry;
-use nps_nip::{IdentFrame, TrustFrame, RevokeFrame};
 use nps_nip::identity::NipIdentity;
+use nps_nip::{IdentFrame, RevokeFrame, TrustFrame};
 use serde_json::json;
 
 fn full_codec() -> NpsFrameCodec {
@@ -37,16 +37,16 @@ fn pub_key_string_format() {
 
 #[test]
 fn sign_verify_roundtrip() {
-    let id      = NipIdentity::generate();
+    let id = NipIdentity::generate();
     let payload = sample_payload();
-    let sig     = id.sign(&payload);
+    let sig = id.sign(&payload);
     assert!(sig.starts_with("ed25519:"));
     assert!(id.verify(&payload, &sig));
 }
 
 #[test]
 fn verify_returns_false_for_tampered_payload() {
-    let id  = NipIdentity::generate();
+    let id = NipIdentity::generate();
     let sig = id.sign(&sample_payload());
     let mut bad = serde_json::Map::new();
     bad.insert("nid".into(), json!("urn:nps:node:a:1"));
@@ -80,9 +80,9 @@ fn sign_is_canonical_key_order_independent() {
 
 #[test]
 fn save_and_load_roundtrip() {
-    let dir  = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("key.json");
-    let id   = NipIdentity::generate();
+    let id = NipIdentity::generate();
     id.save(&path, "test-pass").unwrap();
     let loaded = NipIdentity::load(&path, "test-pass").unwrap();
     assert_eq!(id.pub_key_string(), loaded.pub_key_string());
@@ -92,46 +92,61 @@ fn save_and_load_roundtrip() {
 
 #[test]
 fn load_wrong_passphrase_returns_err() {
-    let dir  = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("key.json");
-    let id   = NipIdentity::generate();
+    let id = NipIdentity::generate();
     id.save(&path, "correct-pass").unwrap();
     assert!(NipIdentity::load(&path, "wrong-pass").is_err());
 }
 
 #[test]
 fn verify_with_pub_key_str_correct() {
-    let id      = NipIdentity::generate();
+    let id = NipIdentity::generate();
     let payload = sample_payload();
-    let sig     = id.sign(&payload);
-    assert!(NipIdentity::verify_with_pub_key_str(&payload, &id.pub_key_string(), &sig));
+    let sig = id.sign(&payload);
+    assert!(NipIdentity::verify_with_pub_key_str(
+        &payload,
+        &id.pub_key_string(),
+        &sig
+    ));
 }
 
 #[test]
 fn verify_with_pub_key_str_bad_prefix() {
-    let id      = NipIdentity::generate();
+    let id = NipIdentity::generate();
     let payload = sample_payload();
-    let sig     = id.sign(&payload);
-    assert!(!NipIdentity::verify_with_pub_key_str(&payload, "rsa:badhex", &sig));
+    let sig = id.sign(&payload);
+    assert!(!NipIdentity::verify_with_pub_key_str(
+        &payload,
+        "rsa:badhex",
+        &sig
+    ));
 }
 
 // ── IdentFrame ────────────────────────────────────────────────────────────────
 
 #[test]
 fn ident_frame_roundtrip() {
-    let codec  = full_codec();
+    let codec = full_codec();
     let mut meta = serde_json::Map::new();
     meta.insert("issuer".into(), json!("urn:nps:ca:root"));
-    let frame  = IdentFrame {
-        nid:       "urn:nps:node:a:1".into(),
-        pub_key:   "ed25519:aabbcc".into(),
-        meta:      Some(meta),
+    let frame = IdentFrame {
+        nid: "urn:nps:node:a:1".into(),
+        pub_key: "ed25519:aabbcc".into(),
+        meta: Some(meta),
         signature: Some("ed25519:sig".into()),
         assurance_level: None,
         cert_format: None,
         cert_chain: None,
     };
-    let wire = codec.encode(IdentFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true).unwrap();
+    let wire = codec
+        .encode(
+            IdentFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::MsgPack,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = IdentFrame::from_dict(&dict).unwrap();
     assert_eq!(back.nid, "urn:nps:node:a:1");
@@ -142,15 +157,22 @@ fn ident_frame_roundtrip() {
 fn ident_frame_optional_fields_null() {
     let codec = full_codec();
     let frame = IdentFrame {
-        nid:       "urn:nps:node:x:1".into(),
-        pub_key:   "ed25519:aabb".into(),
-        meta:      None,
+        nid: "urn:nps:node:x:1".into(),
+        pub_key: "ed25519:aabb".into(),
+        meta: None,
         signature: None,
         assurance_level: None,
         cert_format: None,
         cert_chain: None,
     };
-    let wire = codec.encode(IdentFrame::frame_type(), &frame.to_dict(), EncodingTier::Json, true).unwrap();
+    let wire = codec
+        .encode(
+            IdentFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::Json,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = IdentFrame::from_dict(&dict).unwrap();
     assert!(back.meta.is_none());
@@ -163,13 +185,20 @@ fn ident_frame_optional_fields_null() {
 fn trust_frame_roundtrip() {
     let codec = full_codec();
     let frame = TrustFrame {
-        issuer_nid:  "urn:nps:node:a:1".into(),
+        issuer_nid: "urn:nps:node:a:1".into(),
         subject_nid: "urn:nps:node:b:1".into(),
-        scopes:      vec!["nwp/query".into()],
-        expires_at:  Some("2027-01-01T00:00:00Z".into()),
-        signature:   Some("ed25519:sig".into()),
+        scopes: vec!["nwp/query".into()],
+        expires_at: Some("2027-01-01T00:00:00Z".into()),
+        signature: Some("ed25519:sig".into()),
     };
-    let wire = codec.encode(TrustFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true).unwrap();
+    let wire = codec
+        .encode(
+            TrustFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::MsgPack,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = TrustFrame::from_dict(&dict).unwrap();
     assert_eq!(back.subject_nid, "urn:nps:node:b:1");
@@ -182,11 +211,18 @@ fn trust_frame_roundtrip() {
 fn revoke_frame_roundtrip() {
     let codec = full_codec();
     let frame = RevokeFrame {
-        nid:        "urn:nps:node:a:1".into(),
-        reason:     Some("compromised".into()),
+        nid: "urn:nps:node:a:1".into(),
+        reason: Some("compromised".into()),
         revoked_at: Some("2026-06-01T00:00:00Z".into()),
     };
-    let wire = codec.encode(RevokeFrame::frame_type(), &frame.to_dict(), EncodingTier::MsgPack, true).unwrap();
+    let wire = codec
+        .encode(
+            RevokeFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::MsgPack,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = RevokeFrame::from_dict(&dict).unwrap();
     assert_eq!(back.reason.as_deref(), Some("compromised"));
@@ -196,8 +232,19 @@ fn revoke_frame_roundtrip() {
 #[test]
 fn revoke_frame_optional_fields_null() {
     let codec = full_codec();
-    let frame = RevokeFrame { nid: "urn:nps:node:x:1".into(), reason: None, revoked_at: None };
-    let wire = codec.encode(RevokeFrame::frame_type(), &frame.to_dict(), EncodingTier::Json, true).unwrap();
+    let frame = RevokeFrame {
+        nid: "urn:nps:node:x:1".into(),
+        reason: None,
+        revoked_at: None,
+    };
+    let wire = codec
+        .encode(
+            RevokeFrame::frame_type(),
+            &frame.to_dict(),
+            EncodingTier::Json,
+            true,
+        )
+        .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = RevokeFrame::from_dict(&dict).unwrap();
     assert!(back.reason.is_none());

@@ -7,16 +7,10 @@ pub mod cert_format;
 pub mod error_codes;
 pub mod frames;
 pub mod identity;
-pub mod reputation;
 pub mod verifier;
 pub mod x509;
 
 pub use assurance_level::{AssuranceLevel, ANONYMOUS, ATTESTED, VERIFIED};
-pub use frames::{IdentFrame, TrustFrame, RevokeFrame};
+pub use frames::{IdentFrame, RevokeFrame, TrustFrame};
 pub use identity::NipIdentity;
-pub use reputation::{
-    ReputationLogClient, ReputationLogEntry, ReputationLogError,
-    SignedTreeHead, InclusionProof, IncidentType, Severity,
-    ObservationWindow, sign_entry, verify_entry,
-};
-pub use verifier::{NipIdentVerifier, NipVerifierOptions, NipIdentVerifyResult};
+pub use verifier::{NipIdentVerifier, NipIdentVerifyResult, NipVerifierOptions};

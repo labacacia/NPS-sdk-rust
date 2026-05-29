@@ -31,14 +31,14 @@
 
 ```toml
 [dependencies]
-nps-sdk = "1.0.0-alpha.1"                             # 完整 facade
+nps-sdk = "1.0.0-alpha.11"                             # 完整 facade
 # —— 或按需挑选 crate：
-nps-core = "1.0.0-alpha.1"
-nps-ncp  = "1.0.0-alpha.1"
-nps-nwp  = "1.0.0-alpha.1"
-nps-nip  = "1.0.0-alpha.1"
-nps-ndp  = "1.0.0-alpha.1"
-nps-nop  = "1.0.0-alpha.1"
+nps-core = "1.0.0-alpha.11"
+nps-ncp  = "1.0.0-alpha.11"
+nps-nwp  = "1.0.0-alpha.11"
+nps-nip  = "1.0.0-alpha.11"
+nps-ndp  = "1.0.0-alpha.11"
+nps-nop  = "1.0.0-alpha.11"
 tokio    = { version = "1", features = ["full"] }     # nwp/nop 异步客户端需要
 ```
 

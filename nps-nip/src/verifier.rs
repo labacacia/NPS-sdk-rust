@@ -26,20 +26,28 @@ pub struct NipVerifierOptions {
 
 #[derive(Debug, Clone)]
 pub struct NipIdentVerifyResult {
-    pub valid:       bool,
+    pub valid: bool,
     /// 0 = none, 1 = sig, 2 = assurance, 3 = X.509.
     pub step_failed: u8,
-    pub error_code:  Option<&'static str>,
-    pub message:     Option<String>,
+    pub error_code: Option<&'static str>,
+    pub message: Option<String>,
 }
 
 fn ok() -> NipIdentVerifyResult {
-    NipIdentVerifyResult { valid: true, step_failed: 0, error_code: None, message: None }
+    NipIdentVerifyResult {
+        valid: true,
+        step_failed: 0,
+        error_code: None,
+        message: None,
+    }
 }
 
 fn fail(step: u8, code: &'static str, msg: impl Into<String>) -> NipIdentVerifyResult {
     NipIdentVerifyResult {
-        valid: false, step_failed: step, error_code: Some(code), message: Some(msg.into()),
+        valid: false,
+        step_failed: step,
+        error_code: Some(code),
+        message: Some(msg.into()),
     }
 }
 
@@ -48,19 +56,28 @@ pub struct NipIdentVerifier {
 }
 
 impl NipIdentVerifier {
-    pub fn new(options: NipVerifierOptions) -> Self { Self { options } }
+    pub fn new(options: NipVerifierOptions) -> Self {
+        Self { options }
+    }
 
     pub fn verify(&self, frame: &IdentFrame, issuer_nid: &str) -> NipIdentVerifyResult {
         // ── Step 1: v1 Ed25519 signature check ───────────────────────────
         let Some(ca_pub_key_str) = self.options.trusted_ca_public_keys.get(issuer_nid) else {
-            return fail(1, error_codes::CERT_UNTRUSTED_ISSUER,
-                format!("no trusted CA public key for issuer: {issuer_nid}"));
+            return fail(
+                1,
+                error_codes::CERT_UNTRUSTED_ISSUER,
+                format!("no trusted CA public key for issuer: {issuer_nid}"),
+            );
         };
         let Some(sig_str) = frame.signature.as_ref() else {
             return fail(1, error_codes::CERT_SIGNATURE_INVALID, "missing signature");
         };
         if !sig_str.starts_with("ed25519:") {
-            return fail(1, error_codes::CERT_SIGNATURE_INVALID, "malformed signature prefix");
+            return fail(
+                1,
+                error_codes::CERT_SIGNATURE_INVALID,
+                "malformed signature prefix",
+            );
         }
         let pub_key_bytes = match parse_pub_key_string(ca_pub_key_str) {
             Ok(b) => b,
@@ -68,34 +85,59 @@ impl NipIdentVerifier {
         };
         let verifying_key = match VerifyingKey::from_bytes(&pub_key_bytes) {
             Ok(k) => k,
-            Err(e) => return fail(1, error_codes::CERT_SIGNATURE_INVALID,
-                format!("invalid Ed25519 pubkey: {e}")),
+            Err(e) => {
+                return fail(
+                    1,
+                    error_codes::CERT_SIGNATURE_INVALID,
+                    format!("invalid Ed25519 pubkey: {e}"),
+                )
+            }
         };
-        let sig_bytes = match base64::engine::general_purpose::STANDARD
-            .decode(&sig_str["ed25519:".len()..])
-        {
-            Ok(b) => b,
-            Err(e) => return fail(1, error_codes::CERT_SIGNATURE_INVALID,
-                format!("base64 decode: {e}")),
-        };
+        let sig_bytes =
+            match base64::engine::general_purpose::STANDARD.decode(&sig_str["ed25519:".len()..]) {
+                Ok(b) => b,
+                Err(e) => {
+                    return fail(
+                        1,
+                        error_codes::CERT_SIGNATURE_INVALID,
+                        format!("base64 decode: {e}"),
+                    )
+                }
+            };
         let signature = match Signature::from_slice(&sig_bytes) {
             Ok(s) => s,
-            Err(e) => return fail(1, error_codes::CERT_SIGNATURE_INVALID,
-                format!("signature parse: {e}")),
+            Err(e) => {
+                return fail(
+                    1,
+                    error_codes::CERT_SIGNATURE_INVALID,
+                    format!("signature parse: {e}"),
+                )
+            }
         };
         let canonical = canonical_json(&frame.unsigned_dict());
-        if verifying_key.verify(canonical.as_bytes(), &signature).is_err() {
-            return fail(1, error_codes::CERT_SIGNATURE_INVALID,
-                "v1 Ed25519 signature did not verify against issuer CA key");
+        if verifying_key
+            .verify(canonical.as_bytes(), &signature)
+            .is_err()
+        {
+            return fail(
+                1,
+                error_codes::CERT_SIGNATURE_INVALID,
+                "v1 Ed25519 signature did not verify against issuer CA key",
+            );
         }
 
         // ── Step 2: minimum assurance level ───────────────────────────────
         if let Some(min) = &self.options.min_assurance_level {
             let got = frame.assurance_level.unwrap_or(ANONYMOUS);
             if !got.meets_or_exceeds(min) {
-                return fail(2, error_codes::ASSURANCE_MISMATCH,
-                    format!("assurance_level ({}) below required minimum ({})",
-                        got.wire, min.wire));
+                return fail(
+                    2,
+                    error_codes::ASSURANCE_MISMATCH,
+                    format!(
+                        "assurance_level ({}) below required minimum ({})",
+                        got.wire, min.wire
+                    ),
+                );
             }
         }
 
@@ -105,15 +147,18 @@ impl NipIdentVerifier {
         if has_v2_trust && is_v2_frame {
             let chain = frame.cert_chain.as_deref().unwrap_or(&[]);
             let r = x509::verify(x509::VerifyOptions {
-                cert_chain_b64u_der:      chain,
-                asserted_nid:             &frame.nid,
+                cert_chain_b64u_der: chain,
+                asserted_nid: &frame.nid,
                 asserted_assurance_level: frame.assurance_level,
-                trusted_root_certs_der:   &self.options.trusted_x509_roots_der,
+                trusted_root_certs_der: &self.options.trusted_x509_roots_der,
             });
             if !r.valid {
-                return fail(3,
+                return fail(
+                    3,
                     r.error_code.unwrap_or(error_codes::CERT_FORMAT_INVALID),
-                    r.message.unwrap_or_else(|| "X.509 chain validation failed".into()));
+                    r.message
+                        .unwrap_or_else(|| "X.509 chain validation failed".into()),
+                );
             }
         }
 

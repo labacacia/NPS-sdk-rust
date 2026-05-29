@@ -7,21 +7,23 @@
 //! (NPS-CR-0004, assigned 2026-05-08; see NPS-RFC-0002 §10 OQ-2).
 
 // EKU OIDs (NPS-RFC-0002 §4.1).
-pub const EKU_AGENT_IDENTITY_OID:        &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 1];
-pub const EKU_NODE_IDENTITY_OID:         &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 2];
+pub const EKU_AGENT_IDENTITY_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 1];
+pub const EKU_NODE_IDENTITY_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 2];
 pub const EKU_CA_INTERMEDIATE_AGENT_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 3];
 
 // Custom extensions.
 pub const NID_ASSURANCE_LEVEL_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 1];
 // Reserved per NPS-CR-0004; no consumer wired in yet.
-pub const ID_NPS_NODE_ROLES_OID:   &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 2];
+pub const ID_NPS_NODE_ROLES_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 2];
 
 // Standard X.509 OID for ExtendedKeyUsage extension (id-ce-extKeyUsage).
 pub const EXTENSION_EXTENDED_KEY_USAGE_OID: &[u64] = &[2, 5, 29, 37];
 
 /// Compare an x509-parser Oid (which iterates u64 components) to a `&[u64]` slice.
 pub fn oid_equals(parsed: &x509_parser::oid_registry::Oid, expected: &[u64]) -> bool {
-    let Some(it) = parsed.iter() else { return false; };
+    let Some(it) = parsed.iter() else {
+        return false;
+    };
     let parsed_components: Vec<u64> = it.collect();
     parsed_components.as_slice() == expected
 }

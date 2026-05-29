@@ -1,27 +1,31 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-use nps_nip::identity::NipIdentity;
 use crate::frames::AnnounceFrame;
+use nps_nip::identity::NipIdentity;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct NdpAnnounceResult {
-    pub is_valid:   bool,
+    pub is_valid: bool,
     pub error_code: Option<String>,
-    pub message:    Option<String>,
+    pub message: Option<String>,
 }
 
 impl NdpAnnounceResult {
     pub fn ok() -> Self {
-        NdpAnnounceResult { is_valid: true, error_code: None, message: None }
+        NdpAnnounceResult {
+            is_valid: true,
+            error_code: None,
+            message: None,
+        }
     }
 
     pub fn fail(code: impl Into<String>, msg: impl Into<String>) -> Self {
         NdpAnnounceResult {
-            is_valid:   false,
+            is_valid: false,
             error_code: Some(code.into()),
-            message:    Some(msg.into()),
+            message: Some(msg.into()),
         }
     }
 }
@@ -32,7 +36,9 @@ pub struct NdpAnnounceValidator {
 
 impl NdpAnnounceValidator {
     pub fn new() -> Self {
-        NdpAnnounceValidator { keys: HashMap::new() }
+        NdpAnnounceValidator {
+            keys: HashMap::new(),
+        }
     }
 
     pub fn register_public_key(&mut self, nid: impl Into<String>, pub_key: impl Into<String>) {
@@ -50,10 +56,12 @@ impl NdpAnnounceValidator {
     pub fn validate(&self, frame: &AnnounceFrame) -> NdpAnnounceResult {
         let pub_key = match self.keys.get(&frame.nid) {
             Some(k) => k,
-            None    => return NdpAnnounceResult::fail(
-                "NDP-ANNOUNCE-NID-MISMATCH",
-                format!("no public key registered for NID {}", frame.nid),
-            ),
+            None => {
+                return NdpAnnounceResult::fail(
+                    "NDP-ANNOUNCE-NID-MISMATCH",
+                    format!("no public key registered for NID {}", frame.nid),
+                )
+            }
         };
 
         if !frame.signature.starts_with("ed25519:") {

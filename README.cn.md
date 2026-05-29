@@ -1,13 +1,6 @@
 [English Version](./README.md) | 中文版
 
 # NPS Rust SDK (`nps-rs`)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.8-orange.svg)](CHANGELOG.cn.md)
-[![NCP](https://img.shields.io/badge/NCP-v0.6-5b8cff.svg)]()
-[![NWP](https://img.shields.io/badge/NWP-v0.12-4af0b0.svg)]()
-[![NIP](https://img.shields.io/badge/NIP-v0.8-7b61ff.svg)]()
-[![NDP](https://img.shields.io/badge/NDP-v0.7-f0a050.svg)]()
-[![NOP](https://img.shields.io/badge/NOP-v0.5-ff8c42.svg)]()
 
 面向 **Neural Protocol Suite (NPS)** 的 Rust 客户端库 —— 为 AI Agent 与模型设计的完整互联网协议栈。
 
@@ -15,9 +8,9 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.8 —— 跟随 NPS 套件 alpha.8；RFC-0005 ReputationPolicyEvaluator；cgn_limit 执行前强制校验**
+**v1.0.0-alpha.11 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
 
-覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。Alpha.7 新增 `ReputationLogClient`（CT 风格信誉日志，RFC-0004 Phase 2）及 21 个 AnchorNodeClient 测试。
+覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
 测试：workspace 共 99 个，全绿。
 

@@ -11,15 +11,15 @@
 use nps_core::error::{NpsError, NpsResult};
 
 pub const LITERAL: &str = "NPS/1.0\n";
-pub const BYTES:   &[u8] = b"NPS/1.0\n";
-pub const LENGTH:  usize = 8;
+pub const BYTES: &[u8] = b"NPS/1.0\n";
+pub const LENGTH: usize = 8;
 
 /// Validation timeout in seconds (NPS-RFC-0001 §4.1).
 pub const READ_TIMEOUT_SECS: u64 = 10;
 /// Maximum delay before closing on mismatch, in milliseconds.
 pub const CLOSE_DEADLINE_MS: u64 = 500;
 
-pub const ERROR_CODE:  &str = "NCP-PREAMBLE-INVALID";
+pub const ERROR_CODE: &str = "NCP-PREAMBLE-INVALID";
 pub const STATUS_CODE: &str = "NPS-PROTO-PREAMBLE-INVALID";
 
 /// Returns `true` iff `buf` starts with the 8-byte NPS/1.0 preamble.
@@ -34,7 +34,8 @@ pub fn validate(buf: &[u8]) -> NpsResult<()> {
     if buf.len() < LENGTH {
         return Err(NpsError::Frame(format!(
             "short read ({}/{} bytes); peer is not speaking NCP",
-            buf.len(), LENGTH
+            buf.len(),
+            LENGTH
         )));
     }
     if !matches(buf) {
@@ -43,7 +44,9 @@ pub fn validate(buf: &[u8]) -> NpsResult<()> {
                 "future-major-version NPS preamble; close with NPS-PREAMBLE-UNSUPPORTED-VERSION diagnostic".into(),
             ));
         }
-        return Err(NpsError::Frame("preamble mismatch; peer is not speaking NPS/1.x".into()));
+        return Err(NpsError::Frame(
+            "preamble mismatch; peer is not speaking NPS/1.x".into(),
+        ));
     }
     Ok(())
 }

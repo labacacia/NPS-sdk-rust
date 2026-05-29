@@ -1,8 +1,8 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
 use crate::frames::FrameType;
+use std::collections::HashSet;
 
 pub struct FrameRegistry {
     registered: HashSet<u8>,
@@ -10,7 +10,9 @@ pub struct FrameRegistry {
 
 impl FrameRegistry {
     pub fn new() -> Self {
-        FrameRegistry { registered: HashSet::new() }
+        FrameRegistry {
+            registered: HashSet::new(),
+        }
     }
 
     pub fn register(&mut self, ft: FrameType) {
