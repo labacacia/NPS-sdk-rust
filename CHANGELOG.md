@@ -8,6 +8,49 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.11] — 2026-05-31
+
+### Added
+
+- **NWP — `SubscribeFrame` CR-0006** (Breaking rewrite): Wire format updated — `subscription_id` (required), `filter` (`Option<Map<String,Value>>`), `heartbeat_interval_ms` (`Option<u32>`), `max_events` (`Option<u32>`), `cursor` (`Option<String>`). **Wire breaking change vs alpha.8–10.**
+- **NOP — AlignStream ack/NAK**: `AlignStreamFrame` gains `ack_seq` and `nak_seq` (`Option<u64>`) for NOP v0.6 sliding-window acknowledgement.
+- **NOP — Saga compensation**: `TaskFrame.compensation_policy`; `DelegateFrame.target_cluster_anchor`; `AggregateStrategy` constants `WEIGHTED_FIRST_K` / `MERGE_ALL`.
+- **NDP — `GraphFrame` §5** (Breaking rewrite): `GraphNode`, `GraphEdge` structs; `GraphFrame` with `graph_id`, `nodes`, `edges`, `ttl`, `metadata`. Max 256 nodes / 1024 edges.
+- **NIP — `IdentFrame.ocsp_staple`**: `Option<String>` base64url DER OCSP response field; `IdentReputationPolicyHint` struct.
+
+### Tracking the suite
+
+This release tracks NPS suite `v1.0.0-alpha.11`. NCP v0.7 / NWP v0.13 / NIP v0.9 / NDP v0.8 / NOP v0.6.
+
+---
+
+## [1.0.0-alpha.10] — 2026-05-28
+
+### Added
+
+- **NOP — Saga compensation**: `DagNode` struct with `compensate_action` / `compensate_params_mapping`; `TaskState::Compensating` / `Compensated`; `compensation_policy` module.
+- **NDP — `SecurityProfile`**: `LOCAL_DEV` / `ORG_PRIVATE` / `PUBLIC_FEDERATED` constants.
+- **NIP — `IdentReputationPolicyHint`**: Reputation policy hint struct.
+
+### Tracking the suite
+
+This release tracks NPS suite `v1.0.0-alpha.10`.
+
+---
+
+## [1.0.0-alpha.9] — 2026-05-28
+
+### Added
+
+- **NWP — `SubscribeFrame` (0x12)**: Initial `SubscribeFrame` struct (pre-CR-0006 format — replaced in alpha.11).
+- **NWP — `ReputationPolicy` / `RepOutcome`**: RFC-0005 reputation types.
+
+### Tracking the suite
+
+This release tracks NPS suite `v1.0.0-alpha.9`.
+
+---
+
 ## [1.0.0-alpha.8] — 2026-05-28
 
 ### Tracking the suite
