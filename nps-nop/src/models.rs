@@ -1,7 +1,42 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+// ── compensation_policy constants ────────────────────────────────────────────
+
+pub mod compensation_policy {
+    pub const NONE:       &str = "none";
+    pub const ON_FAILURE: &str = "on_failure";
+    pub const ALWAYS:     &str = "always";
+}
+
+// ── aggregate_strategy constants ──────────────────────────────────────────────
+
+pub mod aggregate_strategy {
+    pub const MERGE:            &str = "merge";
+    pub const WEIGHTED_FIRST_K: &str = "weighted_first_k";
+    pub const MERGE_ALL:        &str = "merge_all";
+}
+
+// ── DagNode ───────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DagNode {
+    pub id:     String,
+    pub action: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_nid:               Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inputs:                   Option<serde_json::Map<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub depends_on:               Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compensate_action:        Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compensate_params_mapping: Option<serde_json::Map<String, Value>>,
+}
 
 // ── BackoffStrategy ───────────────────────────────────────────────────────────
 
@@ -33,25 +68,26 @@ pub enum TaskState {
     Completed,
     Failed,
     Cancelled,
+    Compensating,
+    Compensated,
 }
 
 impl TaskState {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
-            "pending" => Some(TaskState::Pending),
-            "running" => Some(TaskState::Running),
-            "completed" => Some(TaskState::Completed),
-            "failed" => Some(TaskState::Failed),
-            "cancelled" => Some(TaskState::Cancelled),
-            _ => None,
+            "pending"      => Some(TaskState::Pending),
+            "running"      => Some(TaskState::Running),
+            "completed"    => Some(TaskState::Completed),
+            "failed"       => Some(TaskState::Failed),
+            "cancelled"    => Some(TaskState::Cancelled),
+            "compensating" => Some(TaskState::Compensating),
+            "compensated"  => Some(TaskState::Compensated),
+            _              => None,
         }
     }
 
     pub fn is_terminal(self) -> bool {
-        matches!(
-            self,
-            TaskState::Completed | TaskState::Failed | TaskState::Cancelled
-        )
+        matches!(self, TaskState::Completed | TaskState::Failed | TaskState::Cancelled | TaskState::Compensated)
     }
 }
 

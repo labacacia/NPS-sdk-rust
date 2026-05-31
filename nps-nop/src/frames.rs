@@ -35,6 +35,7 @@ pub struct TaskFrame {
     pub context: Option<Value>,
     pub priority: Option<String>,
     pub depth: Option<i64>,
+    pub compensation_policy: Option<String>,
 }
 
 impl TaskFrame {
@@ -61,6 +62,9 @@ impl TaskFrame {
         if let Some(v) = self.depth {
             m.insert("depth".into(), json!(v));
         }
+        if let Some(v) = &self.compensation_policy {
+            m.insert("compensation_policy".into(), json!(v));
+        }
         m
     }
 
@@ -73,6 +77,7 @@ impl TaskFrame {
             context: d.get("context").cloned(),
             priority: opt_str(d, "priority").map(str::to_string),
             depth: opt_i64(d, "depth"),
+            compensation_policy: opt_str(d, "compensation_policy").map(str::to_string),
         })
     }
 }
@@ -88,6 +93,7 @@ pub struct DelegateFrame {
     pub inputs: Option<Value>,
     pub config: Option<Value>,
     pub idempotency_key: Option<String>,
+    pub target_cluster_anchor: Option<String>,
 }
 
 impl DelegateFrame {
@@ -110,6 +116,9 @@ impl DelegateFrame {
         if let Some(v) = &self.idempotency_key {
             m.insert("idempotency_key".into(), json!(v));
         }
+        if let Some(v) = &self.target_cluster_anchor {
+            m.insert("target_cluster_anchor".into(), json!(v));
+        }
         m
     }
 
@@ -122,6 +131,7 @@ impl DelegateFrame {
             inputs: d.get("inputs").cloned(),
             config: d.get("config").cloned(),
             idempotency_key: opt_str(d, "idempotency_key").map(str::to_string),
+            target_cluster_anchor: opt_str(d, "target_cluster_anchor").map(str::to_string),
         })
     }
 }
@@ -191,6 +201,8 @@ pub struct AlignStreamFrame {
     pub result: Option<Value>,
     pub error: Option<Value>,
     pub window_size: Option<u64>,
+    pub ack_seq: Option<u64>,
+    pub nak_seq: Option<u64>,
 }
 
 impl AlignStreamFrame {
@@ -231,6 +243,12 @@ impl AlignStreamFrame {
         if let Some(v) = self.window_size {
             m.insert("window_size".into(), json!(v));
         }
+        if let Some(v) = self.ack_seq {
+            m.insert("ack_seq".into(), json!(v));
+        }
+        if let Some(v) = self.nak_seq {
+            m.insert("nak_seq".into(), json!(v));
+        }
         m
     }
 
@@ -245,6 +263,8 @@ impl AlignStreamFrame {
             result: d.get("result").cloned(),
             error: d.get("error").cloned(),
             window_size: opt_u64(d, "window_size"),
+            ack_seq: opt_u64(d, "ack_seq"),
+            nak_seq: opt_u64(d, "nak_seq"),
         })
     }
 }

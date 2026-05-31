@@ -12,7 +12,7 @@ pub mod verifier;
 pub mod x509;
 
 pub use assurance_level::{AssuranceLevel, ANONYMOUS, ATTESTED, VERIFIED};
-pub use frames::{IdentFrame, RevokeFrame, TrustFrame};
+pub use frames::{IdentFrame, IdentReputationPolicyHint, RevokeFrame, TrustFrame};
 pub use identity::NipIdentity;
 pub use reputation::{
     sign_entry, verify_entry, IncidentType, InclusionProof, ObservationWindow, ReputationLogClient,

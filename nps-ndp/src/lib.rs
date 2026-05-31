@@ -7,6 +7,6 @@ pub mod frames;
 pub mod registry;
 pub mod validator;
 
-pub use frames::{AnnounceFrame, GraphFrame, ResolveFrame};
+pub use frames::{AnnounceFrame, GraphEdge, GraphFrame, GraphNode, ResolveFrame};
 pub use registry::{InMemoryNdpRegistry, ResolveResult};
 pub use validator::{NdpAnnounceResult, NdpAnnounceValidator};

@@ -4,6 +4,7 @@
 use nps_core::codec::FrameDict;
 use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::FrameType;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
@@ -32,6 +33,12 @@ pub struct AnnounceFrame {
     pub timestamp: String,
     pub signature: String,
     pub node_type: Option<String>,
+    pub node_roles: Option<Vec<String>>,
+    pub cluster_anchor: Option<String>,
+    pub spawn_spec_ref: Option<String>,
+    pub bridge_protocols: Option<Vec<String>>,
+    pub activation_mode: Option<String>,
+    pub activation_endpoint: Option<String>,
 }
 
 impl AnnounceFrame {
@@ -56,6 +63,12 @@ impl AnnounceFrame {
     pub fn to_dict(&self) -> FrameDict {
         let mut m = self.unsigned_dict();
         m.insert("signature".into(), json!(self.signature));
+        if let Some(v) = &self.node_roles          { m.insert("node_roles".into(),          json!(v)); }
+        if let Some(v) = &self.cluster_anchor      { m.insert("cluster_anchor".into(),      json!(v)); }
+        if let Some(v) = &self.spawn_spec_ref      { m.insert("spawn_spec_ref".into(),      json!(v)); }
+        if let Some(v) = &self.bridge_protocols    { m.insert("bridge_protocols".into(),    json!(v)); }
+        if let Some(v) = &self.activation_mode     { m.insert("activation_mode".into(),     json!(v)); }
+        if let Some(v) = &self.activation_endpoint { m.insert("activation_endpoint".into(), json!(v)); }
         m
     }
 
@@ -75,6 +88,10 @@ impl AnnounceFrame {
                     .collect()
             })
             .unwrap_or_default();
+        let node_roles = d.get("node_roles").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
+        let bridge_protocols = d.get("bridge_protocols").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
         Ok(AnnounceFrame {
             nid: get_str(d, "nid")?.to_string(),
             addresses,
@@ -83,6 +100,12 @@ impl AnnounceFrame {
             timestamp: get_str(d, "timestamp")?.to_string(),
             signature: opt_str(d, "signature").unwrap_or("").to_string(),
             node_type: opt_str(d, "node_type").map(str::to_string),
+            node_roles,
+            cluster_anchor:      opt_str(d, "cluster_anchor").map(str::to_string),
+            spawn_spec_ref:      opt_str(d, "spawn_spec_ref").map(str::to_string),
+            bridge_protocols,
+            activation_mode:     opt_str(d, "activation_mode").map(str::to_string),
+            activation_endpoint: opt_str(d, "activation_endpoint").map(str::to_string),
         })
     }
 }
@@ -122,14 +145,38 @@ impl ResolveFrame {
     }
 }
 
+// ── GraphNode ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphNode {
+    pub nid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cluster_anchor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub node_roles: Option<Vec<String>>,
+}
+
+// ── GraphEdge ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GraphEdge {
+    pub from_nid: String,
+    pub to_nid:   String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<String>,
+}
+
 // ── GraphFrame ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct GraphFrame {
-    pub seq: u64,
-    pub initial_sync: bool,
-    pub nodes: Vec<Value>,
-    pub patch: Option<Vec<Value>>,
+    pub graph_id: String,
+    pub nodes:    Vec<GraphNode>,
+    pub edges:    Vec<GraphEdge>,
+    pub ttl:      u32,
+    pub metadata: Option<serde_json::Map<String, Value>>,
 }
 
 impl GraphFrame {
@@ -139,28 +186,29 @@ impl GraphFrame {
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("seq".into(), json!(self.seq));
-        m.insert("initial_sync".into(), json!(self.initial_sync));
-        m.insert("nodes".into(), json!(self.nodes));
-        if let Some(p) = &self.patch {
-            m.insert("patch".into(), json!(p));
+        m.insert("graph_id".into(), json!(self.graph_id));
+        m.insert("nodes".into(),    json!(self.nodes));
+        m.insert("edges".into(),    json!(self.edges));
+        m.insert("ttl".into(),      json!(self.ttl));
+        if let Some(v) = &self.metadata {
+            m.insert("metadata".into(), Value::Object(v.clone()));
         }
         m
     }
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
+        let nodes: Vec<GraphNode> = d.get("nodes").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            .unwrap_or_default();
+        let edges: Vec<GraphEdge> = d.get("edges").and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            .unwrap_or_default();
         Ok(GraphFrame {
-            seq: opt_u64(d, "seq").unwrap_or(0),
-            initial_sync: d
-                .get("initial_sync")
-                .and_then(Value::as_bool)
-                .unwrap_or(false),
-            nodes: d
-                .get("nodes")
-                .and_then(Value::as_array)
-                .cloned()
-                .unwrap_or_default(),
-            patch: d.get("patch").and_then(Value::as_array).cloned(),
+            graph_id: opt_str(d, "graph_id").unwrap_or("").to_string(),
+            nodes,
+            edges,
+            ttl:      d.get("ttl").and_then(Value::as_u64).unwrap_or(300) as u32,
+            metadata: d.get("metadata").and_then(Value::as_object).cloned(),
         })
     }
 }

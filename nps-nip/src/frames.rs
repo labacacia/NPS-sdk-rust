@@ -4,6 +4,7 @@
 use nps_core::codec::FrameDict;
 use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::FrameType;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 fn get_str<'a>(d: &'a FrameDict, k: &str) -> NpsResult<&'a str> {
@@ -14,6 +15,16 @@ fn get_str<'a>(d: &'a FrameDict, k: &str) -> NpsResult<&'a str> {
 
 fn opt_str<'a>(d: &'a FrameDict, k: &str) -> Option<&'a str> {
     d.get(k).and_then(Value::as_str)
+}
+
+// ── IdentReputationPolicyHint ─────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdentReputationPolicyHint {
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub log_sources: Vec<String>,
+    #[serde(default)]
+    pub consent: bool,
 }
 
 // ── IdentFrame ────────────────────────────────────────────────────────────────
@@ -32,6 +43,10 @@ pub struct IdentFrame {
     pub cert_format: Option<String>,
     /// `cert_chain` is base64url(DER), `[leaf, intermediates..., root]`.
     pub cert_chain: Option<Vec<String>>,
+    /// NPS-RFC-0004 — optional OCSP staple (base64-encoded DER).
+    pub ocsp_staple: Option<String>,
+    /// NPS-RFC-0004 — optional reputation policy hint embedded in metadata.
+    pub reputation_policy: Option<IdentReputationPolicyHint>,
 }
 
 impl IdentFrame {
@@ -48,6 +63,8 @@ impl IdentFrame {
             assurance_level: None,
             cert_format: None,
             cert_chain: None,
+            ocsp_staple: None,
+            reputation_policy: None,
         }
     }
 
@@ -78,6 +95,14 @@ impl IdentFrame {
         if let Some(c) = &self.cert_chain {
             m.insert("cert_chain".into(), json!(c));
         }
+        if let Some(s) = &self.ocsp_staple {
+            m.insert("ocsp_staple".into(), json!(s));
+        }
+        if let Some(r) = &self.reputation_policy {
+            if let Ok(v) = serde_json::to_value(r) {
+                m.insert("reputation_policy".into(), v);
+            }
+        }
         m
     }
 
@@ -91,6 +116,8 @@ impl IdentFrame {
                 .filter_map(|v| v.as_str().map(String::from))
                 .collect()
         });
+        let reputation_policy = d.get("reputation_policy")
+            .and_then(|v| serde_json::from_value(v.clone()).ok());
         Ok(IdentFrame {
             nid: get_str(d, "nid")?.to_string(),
             pub_key: get_str(d, "pub_key")?.to_string(),
@@ -99,6 +126,8 @@ impl IdentFrame {
             assurance_level,
             cert_format: opt_str(d, "cert_format").map(str::to_string),
             cert_chain,
+            ocsp_staple: opt_str(d, "ocsp_staple").map(str::to_string),
+            reputation_policy,
         })
     }
 }
