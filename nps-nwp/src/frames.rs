@@ -4,6 +4,7 @@
 use nps_core::codec::FrameDict;
 use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::FrameType;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 fn get_str<'a>(d: &'a FrameDict, k: &str) -> NpsResult<&'a str> {
@@ -267,4 +268,19 @@ impl AsyncActionResponse {
             callback_url: opt_str(d, "callback_url").map(str::to_string),
         })
     }
+}
+
+// ── SubscribeFrame ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscribeFrame {
+    pub subscription_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub filter: Option<serde_json::Map<String, Value>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub heartbeat_interval_ms: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_events: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
 }
