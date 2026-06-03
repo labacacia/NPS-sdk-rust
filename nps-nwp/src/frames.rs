@@ -24,6 +24,9 @@ fn opt_u64(d: &FrameDict, k: &str) -> Option<u64> {
 pub const TOPOLOGY_SNAPSHOT_KIND: &str = "topology.snapshot";
 pub const TOPOLOGY_STREAM_KIND: &str = "topology.stream";
 
+// ── NWP v0.14 ─────────────────────────────────────────────────────────────────
+pub const X_NWM_VERSION: &str = "X-NWM-Version";
+
 #[derive(Debug, Clone)]
 pub struct TopologySnapshotRequest {
     pub kind: String,

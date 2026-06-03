@@ -32,6 +32,10 @@ pub const ENC_AUTH_FAILED:    &str = "NCP-ENC-AUTH-FAILED";
 pub const VERSION_INCOMPATIBLE: &str = "NCP-VERSION-INCOMPATIBLE";
 pub const PREAMBLE_INVALID:     &str = "NCP-PREAMBLE-INVALID";
 
+// ── Keepalive (v0.8) ──────────────────────────────────────────────────────────
+pub const KEEPALIVE_TIMEOUT: &str = "NCP-KEEPALIVE-TIMEOUT";
+pub const REKEY_REQUIRED:    &str = "NCP-REKEY-REQUIRED";
+
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
 /// Map a NCP error code to the corresponding NPS status code.
@@ -62,6 +66,8 @@ pub fn to_nps_status(code: &str) -> &'static str {
 
         VERSION_INCOMPATIBLE      => "NPS-PROTO-VERSION-INCOMPATIBLE",
         PREAMBLE_INVALID          => "NPS-PROTO-PREAMBLE-INVALID",
+        KEEPALIVE_TIMEOUT         => "NPS-SERVER-TIMEOUT",
+        REKEY_REQUIRED            => "NPS-CLIENT-BAD-FRAME",
 
         _                         => "NPS-SERVER-INTERNAL",
     }

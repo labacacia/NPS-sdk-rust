@@ -221,6 +221,8 @@ pub struct HelloFrame {
     pub ext_support: bool,
     pub max_concurrent_streams: u64,
     pub e2e_enc_algorithms: Option<Vec<String>>,
+    /// NCP v0.8 — keepalive interval in ms; 0 means disabled.
+    pub ping_interval_ms: u64,
 }
 
 impl HelloFrame {
@@ -246,6 +248,7 @@ impl HelloFrame {
             ext_support: false,
             max_concurrent_streams: Self::DEFAULT_MAX_CONCURRENT_STREAMS,
             e2e_enc_algorithms: None,
+            ping_interval_ms: 0,
         }
     }
 
@@ -274,6 +277,9 @@ impl HelloFrame {
         }
         if let Some(v) = &self.e2e_enc_algorithms {
             m.insert("e2e_enc_algorithms".into(), json!(v));
+        }
+        if self.ping_interval_ms > 0 {
+            m.insert("ping_interval_ms".into(), json!(self.ping_interval_ms));
         }
         m
     }
@@ -324,7 +330,28 @@ impl HelloFrame {
             max_concurrent_streams: opt_u64(d, "max_concurrent_streams")
                 .unwrap_or(Self::DEFAULT_MAX_CONCURRENT_STREAMS),
             e2e_enc_algorithms,
+            ping_interval_ms: opt_u64(d, "ping_interval_ms").unwrap_or(0),
         })
+    }
+}
+
+// ── NopFrame (0x07) ───────────────────────────────────────────────────────────
+
+/// NCP v0.8 keepalive/heartbeat frame. No payload — either peer MAY send after handshake.
+#[derive(Debug, Clone, Default)]
+pub struct NopFrame;
+
+impl NopFrame {
+    pub fn frame_type() -> FrameType {
+        FrameType::Nop
+    }
+
+    pub fn to_dict(&self) -> FrameDict {
+        serde_json::Map::new()
+    }
+
+    pub fn from_dict(_d: &FrameDict) -> NpsResult<Self> {
+        Ok(NopFrame)
     }
 }
 

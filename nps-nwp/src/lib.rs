@@ -16,6 +16,7 @@ pub use anchor_client::{
 pub use client::NwpClient;
 pub use frames::{
     ActionFrame, AsyncActionResponse, BridgeNodeSpec, QueryFrame, SubscribeFrame, TopologyMember,
-    TopologySnapshotRequest, TopologyStreamRequest, TOPOLOGY_SNAPSHOT_KIND, TOPOLOGY_STREAM_KIND,
+    TopologySnapshotRequest, TopologyStreamRequest,
+    TOPOLOGY_SNAPSHOT_KIND, TOPOLOGY_STREAM_KIND, X_NWM_VERSION,
 };
 pub use reputation::{RepOutcome, ReputationDecision, ReputationPolicy, ReputationRule};

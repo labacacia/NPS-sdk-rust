@@ -36,6 +36,8 @@ pub struct TaskFrame {
     pub priority: Option<String>,
     pub depth: Option<i64>,
     pub compensation_policy: Option<String>,
+    /// NOP v0.7 — how long the result is cached; default 3600 s.
+    pub result_ttl_seconds: u64,
 }
 
 impl TaskFrame {
@@ -65,6 +67,9 @@ impl TaskFrame {
         if let Some(v) = &self.compensation_policy {
             m.insert("compensation_policy".into(), json!(v));
         }
+        if self.result_ttl_seconds != 3600 {
+            m.insert("result_ttl_seconds".into(), json!(self.result_ttl_seconds));
+        }
         m
     }
 
@@ -78,6 +83,7 @@ impl TaskFrame {
             priority: opt_str(d, "priority").map(str::to_string),
             depth: opt_i64(d, "depth"),
             compensation_policy: opt_str(d, "compensation_policy").map(str::to_string),
+            result_ttl_seconds: opt_u64(d, "result_ttl_seconds").unwrap_or(3600),
         })
     }
 }

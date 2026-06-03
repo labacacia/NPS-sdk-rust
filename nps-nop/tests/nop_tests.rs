@@ -157,6 +157,8 @@ fn task_frame_roundtrip() {
         context: Some(json!({"traceId": "tr1"})),
         priority: Some("high".into()),
         depth: Some(1),
+        compensation_policy: None,
+        result_ttl_seconds: 3600,
     };
     let wire = codec
         .encode(
@@ -189,6 +191,8 @@ fn task_frame_optional_fields_null() {
         context: None,
         priority: None,
         depth: None,
+        compensation_policy: None,
+        result_ttl_seconds: 3600,
     };
     let wire = codec
         .encode(
@@ -217,6 +221,7 @@ fn delegate_frame_roundtrip() {
         inputs: Some(json!({"text": "hello"})),
         config: Some(json!({"model": "gpt-4"})),
         idempotency_key: Some("idem-x".into()),
+        target_cluster_anchor: None,
     };
     let wire = codec
         .encode(
@@ -243,6 +248,7 @@ fn delegate_frame_optional_fields_null() {
         inputs: None,
         config: None,
         idempotency_key: None,
+        target_cluster_anchor: None,
     };
     let wire = codec
         .encode(
@@ -329,6 +335,8 @@ fn align_stream_frame_with_error() {
         result: Some(json!({"score": 0.9})),
         error: Some(err),
         window_size: Some(10),
+        ack_seq: None,
+        nak_seq: None,
     };
     let wire = codec
         .encode(
@@ -360,6 +368,8 @@ fn align_stream_frame_null_error() {
         result: None,
         error: None,
         window_size: None,
+        ack_seq: None,
+        nak_seq: None,
     };
     let wire = codec
         .encode(

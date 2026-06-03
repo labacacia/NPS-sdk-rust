@@ -8,6 +8,22 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.12] — 2026-06-03
+
+### Added
+
+- **NCP v0.8 — `NopFrame` (0x07)**: New keepalive/heartbeat frame with no payload. Both peers MAY send after handshake. `HelloFrame` gains `ping_interval_ms` (`u64`, default 0 = disabled). Error codes `NCP-KEEPALIVE-TIMEOUT` → `NPS-SERVER-TIMEOUT`, `NCP-REKEY-REQUIRED` → `NPS-CLIENT-BAD-FRAME`.
+- **NIP v0.10 — `IdentFrame.node_roles`**: `Option<Vec<String>>` self-declared node-role tags. Excluded from the Ed25519 signed payload (same pattern as `cert_format`/`cert_chain`). Error code `NIP-CERT-NODE-ROLES-MISMATCH` → `NPS-AUTH-FORBIDDEN`.
+- **NDP v0.9 — `AnnounceFrame.spawn_spec_ref`**: Type changed from `Option<String>` URI to `Option<Map<String,Value>>` structured schema object. `AnnounceFrame.heartbeat_interval_ms` (`u64`, default 60 000 ms). Error code `NDP-ANNOUNCE-STALE` → `NPS-CLIENT-NOT-FOUND`.
+- **NOP v0.7 — `TaskFrame.result_ttl_seconds`**: `u64`, default 3 600 s. Omitted from wire when equal to default. Error codes `NOP-TASK-RESULT-EXPIRED` → `NPS-CLIENT-NOT-FOUND`, `NOP-STREAM-NAK-UNRESOLVABLE` → `NPS-STREAM-SEQ-GAP`.
+- **NWP v0.14 — `X_NWM_VERSION`**: `pub const X_NWM_VERSION: &str = "X-NWM-Version"` HTTP response header constant, re-exported from `nps-nwp` root.
+
+### Tracking the suite
+
+This release tracks NPS suite `v1.0.0-alpha.12`. NCP v0.8 / NWP v0.14 / NIP v0.10 / NDP v0.9 / NOP v0.7.
+
+---
+
 ## [1.0.0-alpha.11] — 2026-05-31
 
 ### Added

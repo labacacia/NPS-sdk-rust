@@ -138,6 +138,9 @@ fn ident_frame_roundtrip() {
         assurance_level: None,
         cert_format: None,
         cert_chain: None,
+        ocsp_staple: None,
+        reputation_policy: None,
+        node_roles: None,
     };
     let wire = codec
         .encode(
@@ -164,6 +167,9 @@ fn ident_frame_optional_fields_null() {
         assurance_level: None,
         cert_format: None,
         cert_chain: None,
+        ocsp_staple: None,
+        reputation_policy: None,
+        node_roles: None,
     };
     let wire = codec
         .encode(

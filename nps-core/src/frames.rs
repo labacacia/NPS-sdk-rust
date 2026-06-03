@@ -13,6 +13,7 @@ pub enum FrameType {
     Stream = 0x03,
     Caps = 0x04,
     Hello = 0x06,
+    Nop = 0x07, // NCP v0.8 keepalive/heartbeat
     Query = 0x10,
     Action = 0x11,
     Ident = 0x20,
@@ -36,6 +37,7 @@ impl FrameType {
             0x03 => Ok(FrameType::Stream),
             0x04 => Ok(FrameType::Caps),
             0x06 => Ok(FrameType::Hello),
+            0x07 => Ok(FrameType::Nop),
             0x10 => Ok(FrameType::Query),
             0x11 => Ok(FrameType::Action),
             0x20 => Ok(FrameType::Ident),

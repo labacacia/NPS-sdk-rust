@@ -47,6 +47,8 @@ pub struct IdentFrame {
     pub ocsp_staple: Option<String>,
     /// NPS-RFC-0004 — optional reputation policy hint embedded in metadata.
     pub reputation_policy: Option<IdentReputationPolicyHint>,
+    /// NIP v0.10 — self-declared node-role tags (alpha.12).
+    pub node_roles: Option<Vec<String>>,
 }
 
 impl IdentFrame {
@@ -65,6 +67,7 @@ impl IdentFrame {
             cert_chain: None,
             ocsp_staple: None,
             reputation_policy: None,
+            node_roles: None,
         }
     }
 
@@ -103,6 +106,9 @@ impl IdentFrame {
                 m.insert("reputation_policy".into(), v);
             }
         }
+        if let Some(roles) = &self.node_roles {
+            m.insert("node_roles".into(), json!(roles));
+        }
         m
     }
 
@@ -118,6 +124,9 @@ impl IdentFrame {
         });
         let reputation_policy = d.get("reputation_policy")
             .and_then(|v| serde_json::from_value(v.clone()).ok());
+        let node_roles = d.get("node_roles").and_then(Value::as_array).map(|a| {
+            a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+        });
         Ok(IdentFrame {
             nid: get_str(d, "nid")?.to_string(),
             pub_key: get_str(d, "pub_key")?.to_string(),
@@ -128,6 +137,7 @@ impl IdentFrame {
             cert_chain,
             ocsp_staple: opt_str(d, "ocsp_staple").map(str::to_string),
             reputation_policy,
+            node_roles,
         })
     }
 }

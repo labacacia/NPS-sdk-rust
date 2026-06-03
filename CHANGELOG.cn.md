@@ -8,6 +8,22 @@
 
 ---
 
+## [1.0.0-alpha.12] —— 2026-06-03
+
+### 新增
+
+- **NCP v0.8 — `NopFrame`（0x07）**：新增无负载保活/心跳帧，握手后双方均可发送。`HelloFrame` 新增 `ping_interval_ms`（`u64`，默认 0 表示禁用）。错误码 `NCP-KEEPALIVE-TIMEOUT` → `NPS-SERVER-TIMEOUT`，`NCP-REKEY-REQUIRED` → `NPS-CLIENT-BAD-FRAME`。
+- **NIP v0.10 — `IdentFrame.node_roles`**：`Option<Vec<String>>` 自声明节点角色标签，Phase 1–2。不计入 Ed25519 签名负载（与 `cert_format`/`cert_chain` 相同模式）。错误码 `NIP-CERT-NODE-ROLES-MISMATCH` → `NPS-AUTH-FORBIDDEN`。
+- **NDP v0.9 — `AnnounceFrame.spawn_spec_ref`**：类型由 `Option<String>` URI 改为 `Option<Map<String,Value>>` 结构化 schema 对象。新增 `AnnounceFrame.heartbeat_interval_ms`（`u64`，默认 60 000 ms）。错误码 `NDP-ANNOUNCE-STALE` → `NPS-CLIENT-NOT-FOUND`。
+- **NOP v0.7 — `TaskFrame.result_ttl_seconds`**：`u64`，默认 3 600 秒，等于默认值时省略传输。错误码 `NOP-TASK-RESULT-EXPIRED` → `NPS-CLIENT-NOT-FOUND`，`NOP-STREAM-NAK-UNRESOLVABLE` → `NPS-STREAM-SEQ-GAP`。
+- **NWP v0.14 — `X_NWM_VERSION`**：新增 `pub const X_NWM_VERSION: &str = "X-NWM-Version"` HTTP 响应头常量，从 `nps-nwp` 根模块重新导出。
+
+### 跟随套件
+
+本次跟随 NPS 套件 `v1.0.0-alpha.12`。NCP v0.8 / NWP v0.14 / NIP v0.10 / NDP v0.9 / NOP v0.7。
+
+---
+
 ## [1.0.0-alpha.8] —— 2026-05-28
 
 ### 跟随套件

@@ -23,9 +23,13 @@ pub const SYNC_TIMEOUT:            &str = "NOP-SYNC-TIMEOUT";
 pub const SYNC_DEPENDENCY_FAILED:  &str = "NOP-SYNC-DEPENDENCY-FAILED";
 
 // ── Stream ────────────────────────────────────────────────────────────────────
-pub const STREAM_SEQ_GAP:     &str = "NOP-STREAM-SEQ-GAP";
-pub const STREAM_NID_MISMATCH:&str = "NOP-STREAM-NID-MISMATCH";
-pub const STREAM_NAK:         &str = "NOP-STREAM-NAK";
+pub const STREAM_SEQ_GAP:          &str = "NOP-STREAM-SEQ-GAP";
+pub const STREAM_NID_MISMATCH:     &str = "NOP-STREAM-NID-MISMATCH";
+pub const STREAM_NAK:              &str = "NOP-STREAM-NAK";
+pub const STREAM_NAK_UNRESOLVABLE: &str = "NOP-STREAM-NAK-UNRESOLVABLE";
+
+// ── Result TTL (NOP v0.7) ─────────────────────────────────────────────────────
+pub const TASK_RESULT_EXPIRED: &str = "NOP-TASK-RESULT-EXPIRED";
 
 // ── Resource / condition / mapping ────────────────────────────────────────────
 pub const RESOURCE_INSUFFICIENT:   &str = "NOP-RESOURCE-INSUFFICIENT";
@@ -61,6 +65,9 @@ pub fn to_nps_status(code: &str) -> &'static str {
         STREAM_SEQ_GAP            => "NPS-STREAM-SEQ-GAP",
         STREAM_NID_MISMATCH       => "NPS-AUTH-UNAUTHENTICATED",
         STREAM_NAK                => "NPS-STREAM-SEQ-GAP",
+        STREAM_NAK_UNRESOLVABLE   => "NPS-STREAM-SEQ-GAP",
+
+        TASK_RESULT_EXPIRED       => "NPS-CLIENT-NOT-FOUND",
 
         RESOURCE_INSUFFICIENT     => "NPS-SERVER-UNAVAILABLE",
         CONDITION_EVAL_ERROR      => "NPS-CLIENT-BAD-PARAM",
@@ -137,6 +144,7 @@ mod tests {
             DELEGATE_SCOPE_VIOLATION, DELEGATE_REJECTED, DELEGATE_CHAIN_TOO_DEEP,
             DELEGATE_TIMEOUT, SYNC_TIMEOUT, SYNC_DEPENDENCY_FAILED,
             STREAM_SEQ_GAP, STREAM_NID_MISMATCH, STREAM_NAK,
+            STREAM_NAK_UNRESOLVABLE, TASK_RESULT_EXPIRED,
             RESOURCE_INSUFFICIENT, CONDITION_EVAL_ERROR, INPUT_MAPPING_ERROR,
             COMPENSATION_FAILED, COMPENSATION_NOT_SUPPORTED, CALLBACK_HMAC_MISSING,
         ];

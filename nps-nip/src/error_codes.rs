@@ -63,6 +63,9 @@ pub const CERT_PARENT_REVOKED:      &str = "NIP-CERT-PARENT-REVOKED";
 // ── OCSP staple ───────────────────────────────────────────────────────────────
 pub const OCSP_STAPLE_EXPIRED: &str = "NIP-OCSP-STAPLE-EXPIRED";
 
+// ── NIP v0.10 — node_roles ────────────────────────────────────────────────────
+pub const CERT_NODE_ROLES_MISMATCH: &str = "NIP-CERT-NODE-ROLES-MISMATCH";
+
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
 /// Map a NIP error code to the corresponding NPS status code.
@@ -121,6 +124,9 @@ pub fn to_nps_status(code: &str) -> &'static str {
         CA_JWS_INVALID             => "NPS-AUTH-UNAUTHENTICATED",
         CA_JWS_EXPIRED             => "NPS-AUTH-UNAUTHENTICATED",
         CERT_PARENT_REVOKED        => "NPS-AUTH-UNAUTHENTICATED",
+
+        // NIP v0.10 (node_roles)
+        CERT_NODE_ROLES_MISMATCH   => "NPS-AUTH-FORBIDDEN",
 
         _                          => "NPS-SERVER-INTERNAL",
     }
@@ -224,6 +230,7 @@ mod tests {
             CERT_FORMAT_INVALID, CERT_EKU_MISSING, CERT_SUBJECT_NID_MISMATCH, ACME_CHALLENGE_FAILED,
             CA_GROUP_REVOKED, CA_PARENT_NOT_FOUND, CA_PARENT_NOT_GROUP,
             CA_SESSION_VALIDITY_INVALID, CA_JWS_INVALID, CA_JWS_EXPIRED, CERT_PARENT_REVOKED,
+            CERT_NODE_ROLES_MISMATCH,
         ];
         for c in &codes {
             assert!(c.starts_with("NIP-"), "Expected NIP- prefix, got: {c}");

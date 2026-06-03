@@ -35,10 +35,13 @@ pub struct AnnounceFrame {
     pub node_type: Option<String>,
     pub node_roles: Option<Vec<String>>,
     pub cluster_anchor: Option<String>,
-    pub spawn_spec_ref: Option<String>,
+    /// NDP v0.9 — structured spawn spec object (previously a URI string).
+    pub spawn_spec_ref: Option<serde_json::Map<String, Value>>,
     pub bridge_protocols: Option<Vec<String>>,
     pub activation_mode: Option<String>,
     pub activation_endpoint: Option<String>,
+    /// NDP v0.9 — keepalive interval in ms; 0 means disabled.
+    pub heartbeat_interval_ms: u64,
 }
 
 impl AnnounceFrame {
@@ -65,10 +68,13 @@ impl AnnounceFrame {
         m.insert("signature".into(), json!(self.signature));
         if let Some(v) = &self.node_roles          { m.insert("node_roles".into(),          json!(v)); }
         if let Some(v) = &self.cluster_anchor      { m.insert("cluster_anchor".into(),      json!(v)); }
-        if let Some(v) = &self.spawn_spec_ref      { m.insert("spawn_spec_ref".into(),      json!(v)); }
+        if let Some(v) = &self.spawn_spec_ref      { m.insert("spawn_spec_ref".into(),      Value::Object(v.clone())); }
         if let Some(v) = &self.bridge_protocols    { m.insert("bridge_protocols".into(),    json!(v)); }
         if let Some(v) = &self.activation_mode     { m.insert("activation_mode".into(),     json!(v)); }
         if let Some(v) = &self.activation_endpoint { m.insert("activation_endpoint".into(), json!(v)); }
+        if self.heartbeat_interval_ms > 0 {
+            m.insert("heartbeat_interval_ms".into(), json!(self.heartbeat_interval_ms));
+        }
         m
     }
 
@@ -102,10 +108,11 @@ impl AnnounceFrame {
             node_type: opt_str(d, "node_type").map(str::to_string),
             node_roles,
             cluster_anchor:      opt_str(d, "cluster_anchor").map(str::to_string),
-            spawn_spec_ref:      opt_str(d, "spawn_spec_ref").map(str::to_string),
+            spawn_spec_ref:      d.get("spawn_spec_ref").and_then(Value::as_object).cloned(),
             bridge_protocols,
             activation_mode:     opt_str(d, "activation_mode").map(str::to_string),
             activation_endpoint: opt_str(d, "activation_endpoint").map(str::to_string),
+            heartbeat_interval_ms: opt_u64(d, "heartbeat_interval_ms").unwrap_or(60_000),
         })
     }
 }
