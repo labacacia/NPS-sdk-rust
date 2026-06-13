@@ -42,6 +42,10 @@ pub struct AnnounceFrame {
     pub activation_endpoint: Option<String>,
     /// NDP v0.9 — keepalive interval in ms; 0 means disabled.
     pub heartbeat_interval_ms: u64,
+    /// NDP v0.9 liveness — wire-only, EXCLUDED from the signed canonical form
+    /// (last_seen updates every heartbeat → must not require re-signing; §3.2.1).
+    pub health: Option<String>,    // "healthy" / "degraded" / "draining"
+    pub last_seen: Option<String>, // ISO 8601 UTC liveness beat
 }
 
 impl AnnounceFrame {
@@ -75,6 +79,9 @@ impl AnnounceFrame {
         if self.heartbeat_interval_ms > 0 {
             m.insert("heartbeat_interval_ms".into(), json!(self.heartbeat_interval_ms));
         }
+        // Liveness fields live on the wire only (not in unsigned_dict → not signed).
+        if let Some(v) = &self.health    { m.insert("health".into(),    json!(v)); }
+        if let Some(v) = &self.last_seen { m.insert("last_seen".into(), json!(v)); }
         m
     }
 
@@ -113,6 +120,8 @@ impl AnnounceFrame {
             activation_mode:     opt_str(d, "activation_mode").map(str::to_string),
             activation_endpoint: opt_str(d, "activation_endpoint").map(str::to_string),
             heartbeat_interval_ms: opt_u64(d, "heartbeat_interval_ms").unwrap_or(60_000),
+            health:    opt_str(d, "health").map(str::to_string),
+            last_seen: opt_str(d, "last_seen").map(str::to_string),
         })
     }
 }

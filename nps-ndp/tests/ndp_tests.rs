@@ -44,6 +44,8 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     };
     let sig = id.sign(&tmp.unsigned_dict());
     AnnounceFrame {
@@ -61,7 +63,31 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     }
+}
+
+#[test]
+fn announce_liveness_wire_only() {
+    // NDP v0.9 health/last_seen: on the wire, but NOT in the signed canonical form.
+    let id = NipIdentity::generate();
+    let base = make_announce(&id, 300);
+    let f = AnnounceFrame {
+        health: Some("draining".into()),
+        last_seen: Some("2026-06-13T00:00:00Z".into()),
+        ..base.clone()
+    };
+    let d = f.to_dict();
+    assert_eq!(d.get("health").and_then(|v| v.as_str()), Some("draining"));
+    assert_eq!(d.get("last_seen").and_then(|v| v.as_str()), Some("2026-06-13T00:00:00Z"));
+    let u = f.unsigned_dict();
+    assert!(!u.contains_key("health") && !u.contains_key("last_seen"));
+    // Signs identically to the same frame without liveness fields.
+    assert_eq!(u, base.unsigned_dict());
+    let back = AnnounceFrame::from_dict(&d).unwrap();
+    assert_eq!(back.health.as_deref(), Some("draining"));
+    assert_eq!(back.last_seen.as_deref(), Some("2026-06-13T00:00:00Z"));
 }
 
 // ── AnnounceFrame ─────────────────────────────────────────────────────────────
@@ -238,6 +264,8 @@ fn get_all_returns_active_entries() {
         node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
         bridge_protocols: None, activation_mode: None, activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     };
     let tmp2 = AnnounceFrame {
         nid: nid2.into(),
@@ -250,6 +278,8 @@ fn get_all_returns_active_entries() {
         node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
         bridge_protocols: None, activation_mode: None, activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     };
     let sig1 = id1.sign(&tmp1.unsigned_dict());
     let sig2 = id2.sign(&tmp2.unsigned_dict());
@@ -265,6 +295,8 @@ fn get_all_returns_active_entries() {
         node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
         bridge_protocols: None, activation_mode: None, activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     });
     reg.announce(AnnounceFrame {
         nid: nid2.into(),
@@ -277,6 +309,8 @@ fn get_all_returns_active_entries() {
         node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
         bridge_protocols: None, activation_mode: None, activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     });
 
     *elapsed.lock().unwrap() = 2;
@@ -523,6 +557,8 @@ fn rejects_wrong_signature_prefix() {
         node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
         bridge_protocols: None, activation_mode: None, activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
+            health: None,
+            last_seen: None,
     };
     let r = v.validate(&frame);
     assert!(!r.is_valid);
