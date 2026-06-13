@@ -8,7 +8,7 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
-## [1.0.0-alpha.12] — 2026-06-03
+## [1.0.0-alpha.13] — 2026-06-03
 
 ### Added
 
@@ -20,7 +20,7 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ### Tracking the suite
 
-This release tracks NPS suite `v1.0.0-alpha.12`. NCP v0.8 / NWP v0.14 / NIP v0.10 / NDP v0.9 / NOP v0.7.
+This release tracks NPS suite `v1.0.0-alpha.13`. NCP v0.8 / NWP v0.14 / NIP v0.10 / NDP v0.9 / NOP v0.7.
 
 ---
 

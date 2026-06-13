@@ -32,14 +32,14 @@ see [`ca-server.md`](./ca-server.md).
 
 ```toml
 [dependencies]
-nps-sdk = "1.0.0-alpha.12"                             # full façade
+nps-sdk = "1.0.0-alpha.13"                             # full façade
 # — or pick individual crates:
-nps-core = "1.0.0-alpha.12"
-nps-ncp  = "1.0.0-alpha.12"
-nps-nwp  = "1.0.0-alpha.12"
-nps-nip  = "1.0.0-alpha.12"
-nps-ndp  = "1.0.0-alpha.12"
-nps-nop  = "1.0.0-alpha.12"
+nps-core = "1.0.0-alpha.13"
+nps-ncp  = "1.0.0-alpha.13"
+nps-nwp  = "1.0.0-alpha.13"
+nps-nip  = "1.0.0-alpha.13"
+nps-ndp  = "1.0.0-alpha.13"
+nps-nop  = "1.0.0-alpha.13"
 tokio    = { version = "1", features = ["full"] }     # required for nwp/nop async clients
 ```
 

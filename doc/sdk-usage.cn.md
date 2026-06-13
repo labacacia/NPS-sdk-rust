@@ -37,7 +37,7 @@ NPS Rust SDK（`nps-sdk`）为 Rust 应用提供完整的 Neural Protocol Suite 
 
 ```toml
 [dependencies]
-nps-sdk = "1.0.0-alpha.12"
+nps-sdk = "1.0.0-alpha.13"
 tokio   = { version = "1", features = ["full"] }
 ```
 
@@ -45,19 +45,19 @@ tokio   = { version = "1", features = ["full"] }
 
 ```toml
 [dependencies]
-nps-sdk = { version = "1.0.0-alpha.12", default-features = false, features = ["nwp", "nip"] }
+nps-sdk = { version = "1.0.0-alpha.13", default-features = false, features = ["nwp", "nip"] }
 ```
 
 ### 使用独立 Crate
 
 ```toml
 [dependencies]
-nps-core = "1.0.0-alpha.12"
-nps-ncp  = "1.0.0-alpha.12"
-nps-nwp  = "1.0.0-alpha.12"
-nps-nip  = "1.0.0-alpha.12"
-nps-ndp  = "1.0.0-alpha.12"
-nps-nop  = "1.0.0-alpha.12"
+nps-core = "1.0.0-alpha.13"
+nps-ncp  = "1.0.0-alpha.13"
+nps-nwp  = "1.0.0-alpha.13"
+nps-nip  = "1.0.0-alpha.13"
+nps-ndp  = "1.0.0-alpha.13"
+nps-nop  = "1.0.0-alpha.13"
 tokio    = { version = "1", features = ["full"] }
 ```
 

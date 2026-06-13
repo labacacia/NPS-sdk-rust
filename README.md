@@ -8,7 +8,7 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.12 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
+**v1.0.0-alpha.13 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 

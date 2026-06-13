@@ -47,7 +47,7 @@ pub struct IdentFrame {
     pub ocsp_staple: Option<String>,
     /// NPS-RFC-0004 — optional reputation policy hint embedded in metadata.
     pub reputation_policy: Option<IdentReputationPolicyHint>,
-    /// NIP v0.10 — self-declared node-role tags (alpha.12).
+    /// NIP v0.10 — self-declared node-role tags (alpha.13).
     pub node_roles: Option<Vec<String>>,
 }
 
