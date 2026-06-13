@@ -8,7 +8,7 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.11 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
+**v1.0.0-alpha.12 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
 
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
