@@ -999,10 +999,12 @@ dependencies = [
  "futures",
  "nps-core",
  "nps-ncp",
+ "nps-nip",
  "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "time",
  "tiny_http",
  "tokio",
 ]

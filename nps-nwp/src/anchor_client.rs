@@ -65,7 +65,7 @@ pub struct MemberInfo {
 
 /// Materialized cluster topology returned by [`AnchorNodeClient::get_snapshot`]
 /// (NPS-2 §12.1).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopologySnapshot {
     pub version: u64,
     pub anchor_nid: String,
@@ -76,7 +76,7 @@ pub struct TopologySnapshot {
 
 /// Subscriber-side filter for [`AnchorNodeClient::subscribe_with`].
 /// All populated clauses are AND-combined (NPS-2 §12.2).
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TopologyFilter {
     /// Member's tag set MUST overlap with this list.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -90,7 +90,7 @@ pub struct TopologyFilter {
 }
 
 /// Field-level diff per NPS-CR-0002 §10. Only populated fields changed.
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemberChanges {
     pub node_roles: Option<Vec<String>>,
     pub activation_mode: Option<String>,

@@ -11,8 +11,10 @@ homepage.workspace    = true
 [dependencies]
 nps-core     = { workspace = true }
 nps-ncp      = { workspace = true }
+nps-nip      = { workspace = true }
 serde        = { workspace = true }
 serde_json   = { workspace = true }
+time         = { workspace = true }
 tokio        = { workspace = true }
 reqwest      = { workspace = true, features = ["stream"] }
 futures      = { workspace = true }

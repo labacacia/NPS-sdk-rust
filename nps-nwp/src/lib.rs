@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod anchor_client;
+pub mod anchor_server;
 pub mod bridge;
 pub mod cgn;
 pub mod client;
 pub mod error_codes;
 pub mod frames;
+pub mod http_headers;
 pub mod reputation;
+pub mod reputation_policy;
 
 pub use anchor_client::{
     AnchorNodeClient, AnchorTopologyError, MemberChanges, MemberInfo, TopologyEvent,
