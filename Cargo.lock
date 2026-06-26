@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "nps-conformance"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "serde",
  "serde_json",
@@ -934,7 +934,7 @@ dependencies = [
 
 [[package]]
 name = "nps-core"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "hex",
  "rmp-serde",
@@ -945,7 +945,7 @@ dependencies = [
 
 [[package]]
 name = "nps-ncp"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "nps-core",
  "serde",
@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "nps-ndp"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "nps-core",
  "nps-nip",
@@ -965,7 +965,7 @@ dependencies = [
 
 [[package]]
 name = "nps-nip"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "aes-gcm",
  "base64",
@@ -990,7 +990,7 @@ dependencies = [
 
 [[package]]
 name = "nps-nop"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "nps-core",
  "reqwest",
@@ -1001,7 +1001,7 @@ dependencies = [
 
 [[package]]
 name = "nps-nwp"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "async-stream",
  "bytes",
@@ -1020,7 +1020,7 @@ dependencies = [
 
 [[package]]
 name = "nps-sdk"
-version = "1.0.0-alpha.13"
+version = "1.0.0-alpha.14"
 dependencies = [
  "nps-conformance",
  "nps-core",
