@@ -9,6 +9,7 @@ pub mod client;
 pub mod error_codes;
 pub mod frames;
 pub mod http_headers;
+pub mod native_server;
 pub mod reputation;
 pub mod reputation_policy;
 
@@ -19,7 +20,8 @@ pub use anchor_client::{
 pub use client::NwpClient;
 pub use frames::{
     ActionFrame, AsyncActionResponse, BridgeNodeSpec, QueryFrame, SubscribeFrame, TopologyMember,
-    TopologySnapshotRequest, TopologyStreamRequest,
-    TOPOLOGY_SNAPSHOT_KIND, TOPOLOGY_STREAM_KIND, X_NWM_VERSION,
+    TopologySnapshotRequest, TopologyStreamRequest, TOPOLOGY_SNAPSHOT_KIND, TOPOLOGY_STREAM_KIND,
+    X_NWM_VERSION,
 };
+pub use native_server::{NativeActionHandler, NativeQueryHandler, NwpNativeNodeServer};
 pub use reputation::{RepOutcome, ReputationDecision, ReputationPolicy, ReputationRule};

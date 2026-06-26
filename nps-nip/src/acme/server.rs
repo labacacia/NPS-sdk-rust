@@ -7,7 +7,6 @@ use base64::Engine;
 use ed25519_dalek::{Signature, SigningKey, Verifier as _, VerifyingKey};
 use rand::RngCore;
 use std::collections::HashMap;
-use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, SystemTime};
@@ -43,7 +42,6 @@ struct AuthzState {
     identifier: Identifier,
     status: String,
     challenge_ids: Vec<String>,
-    #[allow(dead_code)]
     account_url: String,
 }
 
@@ -402,6 +400,7 @@ fn handle_authz(
             "bad sig",
         ));
     }
+    let kid = header.kid.as_deref().unwrap_or_default();
     let id = path.trim_start_matches("/authz/").to_string();
     let (az, challenges) = {
         let s = state.lock().unwrap();
@@ -412,6 +411,13 @@ fn handle_authz(
                 "no authz",
             ));
         };
+        if az.account_url != kid {
+            return Err(problem(
+                401,
+                "urn:ietf:params:acme:error:unauthorized",
+                "authorization does not belong to this account",
+            ));
+        }
         let challenges: Vec<Challenge> = az
             .challenge_ids
             .iter()
@@ -483,6 +489,13 @@ fn handle_challenge(
             ))
         }
     };
+    if ch.account_url != kid {
+        return Err(problem(
+            401,
+            "urn:ietf:params:acme:error:unauthorized",
+            "challenge does not belong to this account",
+        ));
+    }
     let payload: Option<ChallengeRespondPayload> = jws::decode_payload(&env)
         .map_err(|e| problem(400, "urn:ietf:params:acme:error:malformed", &e))?;
     let agent_sig_b64 = match payload.and_then(|p| Some(p.agent_signature)) {
@@ -574,6 +587,7 @@ fn handle_finalize(
             "bad sig",
         ));
     }
+    let kid = header.kid.as_deref().unwrap_or_default();
     let order_id = path.trim_start_matches("/finalize/").to_string();
     let mut os = match state.lock().unwrap().orders.get(&order_id).cloned() {
         Some(o) => o,
@@ -585,6 +599,13 @@ fn handle_finalize(
             ))
         }
     };
+    if os.account_url != kid {
+        return Err(problem(
+            401,
+            "urn:ietf:params:acme:error:unauthorized",
+            "order does not belong to this account",
+        ));
+    }
     if os.status != wire::STATUS_READY {
         return Err(problem(
             403,
@@ -768,6 +789,7 @@ fn handle_order(
             "bad sig",
         ));
     }
+    let kid = header.kid.as_deref().unwrap_or_default();
     let order_id = path.trim_start_matches("/order/").to_string();
     let os = state
         .lock()
@@ -776,6 +798,13 @@ fn handle_order(
         .get(&order_id)
         .cloned()
         .ok_or_else(|| problem(404, "urn:ietf:params:acme:error:malformed", "no order"))?;
+    if os.account_url != kid {
+        return Err(problem(
+            401,
+            "urn:ietf:params:acme:error:unauthorized",
+            "order does not belong to this account",
+        ));
+    }
     let authz_url = format!("{base_url}/authz/{}", os.authz_id);
     let new_nonce = mint_nonce(state);
     Ok(json_response(
@@ -893,6 +922,5 @@ fn random_bytes(n: usize) -> Vec<u8> {
 }
 
 fn short_id() -> String {
-    use base64::Engine;
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(random_bytes(8))
 }

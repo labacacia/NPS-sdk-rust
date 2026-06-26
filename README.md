@@ -1,6 +1,14 @@
 English | [中文版](./README.cn.md)
 
 # NPS Rust SDK (`nps-rs`)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.13-orange.svg)](CHANGELOG.md)
+[![Next](https://img.shields.io/badge/next-v1.0.0--alpha.14--candidate-yellow.svg)](CHANGELOG.md#100-alpha14--unreleased)
+[![NCP](https://img.shields.io/badge/NCP-v0.8-5b8cff.svg)]()
+[![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
+[![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
+[![NDP](https://img.shields.io/badge/NDP-v0.9-f0a050.svg)]()
+[![NOP](https://img.shields.io/badge/NOP-v0.7-ff8c42.svg)]()
 
 Rust client library for the **Neural Protocol Suite (NPS)** — a complete internet protocol stack designed for AI agents and models.
 
@@ -13,6 +21,8 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
 Tests: 99 across the workspace, all passing.
+
+Alpha.14 candidate additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient`), native-mode NWP serving helper (`nps_nwp::NwpNativeNodeServer`), and TC-N1/TC-N2 conformance manifest helpers (`nps_conformance`, re-exported by `nps-sdk`).
 
 ### Earlier additions (nps-nip)
 
@@ -44,10 +54,11 @@ cargo build --workspace --release
 |-------|-------------|
 | `nps-core`  | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, error types |
 | `nps-ncp`   | NCP frames: `AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `HelloFrame`, `ErrorFrame` |
-| `nps-nwp`   | NWP frames: `QueryFrame`, `ActionFrame`, `AsyncActionResponse`; async `NwpClient` (reqwest) |
+| `nps-nwp`   | NWP frames: `QueryFrame`, `ActionFrame`, `AsyncActionResponse`; async `NwpClient` (reqwest); native serving via `NwpNativeNodeServer` |
 | `nps-nip`   | NIP frames: `IdentFrame`, `TrustFrame`, `RevokeFrame`; `NipIdentity` (Ed25519 key management) |
 | `nps-ndp`   | NDP frames: `AnnounceFrame`, `ResolveFrame`, `GraphFrame`; `InMemoryNdpRegistry`; `NdpAnnounceValidator` |
 | `nps-nop`   | NOP frames: `TaskFrame`, `DelegateFrame`, `SyncFrame`, `AlignStreamFrame`; `BackoffStrategy`; `NopClient` |
+| `nps-conformance` | TC-N1/TC-N2 conformance catalog, manifest builder, and validator |
 | `nps-sdk`   | Re-export umbrella crate — all protocols under `nps_sdk::` namespace |
 
 ## Quick Start
@@ -56,7 +67,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-nps-sdk = { path = "impl/rust/nps-sdk" }
+nps-sdk = "1.0.0-alpha.13"
 tokio   = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -108,6 +119,21 @@ for sf in &frames {
 }
 ```
 
+### NWP Native Serving
+
+```rust
+use nps_ncp::CapsFrame;
+use nps_nwp::NwpNativeNodeServer;
+use serde_json::json;
+
+let server = NwpNativeNodeServer::new()
+    .with_query_handler(|_| Ok(CapsFrame::new("native:orders", vec![json!({ "id": 42 })])))
+    .with_action_handler(|action| Ok(json!({ "action": action.action })));
+
+// `stream` is already past NCP preamble, TLS, and Hello negotiation.
+server.serve_stream(&mut stream).await?;
+```
+
 ### NIP Identity — Sign & Verify
 
 ```rust
@@ -127,6 +153,55 @@ let ok  = identity.verify(&payload, &sig); // true
 // Persist and load (AES-256-GCM + PBKDF2)
 identity.save(Path::new("my-node.key"), "my-passphrase")?;
 let loaded = NipIdentity::load(Path::new("my-node.key"), "my-passphrase")?;
+```
+
+### NIP Remote CA Client
+
+```rust
+use nps_nip::ca_client::{NipCaClient, NipCaRegisterRequest};
+
+let ca = NipCaClient::with_client("https://ca.example.com", "/nip", reqwest::Client::new());
+let discovery = ca.get_discovery().await?;
+let ident = ca.register_agent(
+    &NipCaRegisterRequest {
+        identifier: "agent-a".into(),
+        pub_key: "ed25519:<pub>".into(),
+        capabilities: vec!["nwp:query".into()],
+        scope_json: None,
+        metadata_json: None,
+    },
+    Some("token"),
+).await?;
+let status = ca.verify_agent(&ident.nid).await?;
+```
+
+### Conformance Manifest
+
+```rust
+use nps_conformance::{
+    catalog_for_profile, validate_manifest, NpsConformanceCaseResult,
+    NpsConformanceManifest, NODE_L1,
+};
+
+let results = catalog_for_profile(NODE_L1)?
+    .iter()
+    .map(|case| NpsConformanceCaseResult {
+        id: case.id.to_string(),
+        result: "pass".to_string(),
+        message: None,
+    })
+    .collect();
+let manifest = NpsConformanceManifest::create(
+    NODE_L1,
+    "my-node",
+    "1.0.0-alpha.14",
+    "urn:nps:node:example.com:my-node",
+    "labacacia-fixture",
+    "1.0.0-alpha.14",
+    results,
+    "ci",
+);
+let validation = validate_manifest(&manifest);
 ```
 
 ### NDP Registry — Announce & Resolve
@@ -256,4 +331,4 @@ cargo test --workspace
 
 ## License
 
-[Apache 2.0](https://github.com/labacacia/NPS-Dev/blob/main/LICENSE) © 2026 INNO LOTUS PTY LTD
+[Apache 2.0](LICENSE) © 2026 INNO LOTUS PTY LTD

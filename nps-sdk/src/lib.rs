@@ -16,3 +16,6 @@ pub use nps_ndp as ndp;
 
 #[cfg(feature = "nop")]
 pub use nps_nop as nop;
+
+#[cfg(feature = "conformance")]
+pub use nps_conformance as conformance;

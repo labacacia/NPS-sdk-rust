@@ -5,7 +5,6 @@
 
 use base64::Engine;
 use ed25519_dalek::{Signature, Verifier as _, VerifyingKey};
-use x509_parser::oid_registry::Oid;
 use x509_parser::prelude::*;
 
 use crate::assurance_level::AssuranceLevel;

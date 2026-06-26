@@ -8,13 +8,21 @@ const BYTES_PER_CGN: usize = 4;
 /// CGN = ceil(UTF-8 bytes / 4). Returns 0 for empty input.
 pub fn estimate_cgn(s: &str) -> usize {
     let n = s.len(); // str.len() is byte count in Rust
-    if n == 0 { 0 } else { (n + BYTES_PER_CGN - 1) / BYTES_PER_CGN }
+    if n == 0 {
+        0
+    } else {
+        (n + BYTES_PER_CGN - 1) / BYTES_PER_CGN
+    }
 }
 
 /// CGN estimate for a raw byte slice.
 pub fn estimate_cgn_bytes(b: &[u8]) -> usize {
     let n = b.len();
-    if n == 0 { 0 } else { (n + BYTES_PER_CGN - 1) / BYTES_PER_CGN }
+    if n == 0 {
+        0
+    } else {
+        (n + BYTES_PER_CGN - 1) / BYTES_PER_CGN
+    }
 }
 
 /// Serialize v as compact JSON and return CGN estimate.
@@ -70,7 +78,11 @@ pub struct BudgetExceededError {
 
 impl std::fmt::Display for BudgetExceededError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CGN budget exceeded: {} > {}", self.requested, self.limit)
+        write!(
+            f,
+            "CGN budget exceeded: {} > {}",
+            self.requested, self.limit
+        )
     }
 }
 
@@ -134,7 +146,10 @@ mod tests {
 
     #[test]
     fn budget_exceeded_error_fields() {
-        let e = BudgetExceededError { requested: 200, limit: 100 };
+        let e = BudgetExceededError {
+            requested: 200,
+            limit: 100,
+        };
         assert_eq!(e.requested, 200);
         assert_eq!(e.limit, 100);
         assert!(e.to_string().contains("200 > 100"));

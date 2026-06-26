@@ -276,7 +276,7 @@ fn mk_leaf(
     agent_sk: &SigningKey,
     ca_sk: &SigningKey,
     ca_root: &rcgen::Certificate,
-    ca_nid: &str,
+    _ca_nid: &str,
     role: LeafRole,
     level: AssuranceLevel,
     serial: &[u8],

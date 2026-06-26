@@ -6,6 +6,7 @@ members = [
     "nps-nip",
     "nps-ndp",
     "nps-nop",
+    "nps-conformance",
     "nps-sdk",
 ]
 resolver = "2"
@@ -60,3 +61,4 @@ nps-nwp        = { path = "nps-nwp",  version = "=1.0.0-alpha.13" }
 nps-nip        = { path = "nps-nip",  version = "=1.0.0-alpha.13" }
 nps-ndp        = { path = "nps-ndp",  version = "=1.0.0-alpha.13" }
 nps-nop        = { path = "nps-nop",  version = "=1.0.0-alpha.13" }
+nps-conformance = { path = "nps-conformance", version = "=1.0.0-alpha.13" }

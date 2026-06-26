@@ -10,15 +10,15 @@ pub const NODE_TYPE_BRIDGE: &str = "bridge";
 pub mod bridge_protocols {
     pub const HTTP: &str = "http";
     pub const GRPC: &str = "grpc";
-    pub const MCP:  &str = "mcp";
-    pub const A2A:  &str = "a2a";
+    pub const MCP: &str = "mcp";
+    pub const A2A: &str = "a2a";
     pub const STANDARD: &[&str] = &[HTTP, GRPC, MCP, A2A];
 }
 
 /// Declares which external protocols a Bridge Node deployment can reach.
 #[derive(Debug, Clone)]
 pub struct BridgeNodeDescriptor {
-    pub nid:                 String,
+    pub nid: String,
     pub supported_protocols: Vec<String>,
 }
 
@@ -28,7 +28,7 @@ pub struct BridgeTarget {
     pub protocol: String,
     pub endpoint: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub extras:   Option<std::collections::HashMap<String, serde_json::Value>>,
+    pub extras: Option<std::collections::HashMap<String, serde_json::Value>>,
 }
 
 #[cfg(test)]
@@ -40,8 +40,8 @@ mod tests {
         assert_eq!(NODE_TYPE_BRIDGE, "bridge");
         assert_eq!(bridge_protocols::HTTP, "http");
         assert_eq!(bridge_protocols::GRPC, "grpc");
-        assert_eq!(bridge_protocols::MCP,  "mcp");
-        assert_eq!(bridge_protocols::A2A,  "a2a");
+        assert_eq!(bridge_protocols::MCP, "mcp");
+        assert_eq!(bridge_protocols::A2A, "a2a");
         assert_eq!(bridge_protocols::STANDARD.len(), 4);
     }
 
@@ -57,7 +57,11 @@ mod tests {
 
     #[test]
     fn bridge_target_roundtrip() {
-        let bt = BridgeTarget { protocol: "http".into(), endpoint: "https://api.example.com".into(), extras: None };
+        let bt = BridgeTarget {
+            protocol: "http".into(),
+            endpoint: "https://api.example.com".into(),
+            extras: None,
+        };
         let json = serde_json::to_string(&bt).unwrap();
         let back: BridgeTarget = serde_json::from_str(&json).unwrap();
         assert_eq!(back.protocol, "http");

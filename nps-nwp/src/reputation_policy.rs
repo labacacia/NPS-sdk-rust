@@ -37,7 +37,10 @@ impl DefaultReputationPolicyEvaluator {
     /// Testing / warm-start helper: prime the per-NID query cache.
     pub fn prime_cache(&self, nid: &str, entries: Vec<ReputationLogEntry>, ttl_seconds: i64) {
         let expiry = now_unix() + ttl_seconds;
-        self.query_cache.lock().unwrap().insert(nid.to_string(), (entries, expiry));
+        self.query_cache
+            .lock()
+            .unwrap()
+            .insert(nid.to_string(), (entries, expiry));
     }
 
     pub async fn evaluate(
@@ -52,7 +55,8 @@ impl DefaultReputationPolicyEvaluator {
         let now = now_unix();
 
         // Step 1: min_assurance_level.
-        let min = AssuranceLevel::from_wire(&policy.min_assurance_level).unwrap_or(nps_nip::ANONYMOUS);
+        let min =
+            AssuranceLevel::from_wire(&policy.min_assurance_level).unwrap_or(nps_nip::ANONYMOUS);
         if !assurance.meets_or_exceeds(&min) {
             return reject(error_codes::AUTH_ASSURANCE_TOO_LOW);
         }
@@ -73,18 +77,29 @@ impl DefaultReputationPolicyEvaluator {
         // Step 4: ban_on
         if let Some(rule) = first_matching_rule(&policy.ban_on, &entries, now) {
             let exp = now + policy.ban_ttl_seconds as i64;
-            self.ban_cache.lock().unwrap().insert(requester_nid.to_string(), exp);
+            self.ban_cache
+                .lock()
+                .unwrap()
+                .insert(requester_nid.to_string(), exp);
             return decision(RepOutcome::Ban, Some(rule), error_codes::REPUTATION_BANNED);
         }
 
         // Step 5: reject_on
         if let Some(rule) = first_matching_rule(&policy.reject_on, &entries, now) {
-            return decision(RepOutcome::Reject, Some(rule), error_codes::REPUTATION_REJECTED);
+            return decision(
+                RepOutcome::Reject,
+                Some(rule),
+                error_codes::REPUTATION_REJECTED,
+            );
         }
 
         // Step 6: throttle_on
         if let Some(rule) = first_matching_rule(&policy.throttle_on, &entries, now) {
-            return decision(RepOutcome::Throttle, Some(rule), error_codes::REPUTATION_THROTTLED);
+            return decision(
+                RepOutcome::Throttle,
+                Some(rule),
+                error_codes::REPUTATION_THROTTLED,
+            );
         }
 
         // Step 7: accept
@@ -127,15 +142,27 @@ impl DefaultReputationPolicyEvaluator {
     }
 }
 
-fn decision(outcome: RepOutcome, matched_rule: Option<ReputationRule>, code: &str) -> ReputationDecision {
-    ReputationDecision { outcome, matched_rule, error_code: Some(code.to_string()) }
+fn decision(
+    outcome: RepOutcome,
+    matched_rule: Option<ReputationRule>,
+    code: &str,
+) -> ReputationDecision {
+    ReputationDecision {
+        outcome,
+        matched_rule,
+        error_code: Some(code.to_string()),
+    }
 }
 
 fn reject(code: &str) -> ReputationDecision {
     decision(RepOutcome::Reject, None, code)
 }
 
-fn first_matching_rule(rules: &[ReputationRule], entries: &[ReputationLogEntry], now: i64) -> Option<ReputationRule> {
+fn first_matching_rule(
+    rules: &[ReputationRule],
+    entries: &[ReputationLogEntry],
+    now: i64,
+) -> Option<ReputationRule> {
     for rule in rules {
         let needed = if rule.count == 0 { 1 } else { rule.count };
         let mut matched = 0u32;

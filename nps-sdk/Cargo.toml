@@ -15,10 +15,12 @@ nps-nwp     = { workspace = true, optional = true }
 nps-nip     = { workspace = true, optional = true }
 nps-ndp     = { workspace = true, optional = true }
 nps-nop     = { workspace = true, optional = true }
+nps-conformance = { workspace = true, optional = true }
 
 [features]
-default = ["nwp", "nip", "ndp", "nop"]
+default = ["nwp", "nip", "ndp", "nop", "conformance"]
 nwp     = ["dep:nps-nwp"]
 nip     = ["dep:nps-nip"]
 ndp     = ["dep:nps-ndp", "dep:nps-nip"]
 nop     = ["dep:nps-nop"]
+conformance = ["dep:nps-conformance"]

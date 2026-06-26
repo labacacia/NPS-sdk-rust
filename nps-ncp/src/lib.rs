@@ -156,9 +156,15 @@ impl StreamFrame {
 
 #[derive(Debug, Clone)]
 pub struct CapsFrame {
-    pub node_id: String,
+    pub node_id: Option<String>,
     pub caps: Vec<String>,
     pub anchor_ref: Option<String>,
+    pub count: Option<u64>,
+    pub data: Vec<Value>,
+    pub next_cursor: Option<String>,
+    pub token_est: Option<u64>,
+    pub cached: Option<bool>,
+    pub tokenizer_used: Option<String>,
     pub payload: Option<Value>,
 }
 
@@ -167,12 +173,50 @@ impl CapsFrame {
         FrameType::Caps
     }
 
+    pub fn new(anchor_ref: impl Into<String>, data: Vec<Value>) -> Self {
+        CapsFrame {
+            node_id: None,
+            caps: Vec::new(),
+            anchor_ref: Some(anchor_ref.into()),
+            count: Some(data.len() as u64),
+            data,
+            next_cursor: None,
+            token_est: None,
+            cached: None,
+            tokenizer_used: None,
+            payload: None,
+        }
+    }
+
     pub fn to_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("node_id".into(), json!(self.node_id));
-        m.insert("caps".into(), json!(self.caps));
+        if let Some(v) = &self.node_id {
+            m.insert("node_id".into(), json!(v));
+        }
+        if !self.caps.is_empty() {
+            m.insert("caps".into(), json!(self.caps));
+        }
         if let Some(v) = &self.anchor_ref {
             m.insert("anchor_ref".into(), json!(v));
+        }
+        if self.count.is_some() || !self.data.is_empty() {
+            m.insert(
+                "count".into(),
+                json!(self.count.unwrap_or(self.data.len() as u64)),
+            );
+            m.insert("data".into(), Value::Array(self.data.clone()));
+        }
+        if let Some(v) = &self.next_cursor {
+            m.insert("next_cursor".into(), json!(v));
+        }
+        if let Some(v) = self.token_est {
+            m.insert("token_est".into(), json!(v));
+        }
+        if let Some(v) = self.cached {
+            m.insert("cached".into(), json!(v));
+        }
+        if let Some(v) = &self.tokenizer_used {
+            m.insert("tokenizer_used".into(), json!(v));
         }
         if let Some(v) = &self.payload {
             m.insert("payload".into(), v.clone());
@@ -181,7 +225,7 @@ impl CapsFrame {
     }
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
-        let node_id = get_str(d, "node_id")?.to_string();
+        let node_id = opt_str(d, "node_id").map(str::to_string);
         let caps = d
             .get("caps")
             .and_then(Value::as_array)
@@ -196,6 +240,16 @@ impl CapsFrame {
             node_id,
             caps,
             anchor_ref: opt_str(d, "anchor_ref").map(str::to_string),
+            count: opt_u64(d, "count"),
+            data: d
+                .get("data")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+            next_cursor: opt_str(d, "next_cursor").map(str::to_string),
+            token_est: opt_u64(d, "token_est"),
+            cached: d.get("cached").and_then(Value::as_bool),
+            tokenizer_used: opt_str(d, "tokenizer_used").map(str::to_string),
             payload: d.get("payload").cloned(),
         })
     }

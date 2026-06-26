@@ -233,6 +233,7 @@ impl ActionFrame {
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
+        m.insert("action_id".into(), json!(self.action));
         m.insert("action".into(), json!(self.action));
         m.insert("async".into(), json!(self.async_));
         if let Some(v) = &self.params {
@@ -246,7 +247,12 @@ impl ActionFrame {
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
         Ok(ActionFrame {
-            action: get_str(d, "action")?.to_string(),
+            action: d
+                .get("action_id")
+                .or_else(|| d.get("action"))
+                .and_then(Value::as_str)
+                .ok_or_else(|| NpsError::Frame("missing field: action_id".into()))?
+                .to_string(),
             params: d.get("params").cloned(),
             anchor_ref: opt_str(d, "anchor_ref").map(str::to_string),
             async_: d.get("async").and_then(Value::as_bool).unwrap_or(false),

@@ -59,7 +59,9 @@ impl AnchorRequest {
     }
 
     pub fn header(&self, name: &str) -> Option<&str> {
-        self.headers.get(&name.to_ascii_lowercase()).map(String::as_str)
+        self.headers
+            .get(&name.to_ascii_lowercase())
+            .map(String::as_str)
     }
 }
 
@@ -167,8 +169,9 @@ pub struct AnchorActionError {
 }
 
 /// Executes an action and returns the result payload, or an error envelope.
-pub type InvokeHandler =
-    Box<dyn Fn(&str, Option<&Value>, &InvokeContext) -> Result<Value, AnchorActionError> + Send + Sync>;
+pub type InvokeHandler = Box<
+    dyn Fn(&str, Option<&Value>, &InvokeContext) -> Result<Value, AnchorActionError> + Send + Sync,
+>;
 
 /// Outcome of a rate-limit admission check.
 #[derive(Debug, Clone)]
@@ -180,7 +183,11 @@ pub struct RateDecision {
 
 impl RateDecision {
     pub fn allow() -> Self {
-        RateDecision { allowed: true, retry_after_seconds: None, reason: None }
+        RateDecision {
+            allowed: true,
+            retry_after_seconds: None,
+            reason: None,
+        }
     }
 }
 
@@ -306,8 +313,14 @@ impl AnchorNodeApp {
 
     pub async fn handle(&self, req: AnchorRequest) -> AnchorResponse {
         if !req.path.starts_with(&self.prefix) {
-            return error_resp(404, "NPS-CLIENT-NOT-FOUND", error_codes::ACTION_NOT_FOUND,
-                "no NWP node at this path.", None, &[]);
+            return error_resp(
+                404,
+                "NPS-CLIENT-NOT-FOUND",
+                error_codes::ACTION_NOT_FOUND,
+                "no NWP node at this path.",
+                None,
+                &[],
+            );
         }
         let sub = &req.path[self.prefix.len()..];
 
@@ -316,17 +329,39 @@ impl AnchorNodeApp {
         // path that has no resource. Known routes still fall through to the auth check below.
         let known_route = matches!(
             sub,
-            "/.nwm" | "/.nwm/" | "/.schema" | "/.schema/" | "/actions" | "/actions/"
-                | "/invoke" | "/invoke/" | "/query" | "/query/" | "/subscribe" | "/subscribe/"
+            "/.nwm"
+                | "/.nwm/"
+                | "/.schema"
+                | "/.schema/"
+                | "/actions"
+                | "/actions/"
+                | "/invoke"
+                | "/invoke/"
+                | "/query"
+                | "/query/"
+                | "/subscribe"
+                | "/subscribe/"
         );
         if !known_route {
-            return error_resp(404, "NPS-CLIENT-NOT-FOUND", error_codes::ACTION_NOT_FOUND,
-                "unknown anchor sub-path.", None, &[]);
+            return error_resp(
+                404,
+                "NPS-CLIENT-NOT-FOUND",
+                error_codes::ACTION_NOT_FOUND,
+                "unknown anchor sub-path.",
+                None,
+                &[],
+            );
         }
 
         if self.opt.require_auth && req.header(http_headers::AGENT).is_none() {
-            return error_resp(401, "NPS-AUTH-UNAUTHENTICATED", error_codes::AUTH_NID_SCOPE_VIOLATION,
-                "X-NWP-Agent header is required.", None, &[]);
+            return error_resp(
+                401,
+                "NPS-AUTH-UNAUTHENTICATED",
+                error_codes::AUTH_NID_SCOPE_VIOLATION,
+                "X-NWP-Agent header is required.",
+                None,
+                &[],
+            );
         }
 
         match sub {
@@ -334,7 +369,10 @@ impl AnchorNodeApp {
                 status: 200,
                 headers: vec![
                     ("content-type".into(), http_headers::MIME_MANIFEST.into()),
-                    (http_headers::NODE_TYPE.to_ascii_lowercase(), "anchor".into()),
+                    (
+                        http_headers::NODE_TYPE.to_ascii_lowercase(),
+                        "anchor".into(),
+                    ),
                 ],
                 body: self.nwm_json.clone(),
             },
@@ -361,8 +399,14 @@ impl AnchorNodeApp {
                 }
                 self.handle_subscribe(&req)
             }
-            _ => error_resp(404, "NPS-CLIENT-NOT-FOUND", error_codes::ACTION_NOT_FOUND,
-                "unknown anchor sub-path.", None, &[]),
+            _ => error_resp(
+                404,
+                "NPS-CLIENT-NOT-FOUND",
+                error_codes::ACTION_NOT_FOUND,
+                "unknown anchor sub-path.",
+                None,
+                &[],
+            ),
         }
     }
 
@@ -372,21 +416,46 @@ impl AnchorNodeApp {
         }
         let body: Value = match serde_json::from_slice(&req.body) {
             Ok(v) => v,
-            Err(e) => return error_resp(400, "NPS-CLIENT-BAD-REQUEST", error_codes::QUERY_FILTER_INVALID,
-                &e.to_string(), None, &[]),
+            Err(e) => {
+                return error_resp(
+                    400,
+                    "NPS-CLIENT-BAD-REQUEST",
+                    error_codes::QUERY_FILTER_INVALID,
+                    &e.to_string(),
+                    None,
+                    &[],
+                )
+            }
         };
         if body.get("type").and_then(Value::as_str) != Some("topology.snapshot") {
             let t = body.get("type").and_then(Value::as_str);
             let msg = match t {
                 None => "Anchor /query requires a reserved type per NPS-2 §12.".to_string(),
-                Some(t) => format!("Reserved query type '{t}' is not implemented by this Anchor Node."),
+                Some(t) => {
+                    format!("Reserved query type '{t}' is not implemented by this Anchor Node.")
+                }
             };
-            return error_resp(501, "NPS-SERVER-UNSUPPORTED", error_codes::RESERVED_TYPE_UNSUPPORTED, &msg, None, &[]);
+            return error_resp(
+                501,
+                "NPS-SERVER-UNSUPPORTED",
+                error_codes::RESERVED_TYPE_UNSUPPORTED,
+                &msg,
+                None,
+                &[],
+            );
         }
         let topology = match &self.topology {
             Some(t) => t,
-            None => return error_resp(501, "NPS-SERVER-UNSUPPORTED", error_codes::NODE_UNAVAILABLE,
-                "topology.snapshot is not available — no topology service registered.", None, &[]),
+            None => {
+                return error_resp(
+                    501,
+                    "NPS-SERVER-UNSUPPORTED",
+                    error_codes::NODE_UNAVAILABLE,
+                    "topology.snapshot is not available — no topology service registered.",
+                    None,
+                    &[],
+                )
+            }
         };
         let request = match parse_snapshot_request(&body) {
             Ok(r) => r,
@@ -398,8 +467,14 @@ impl AnchorNodeApp {
             status: 200,
             headers: vec![
                 ("content-type".into(), http_headers::MIME_CAPSULE.into()),
-                (http_headers::NODE_TYPE.to_ascii_lowercase(), "anchor".into()),
-                (http_headers::SCHEMA.to_ascii_lowercase(), SNAPSHOT_ANCHOR_REF.into()),
+                (
+                    http_headers::NODE_TYPE.to_ascii_lowercase(),
+                    "anchor".into(),
+                ),
+                (
+                    http_headers::SCHEMA.to_ascii_lowercase(),
+                    SNAPSHOT_ANCHOR_REF.into(),
+                ),
             ],
             body: serde_json::to_vec(&caps).unwrap_or_default(),
         }
@@ -411,21 +486,46 @@ impl AnchorNodeApp {
         }
         let body: Value = match serde_json::from_slice(&req.body) {
             Ok(v) => v,
-            Err(e) => return error_resp(400, "NPS-CLIENT-BAD-REQUEST", error_codes::QUERY_FILTER_INVALID,
-                &e.to_string(), None, &[]),
+            Err(e) => {
+                return error_resp(
+                    400,
+                    "NPS-CLIENT-BAD-REQUEST",
+                    error_codes::QUERY_FILTER_INVALID,
+                    &e.to_string(),
+                    None,
+                    &[],
+                )
+            }
         };
         if body.get("type").and_then(Value::as_str) != Some("topology.stream") {
             let t = body.get("type").and_then(Value::as_str);
             let msg = match t {
                 None => "Anchor /subscribe requires a reserved type per NPS-2 §12.".to_string(),
-                Some(t) => format!("Reserved subscribe type '{t}' is not implemented by this Anchor Node."),
+                Some(t) => {
+                    format!("Reserved subscribe type '{t}' is not implemented by this Anchor Node.")
+                }
             };
-            return error_resp(501, "NPS-SERVER-UNSUPPORTED", error_codes::RESERVED_TYPE_UNSUPPORTED, &msg, None, &[]);
+            return error_resp(
+                501,
+                "NPS-SERVER-UNSUPPORTED",
+                error_codes::RESERVED_TYPE_UNSUPPORTED,
+                &msg,
+                None,
+                &[],
+            );
         }
         let topology = match &self.topology {
             Some(t) => t,
-            None => return error_resp(501, "NPS-SERVER-UNSUPPORTED", error_codes::NODE_UNAVAILABLE,
-                "topology.stream is not available — no topology service registered.", None, &[]),
+            None => {
+                return error_resp(
+                    501,
+                    "NPS-SERVER-UNSUPPORTED",
+                    error_codes::NODE_UNAVAILABLE,
+                    "topology.stream is not available — no topology service registered.",
+                    None,
+                    &[],
+                )
+            }
         };
         let (request, stream_id) = match parse_stream_request(&body) {
             Ok(r) => r,
@@ -451,7 +551,10 @@ impl AnchorNodeApp {
             status: 200,
             headers: vec![
                 ("content-type".into(), http_headers::MIME_CAPSULE.into()),
-                (http_headers::NODE_TYPE.to_ascii_lowercase(), "anchor".into()),
+                (
+                    http_headers::NODE_TYPE.to_ascii_lowercase(),
+                    "anchor".into(),
+                ),
             ],
             body: out.into_bytes(),
         }
@@ -460,23 +563,53 @@ impl AnchorNodeApp {
     async fn handle_invoke(&self, req: &AnchorRequest) -> AnchorResponse {
         let body: Value = match serde_json::from_slice(&req.body) {
             Ok(v) => v,
-            Err(e) => return error_resp(400, "NPS-CLIENT-BAD-REQUEST", error_codes::ACTION_PARAMS_INVALID,
-                &e.to_string(), None, &[]),
+            Err(e) => {
+                return error_resp(
+                    400,
+                    "NPS-CLIENT-BAD-REQUEST",
+                    error_codes::ACTION_PARAMS_INVALID,
+                    &e.to_string(),
+                    None,
+                    &[],
+                )
+            }
         };
         let action_id = match body.get("action_id").and_then(Value::as_str) {
             Some(a) if !a.is_empty() => a.to_string(),
-            _ => return error_resp(400, "NPS-CLIENT-BAD-REQUEST", error_codes::ACTION_PARAMS_INVALID,
-                "invalid ActionFrame: missing action_id.", None, &[]),
+            _ => {
+                return error_resp(
+                    400,
+                    "NPS-CLIENT-BAD-REQUEST",
+                    error_codes::ACTION_PARAMS_INVALID,
+                    "invalid ActionFrame: missing action_id.",
+                    None,
+                    &[],
+                )
+            }
         };
         let spec = match self.opt.actions.get(&action_id) {
             Some(s) => s.clone(),
-            None => return error_resp(404, "NPS-CLIENT-NOT-FOUND", error_codes::ACTION_NOT_FOUND,
-                &format!("Unknown action_id '{action_id}'."), None, &[]),
+            None => {
+                return error_resp(
+                    404,
+                    "NPS-CLIENT-NOT-FOUND",
+                    error_codes::ACTION_NOT_FOUND,
+                    &format!("Unknown action_id '{action_id}'."),
+                    None,
+                    &[],
+                )
+            }
         };
         let is_async = body.get("async").and_then(Value::as_bool).unwrap_or(false);
         if is_async && !spec.async_ {
-            return error_resp(400, "NPS-CLIENT-BAD-REQUEST", error_codes::ACTION_PARAMS_INVALID,
-                &format!("action '{action_id}' does not support async execution."), None, &[]);
+            return error_resp(
+                400,
+                "NPS-CLIENT-BAD-REQUEST",
+                error_codes::ACTION_PARAMS_INVALID,
+                &format!("action '{action_id}' does not support async execution."),
+                None,
+                &[],
+            );
         }
 
         let agent_nid = req.header(http_headers::AGENT).map(String::from);
@@ -498,15 +631,28 @@ impl AnchorNodeApp {
         }
 
         if budget_cgn > 0 && cgn_cost_hint > 0 && cgn_cost_hint > budget_cgn {
-            return error_resp(400, "NPS-CLIENT-REQUEST-TOO-LARGE", error_codes::CGN_LIMIT_EXCEEDED,
+            return error_resp(
+                400,
+                "NPS-CLIENT-REQUEST-TOO-LARGE",
+                error_codes::CGN_LIMIT_EXCEEDED,
                 &format!("estimated CGN {cgn_cost_hint} exceeds effective budget {budget_cgn}."),
-                Some(json!({ "effective_budget": budget_cgn, "estimated_cgn": cgn_cost_hint })), &[]);
+                Some(json!({ "effective_budget": budget_cgn, "estimated_cgn": cgn_cost_hint })),
+                &[],
+            );
         }
 
         let handler = match &self.handler {
             Some(h) => h,
-            None => return error_resp(501, "NPS-SERVER-UNSUPPORTED", error_codes::NODE_UNAVAILABLE,
-                "no invoke handler registered on this Anchor Node.", None, &[]),
+            None => {
+                return error_resp(
+                    501,
+                    "NPS-SERVER-UNSUPPORTED",
+                    error_codes::NODE_UNAVAILABLE,
+                    "no invoke handler registered on this Anchor Node.",
+                    None,
+                    &[],
+                )
+            }
         };
 
         // Rate-limit admission (NPS-AaaS; mirrors the Python/Java/TS ports). The default
@@ -518,16 +664,30 @@ impl AnchorNodeApp {
                 Some(s) => vec![("retry-after".to_string(), s.to_string())],
                 None => Vec::new(),
             };
-            return error_resp(429, "NPS-CLIENT-RATE-LIMITED", error_codes::RATE_LIMIT_EXCEEDED,
-                rate.reason.as_deref().unwrap_or("rate limit exceeded."), None, &extra);
+            return error_resp(
+                429,
+                "NPS-CLIENT-RATE-LIMITED",
+                error_codes::RATE_LIMIT_EXCEEDED,
+                rate.reason.as_deref().unwrap_or("rate limit exceeded."),
+                None,
+                &extra,
+            );
         }
 
         let ctx = InvokeContext {
             agent_nid: agent_nid.clone(),
             effective_timeout_ms: effective_timeout,
             budget_cgn,
-            trace_id: if self.opt.auto_inject_trace_context { Some(gen_hex(16)) } else { None },
-            span_id: if self.opt.auto_inject_trace_context { Some(gen_hex(8)) } else { None },
+            trace_id: if self.opt.auto_inject_trace_context {
+                Some(gen_hex(16))
+            } else {
+                None
+            },
+            span_id: if self.opt.auto_inject_trace_context {
+                Some(gen_hex(8))
+            } else {
+                None
+            },
         };
         let params = body.get("params");
 
@@ -563,8 +723,14 @@ impl AnchorNodeApp {
                     "count": count, "data": data
                 });
                 let mut headers = vec![
-                    ("content-type".to_string(), http_headers::MIME_CAPSULE.to_string()),
-                    (http_headers::NODE_TYPE.to_ascii_lowercase(), "anchor".to_string()),
+                    (
+                        "content-type".to_string(),
+                        http_headers::MIME_CAPSULE.to_string(),
+                    ),
+                    (
+                        http_headers::NODE_TYPE.to_ascii_lowercase(),
+                        "anchor".to_string(),
+                    ),
                 ];
                 if let Some(ra) = &spec.result_anchor {
                     headers.push((http_headers::SCHEMA.to_ascii_lowercase(), ra.clone()));
@@ -574,9 +740,20 @@ impl AnchorNodeApp {
                         headers.push((http_headers::TOKENS.to_ascii_lowercase(), c.to_string()));
                     }
                 }
-                AnchorResponse { status: 200, headers, body: serde_json::to_vec(&caps).unwrap_or_default() }
+                AnchorResponse {
+                    status: 200,
+                    headers,
+                    body: serde_json::to_vec(&caps).unwrap_or_default(),
+                }
             }
-            Err(e) => error_resp(e.http_status, &e.nps_status, &e.error_code, &e.message, e.details, &[]),
+            Err(e) => error_resp(
+                e.http_status,
+                &e.nps_status,
+                &e.error_code,
+                &e.message,
+                e.details,
+                &[],
+            ),
         };
         self.limiter.release(&consumer_key);
         response
@@ -596,39 +773,93 @@ impl AnchorNodeApp {
             RepOutcome::Accept => None,
             RepOutcome::Ban => {
                 let (msg, details) = if incident.is_some() {
-                    (format!("Request rejected: {} ({}) — NID temporarily banned.",
-                        opt_str(&incident), opt_str(&severity)),
-                     Some(json!({ "matched_incident": incident, "matched_severity": severity })))
+                    (
+                        format!(
+                            "Request rejected: {} ({}) — NID temporarily banned.",
+                            opt_str(&incident),
+                            opt_str(&severity)
+                        ),
+                        Some(json!({ "matched_incident": incident, "matched_severity": severity })),
+                    )
                 } else {
-                    ("Request rejected: NID temporarily banned.".to_string(), None)
+                    (
+                        "Request rejected: NID temporarily banned.".to_string(),
+                        None,
+                    )
                 };
-                Some(error_resp(403, "NPS-AUTH-FORBIDDEN", error_codes::REPUTATION_BANNED, &msg, details, &[]))
+                Some(error_resp(
+                    403,
+                    "NPS-AUTH-FORBIDDEN",
+                    error_codes::REPUTATION_BANNED,
+                    &msg,
+                    details,
+                    &[],
+                ))
             }
             RepOutcome::Reject => {
                 if d.error_code.as_deref() == Some(error_codes::AUTH_ASSURANCE_TOO_LOW) {
-                    Some(error_resp(403, "NPS-AUTH-FORBIDDEN", error_codes::AUTH_ASSURANCE_TOO_LOW,
-                        &format!("Assurance level too low: requires '{}', caller declared '{}'.",
-                            policy.min_assurance_level, assurance.wire),
-                        Some(json!({ "matched_incident": Value::Null, "hint": self.opt.assurance_hint_url })), &[]))
+                    Some(error_resp(
+                        403,
+                        "NPS-AUTH-FORBIDDEN",
+                        error_codes::AUTH_ASSURANCE_TOO_LOW,
+                        &format!(
+                            "Assurance level too low: requires '{}', caller declared '{}'.",
+                            policy.min_assurance_level, assurance.wire
+                        ),
+                        Some(
+                            json!({ "matched_incident": Value::Null, "hint": self.opt.assurance_hint_url }),
+                        ),
+                        &[],
+                    ))
                 } else {
                     let (msg, details) = if incident.is_some() {
-                        (format!("Request rejected: {} ({}).", opt_str(&incident), opt_str(&severity)),
-                         Some(json!({ "matched_incident": incident, "matched_severity": severity })))
+                        (
+                            format!(
+                                "Request rejected: {} ({}).",
+                                opt_str(&incident),
+                                opt_str(&severity)
+                            ),
+                            Some(
+                                json!({ "matched_incident": incident, "matched_severity": severity }),
+                            ),
+                        )
                     } else {
                         ("Request rejected by reputation policy.".to_string(), None)
                     };
-                    Some(error_resp(403, "NPS-AUTH-FORBIDDEN", error_codes::REPUTATION_REJECTED, &msg, details, &[]))
+                    Some(error_resp(
+                        403,
+                        "NPS-AUTH-FORBIDDEN",
+                        error_codes::REPUTATION_REJECTED,
+                        &msg,
+                        details,
+                        &[],
+                    ))
                 }
             }
             RepOutcome::Throttle => {
                 let (msg, details) = if incident.is_some() {
-                    (format!("Request rate-limited: {} ({}).", opt_str(&incident), opt_str(&severity)),
-                     Some(json!({ "matched_incident": incident, "matched_severity": severity })))
+                    (
+                        format!(
+                            "Request rate-limited: {} ({}).",
+                            opt_str(&incident),
+                            opt_str(&severity)
+                        ),
+                        Some(json!({ "matched_incident": incident, "matched_severity": severity })),
+                    )
                 } else {
-                    ("Request rate-limited by reputation policy.".to_string(), None)
+                    (
+                        "Request rate-limited by reputation policy.".to_string(),
+                        None,
+                    )
                 };
-                Some(error_resp(429, "NPS-CLIENT-RATE-LIMITED", error_codes::REPUTATION_THROTTLED, &msg, details,
-                    &[("retry-after".to_string(), "60".to_string())]))
+                Some(error_resp(
+                    429,
+                    "NPS-CLIENT-RATE-LIMITED",
+                    error_codes::REPUTATION_THROTTLED,
+                    &msg,
+                    details,
+                    &[("retry-after".to_string(), "60".to_string())],
+                ))
             }
         }
     }
@@ -638,7 +869,10 @@ impl AnchorNodeApp {
             return None;
         }
         let raw = req.header(http_headers::CAPABILITIES).unwrap_or("");
-        if raw.split(',').any(|c| c.trim().eq_ignore_ascii_case("topology:read")) {
+        if raw
+            .split(',')
+            .any(|c| c.trim().eq_ignore_ascii_case("topology:read"))
+        {
             return None;
         }
         Some(error_resp(403, "NPS-AUTH-FORBIDDEN", error_codes::TOPOLOGY_UNAUTHORIZED,
@@ -653,7 +887,11 @@ fn opt_str(o: &Option<String>) -> &str {
 }
 
 fn empty(status: u16) -> AnchorResponse {
-    AnchorResponse { status, headers: vec![], body: vec![] }
+    AnchorResponse {
+        status,
+        headers: vec![],
+        body: vec![],
+    }
 }
 
 fn error_resp(
@@ -673,12 +911,27 @@ fn error_resp(
     }
     let mut headers = vec![("content-type".to_string(), "application/json".to_string())];
     headers.extend(extra.iter().cloned());
-    AnchorResponse { status, headers, body: serde_json::to_vec(&Value::Object(env)).unwrap_or_default() }
+    AnchorResponse {
+        status,
+        headers,
+        body: serde_json::to_vec(&Value::Object(env)).unwrap_or_default(),
+    }
 }
 
 fn topology_error_resp(e: &TopologyProtocolError) -> AnchorResponse {
-    let status = if e.nps_status == "NPS-AUTH-FORBIDDEN" { 403 } else { 400 };
-    error_resp(status, e.nps_status, e.nwp_error_code, &e.message, None, &[])
+    let status = if e.nps_status == "NPS-AUTH-FORBIDDEN" {
+        403
+    } else {
+        400
+    };
+    error_resp(
+        status,
+        e.nps_status,
+        e.nwp_error_code,
+        &e.message,
+        None,
+        &[],
+    )
 }
 
 fn clamp_timeout(requested: u32, spec: &AnchorActionSpec, opt: &AnchorNodeOptions) -> u32 {
@@ -730,12 +983,20 @@ fn event_to_envelope(stream_id: &str, ev: &TopologyEvent) -> Value {
         TopologyEvent::MemberLeft { version, nid } => {
             ("member_left", Some(*version), json!({ "nid": nid }))
         }
-        TopologyEvent::MemberUpdated { version, nid, changes } => (
+        TopologyEvent::MemberUpdated {
+            version,
+            nid,
+            changes,
+        } => (
             "member_updated",
             Some(*version),
             json!({ "nid": nid, "changes": changes }),
         ),
-        TopologyEvent::AnchorState { version, field, details } => (
+        TopologyEvent::AnchorState {
+            version,
+            field,
+            details,
+        } => (
             "anchor_state",
             Some(*version),
             json!({ "field": field, "details": details }),
@@ -759,15 +1020,21 @@ fn event_to_envelope(stream_id: &str, ev: &TopologyEvent) -> Value {
 }
 
 fn parse_snapshot_request(body: &Value) -> Result<AnchorSnapshotRequest, TopologyProtocolError> {
-    let topo = body.get("topology").and_then(Value::as_object).ok_or(TopologyProtocolError {
-        nwp_error_code: error_codes::TOPOLOGY_UNSUPPORTED_SCOPE,
-        nps_status: "NPS-CLIENT-BAD-PARAM",
-        message: "topology.snapshot requires a 'topology' object per NPS-2 §12.1.".into(),
-    })?;
+    let topo = body
+        .get("topology")
+        .and_then(Value::as_object)
+        .ok_or(TopologyProtocolError {
+            nwp_error_code: error_codes::TOPOLOGY_UNSUPPORTED_SCOPE,
+            nps_status: "NPS-CLIENT-BAD-PARAM",
+            message: "topology.snapshot requires a 'topology' object per NPS-2 §12.1.".into(),
+        })?;
     let scope = parse_scope(topo)?;
     let include = parse_include(topo);
     let depth = parse_depth(topo);
-    let target_nid = topo.get("target_nid").and_then(Value::as_str).map(String::from);
+    let target_nid = topo
+        .get("target_nid")
+        .and_then(Value::as_str)
+        .map(String::from);
     if scope == "member" && target_nid.as_deref().unwrap_or("").is_empty() {
         return Err(TopologyProtocolError {
             nwp_error_code: error_codes::TOPOLOGY_UNSUPPORTED_SCOPE,
@@ -775,15 +1042,25 @@ fn parse_snapshot_request(body: &Value) -> Result<AnchorSnapshotRequest, Topolog
             message: "topology.target_nid is required when topology.scope = \"member\".".into(),
         });
     }
-    Ok(AnchorSnapshotRequest { scope, include, depth, target_nid })
+    Ok(AnchorSnapshotRequest {
+        scope,
+        include,
+        depth,
+        target_nid,
+    })
 }
 
-fn parse_stream_request(body: &Value) -> Result<(AnchorStreamRequest, String), TopologyProtocolError> {
-    let topo = body.get("topology").and_then(Value::as_object).ok_or(TopologyProtocolError {
-        nwp_error_code: error_codes::TOPOLOGY_UNSUPPORTED_SCOPE,
-        nps_status: "NPS-CLIENT-BAD-PARAM",
-        message: "topology.stream requires a 'topology' object per NPS-2 §12.2.".into(),
-    })?;
+fn parse_stream_request(
+    body: &Value,
+) -> Result<(AnchorStreamRequest, String), TopologyProtocolError> {
+    let topo = body
+        .get("topology")
+        .and_then(Value::as_object)
+        .ok_or(TopologyProtocolError {
+            nwp_error_code: error_codes::TOPOLOGY_UNSUPPORTED_SCOPE,
+            nps_status: "NPS-CLIENT-BAD-PARAM",
+            message: "topology.stream requires a 'topology' object per NPS-2 §12.2.".into(),
+        })?;
     let scope = parse_scope(topo)?;
     let mut filter = None;
     if let Some(f) = topo.get("filter").and_then(Value::as_object) {
@@ -800,7 +1077,14 @@ fn parse_stream_request(body: &Value) -> Result<(AnchorStreamRequest, String), T
         .filter(|s| !s.is_empty())
         .map(String::from)
         .unwrap_or_else(|| gen_hex(16));
-    Ok((AnchorStreamRequest { scope, filter, since_version: since }, stream_id))
+    Ok((
+        AnchorStreamRequest {
+            scope,
+            filter,
+            since_version: since,
+        },
+        stream_id,
+    ))
 }
 
 fn parse_scope(topo: &Map<String, Value>) -> Result<String, TopologyProtocolError> {
@@ -835,7 +1119,11 @@ fn parse_include(topo: &Map<String, Value>) -> Vec<String> {
 }
 
 fn parse_depth(topo: &Map<String, Value>) -> u8 {
-    topo.get("depth").and_then(Value::as_u64).filter(|d| *d > 0).map(|d| d as u8).unwrap_or(1)
+    topo.get("depth")
+        .and_then(Value::as_u64)
+        .filter(|d| *d > 0)
+        .map(|d| d as u8)
+        .unwrap_or(1)
 }
 
 fn validate_filter_keys(f: &Map<String, Value>) -> Result<(), TopologyProtocolError> {
@@ -846,7 +1134,8 @@ fn validate_filter_keys(f: &Map<String, Value>) -> Result<(), TopologyProtocolEr
                 return Err(TopologyProtocolError {
                     nwp_error_code: error_codes::TOPOLOGY_FILTER_UNSUPPORTED,
                     nps_status: "NPS-CLIENT-BAD-PARAM",
-                    message: "topology.filter.node_kind expired after alpha.5; use node_roles.".into(),
+                    message: "topology.filter.node_kind expired after alpha.5; use node_roles."
+                        .into(),
                 })
             }
             other => {
@@ -903,27 +1192,42 @@ fn build_manifest(opt: &AnchorNodeOptions, prefix: &str) -> Value {
     }
     m.insert("wire_formats".into(), json!(["ncp-capsule", "json"]));
     m.insert("preferred_format".into(), Value::String("json".into()));
-    m.insert("capabilities".into(), json!({
-        "query": false, "stream": false, "subscribe": false,
-        "vector_search": false, "token_budget_hint": true, "ext_frame": false
-    }));
+    m.insert(
+        "capabilities".into(),
+        json!({
+            "query": false, "stream": false, "subscribe": false,
+            "vector_search": false, "token_budget_hint": true, "ext_frame": false
+        }),
+    );
     let mut auth = Map::new();
     auth.insert("required".into(), Value::from(opt.require_auth));
-    auth.insert("identity_type".into(), Value::String(if opt.require_auth { "nip-cert" } else { "none" }.into()));
+    auth.insert(
+        "identity_type".into(),
+        Value::String(if opt.require_auth { "nip-cert" } else { "none" }.into()),
+    );
     if let Some(rc) = &opt.required_capabilities {
         auth.insert("required_capabilities".into(), json!(rc));
     }
     m.insert("auth".into(), Value::Object(auth));
-    m.insert("endpoints".into(), json!({ "invoke": format!("{prefix}/invoke"), "schema": format!("{prefix}/.schema") }));
+    m.insert(
+        "endpoints".into(),
+        json!({ "invoke": format!("{prefix}/invoke"), "schema": format!("{prefix}/.schema") }),
+    );
     if opt.cgn_limit > 0 {
-        m.insert("token_budget".into(), json!({ "cgn_limit": opt.cgn_limit, "profile": "cgn.v1" }));
+        m.insert(
+            "token_budget".into(),
+            json!({ "cgn_limit": opt.cgn_limit, "profile": "cgn.v1" }),
+        );
     }
     if let Some(rl) = &opt.rate_limits {
         m.insert("rate_limits".into(), rl.clone());
     }
     if let Some(rp) = &opt.reputation_policy {
         if rp.enabled {
-            m.insert("reputation_policy".into(), serde_json::to_value(rp).unwrap_or(Value::Null));
+            m.insert(
+                "reputation_policy".into(),
+                serde_json::to_value(rp).unwrap_or(Value::Null),
+            );
         }
     }
     if let Some(ta) = &opt.trust_anchors {
@@ -940,14 +1244,20 @@ static COUNTER: AtomicU64 = AtomicU64::new(1);
 
 fn gen_hex(n_bytes: usize) -> String {
     let c = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(0);
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0);
     let mut s = format!("{t:016x}{c:016x}");
     s.truncate(n_bytes * 2);
     s
 }
 
 fn now_rfc3339() -> String {
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
     OffsetDateTime::from_unix_timestamp(secs)
         .ok()
         .and_then(|t| t.format(&Rfc3339).ok())

@@ -1,6 +1,14 @@
 [English Version](./README.md) | 中文版
 
 # NPS Rust SDK (`nps-rs`)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.13-orange.svg)](CHANGELOG.cn.md)
+[![Next](https://img.shields.io/badge/next-v1.0.0--alpha.14--candidate-yellow.svg)](CHANGELOG.cn.md#100-alpha14--unreleased)
+[![NCP](https://img.shields.io/badge/NCP-v0.8-5b8cff.svg)]()
+[![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
+[![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
+[![NDP](https://img.shields.io/badge/NDP-v0.9-f0a050.svg)]()
+[![NOP](https://img.shields.io/badge/NOP-v0.7-ff8c42.svg)]()
 
 面向 **Neural Protocol Suite (NPS)** 的 Rust 客户端库 —— 为 AI Agent 与模型设计的完整互联网协议栈。
 
@@ -13,6 +21,8 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
 测试：workspace 共 99 个，全绿。
+
+Alpha.14 候选新增：远程 NIP CA 类型化客户端（`nps_nip::ca_client::NipCaClient`）、native-mode NWP 服务端 helper（`nps_nwp::NwpNativeNodeServer`）和 TC-N1/TC-N2 一致性 manifest helper（`nps_conformance`，并由 `nps-sdk` re-export）。
 
 ### 早期新增（nps-nip）
 
@@ -44,10 +54,11 @@ cargo build --workspace --release
 |-------|------|
 | `nps-core`  | 帧头、编解码器（Tier-1 JSON / Tier-2 MsgPack）、帧注册表、anchor 缓存、错误类型 |
 | `nps-ncp`   | NCP 帧：`AnchorFrame`、`DiffFrame`、`StreamFrame`、`CapsFrame`、`HelloFrame`、`ErrorFrame` |
-| `nps-nwp`   | NWP 帧：`QueryFrame`、`ActionFrame`、`AsyncActionResponse`；异步 `NwpClient`（reqwest） |
+| `nps-nwp`   | NWP 帧：`QueryFrame`、`ActionFrame`、`AsyncActionResponse`；异步 `NwpClient`（reqwest）；`NwpNativeNodeServer` native 服务端 |
 | `nps-nip`   | NIP 帧：`IdentFrame`、`TrustFrame`、`RevokeFrame`；`NipIdentity`（Ed25519 密钥管理） |
 | `nps-ndp`   | NDP 帧：`AnnounceFrame`、`ResolveFrame`、`GraphFrame`；`InMemoryNdpRegistry`；`NdpAnnounceValidator` |
 | `nps-nop`   | NOP 帧：`TaskFrame`、`DelegateFrame`、`SyncFrame`、`AlignStreamFrame`；`BackoffStrategy`；`NopClient` |
+| `nps-conformance` | TC-N1/TC-N2 一致性用例目录、manifest 构造器和校验器 |
 | `nps-sdk`   | 统一伞型 crate —— 所有协议挂在 `nps_sdk::` 命名空间下 |
 
 ## 快速开始
@@ -56,7 +67,7 @@ cargo build --workspace --release
 
 ```toml
 [dependencies]
-nps-sdk = { path = "impl/rust/nps-sdk" }
+nps-sdk = "1.0.0-alpha.13"
 tokio   = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -108,6 +119,21 @@ for sf in &frames {
 }
 ```
 
+### NWP Native 服务端
+
+```rust
+use nps_ncp::CapsFrame;
+use nps_nwp::NwpNativeNodeServer;
+use serde_json::json;
+
+let server = NwpNativeNodeServer::new()
+    .with_query_handler(|_| Ok(CapsFrame::new("native:orders", vec![json!({ "id": 42 })])))
+    .with_action_handler(|action| Ok(json!({ "action": action.action })));
+
+// `stream` 已完成 NCP preamble、TLS 和 Hello negotiation。
+server.serve_stream(&mut stream).await?;
+```
+
 ### NIP 身份 —— 签名 & 验签
 
 ```rust
@@ -127,6 +153,55 @@ let ok  = identity.verify(&payload, &sig); // true
 // 持久化与加载（AES-256-GCM + PBKDF2）
 identity.save(Path::new("my-node.key"), "my-passphrase")?;
 let loaded = NipIdentity::load(Path::new("my-node.key"), "my-passphrase")?;
+```
+
+### NIP 远程 CA Client
+
+```rust
+use nps_nip::ca_client::{NipCaClient, NipCaRegisterRequest};
+
+let ca = NipCaClient::with_client("https://ca.example.com", "/nip", reqwest::Client::new());
+let discovery = ca.get_discovery().await?;
+let ident = ca.register_agent(
+    &NipCaRegisterRequest {
+        identifier: "agent-a".into(),
+        pub_key: "ed25519:<pub>".into(),
+        capabilities: vec!["nwp:query".into()],
+        scope_json: None,
+        metadata_json: None,
+    },
+    Some("token"),
+).await?;
+let status = ca.verify_agent(&ident.nid).await?;
+```
+
+### 一致性 Manifest
+
+```rust
+use nps_conformance::{
+    catalog_for_profile, validate_manifest, NpsConformanceCaseResult,
+    NpsConformanceManifest, NODE_L1,
+};
+
+let results = catalog_for_profile(NODE_L1)?
+    .iter()
+    .map(|case| NpsConformanceCaseResult {
+        id: case.id.to_string(),
+        result: "pass".to_string(),
+        message: None,
+    })
+    .collect();
+let manifest = NpsConformanceManifest::create(
+    NODE_L1,
+    "my-node",
+    "1.0.0-alpha.14",
+    "urn:nps:node:example.com:my-node",
+    "labacacia-fixture",
+    "1.0.0-alpha.14",
+    results,
+    "ci",
+);
+let validation = validate_manifest(&manifest);
 ```
 
 ### NDP 注册表 —— announce & resolve
@@ -256,4 +331,4 @@ cargo test --workspace
 
 ## 许可证
 
-[Apache 2.0](https://github.com/labacacia/NPS-Dev/blob/main/LICENSE) © 2026 INNO LOTUS PTY LTD
+[Apache 2.0](LICENSE) © 2026 INNO LOTUS PTY LTD

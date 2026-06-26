@@ -10,7 +10,6 @@ use std::time::{Duration, Instant};
 #[derive(Debug, Clone)]
 struct Entry {
     schema: serde_json::Map<String, Value>,
-    anchor_id: String,
     expires: Instant,
 }
 
@@ -61,14 +60,8 @@ impl AnchorFrameCache {
                 )));
             }
         }
-        self.store.insert(
-            anchor_id.clone(),
-            Entry {
-                schema,
-                anchor_id: anchor_id.clone(),
-                expires,
-            },
-        );
+        self.store
+            .insert(anchor_id.clone(), Entry { schema, expires });
         Ok(anchor_id)
     }
 
