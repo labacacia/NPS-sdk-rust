@@ -285,7 +285,7 @@ pub const NODE_L1_CASES: &[NpsConformanceCase] = &[
         "TC-N1-NDP-04",
         NODE_L1,
         "N1-NDP-04",
-        "GraphFrame subscription",
+        "GraphFrame topology snapshot",
         true,
     ),
     c(
@@ -482,7 +482,7 @@ mod tests {
             "0.1.0",
             "urn:nps:node:example.test:node-1",
             "reference",
-            "1.0.0-alpha.14",
+            "1.0.0-alpha.15",
             results,
             "",
         );

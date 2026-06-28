@@ -21,7 +21,7 @@ use nps_nip::{
 
 #[test]
 fn register_x509_round_trip_verifier_accepts() {
-    let ca_nid = "urn:nps:ca:test";
+    let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:happy:1";
 
     let ca_sk = SigningKey::generate(&mut OsRng);
@@ -63,7 +63,7 @@ fn register_x509_round_trip_verifier_accepts() {
 
 #[test]
 fn register_x509_leaf_eku_stripped_rejects_eku_missing() {
-    let ca_nid = "urn:nps:ca:test";
+    let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:eku-stripped:1";
 
     let ca_sk = SigningKey::generate(&mut OsRng);
@@ -107,7 +107,7 @@ fn register_x509_leaf_eku_stripped_rejects_eku_missing() {
 
 #[test]
 fn register_x509_leaf_for_different_nid_rejects_subject_mismatch() {
-    let ca_nid = "urn:nps:ca:test";
+    let ca_nid = "urn:nps:org:test";
     let victim_nid = "urn:nps:agent:victim:1";
     let forged_nid = "urn:nps:agent:attacker:9";
 
@@ -156,7 +156,7 @@ fn register_x509_leaf_for_different_nid_rejects_subject_mismatch() {
 
 #[test]
 fn v1_only_verifier_accepts_v2_frame_by_ignoring_chain() {
-    let ca_nid = "urn:nps:ca:test";
+    let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:v1-compat:1";
 
     let ca_sk = SigningKey::generate(&mut OsRng);
@@ -198,7 +198,7 @@ fn v1_only_verifier_accepts_v2_frame_by_ignoring_chain() {
 
 #[test]
 fn v2_verifier_rejects_v2_frame_when_trusted_roots_missing() {
-    let ca_nid = "urn:nps:ca:test";
+    let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:wrong-trust:1";
 
     let ca_sk = SigningKey::generate(&mut OsRng);
@@ -227,7 +227,7 @@ fn v2_verifier_rejects_v2_frame_when_trusted_roots_missing() {
 
     // Different unrelated CA root — chain won't anchor.
     let other_ca_sk = SigningKey::generate(&mut OsRng);
-    let other_root = mk_root(&other_ca_sk, "urn:nps:ca:other", &[1]);
+    let other_root = mk_root(&other_ca_sk, "urn:nps:org:other", &[1]);
 
     let verifier = NipIdentVerifier::new(NipVerifierOptions {
         trusted_ca_public_keys: map(&[(ca_nid, &pub_key_str(&ca_sk))]),

@@ -44,8 +44,8 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     };
     let sig = id.sign(&tmp.unsigned_dict());
     AnnounceFrame {
@@ -63,8 +63,8 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     }
 }
 
@@ -80,9 +80,17 @@ fn announce_liveness_wire_only() {
     };
     let d = f.to_dict();
     assert_eq!(d.get("health").and_then(|v| v.as_str()), Some("draining"));
-    assert_eq!(d.get("last_seen").and_then(|v| v.as_str()), Some("2026-06-13T00:00:00Z"));
+    assert_eq!(
+        d.get("last_seen").and_then(|v| v.as_str()),
+        Some("2026-06-13T00:00:00Z")
+    );
     let u = f.unsigned_dict();
     assert!(!u.contains_key("health") && !u.contains_key("last_seen"));
+    assert!(!u.contains_key("frame"));
+    assert_eq!(
+        u.get("heartbeat_interval_ms").and_then(|v| v.as_u64()),
+        Some(60_000)
+    );
     // Signs identically to the same frame without liveness fields.
     assert_eq!(u, base.unsigned_dict());
     let back = AnnounceFrame::from_dict(&d).unwrap();
@@ -90,16 +98,99 @@ fn announce_liveness_wire_only() {
     assert_eq!(back.last_seen.as_deref(), Some("2026-06-13T00:00:00Z"));
 }
 
+#[test]
+fn announce_heartbeat_zero_canonicalizes_literally() {
+    let id = NipIdentity::generate();
+    let frame = AnnounceFrame {
+        heartbeat_interval_ms: 0,
+        ..make_announce(&id, 300)
+    };
+    assert_eq!(
+        frame
+            .unsigned_dict()
+            .get("heartbeat_interval_ms")
+            .and_then(|v| v.as_u64()),
+        Some(0)
+    );
+}
+
+#[test]
+fn announce_from_dict_absent_heartbeat_defaults() {
+    let mut absent = Map::new();
+    absent.insert("nid".into(), json!(NID));
+    absent.insert("addresses".into(), json!([]));
+    absent.insert("capabilities".into(), json!([]));
+    absent.insert("ttl".into(), json!(300));
+    absent.insert("timestamp".into(), json!(TS));
+    absent.insert("signature".into(), json!("ed25519:sig"));
+    let frame = AnnounceFrame::from_dict(&absent).unwrap();
+    assert_eq!(frame.heartbeat_interval_ms, 60_000);
+
+    let mut explicit_zero = absent;
+    explicit_zero.insert("heartbeat_interval_ms".into(), json!(0));
+    let frame = AnnounceFrame::from_dict(&explicit_zero).unwrap();
+    assert_eq!(frame.heartbeat_interval_ms, 0);
+}
+
 // ── AnnounceFrame ─────────────────────────────────────────────────────────────
+
+#[test]
+fn announce_activation_endpoint_is_address_object() {
+    let id = NipIdentity::generate();
+    let mut endpoint = Map::new();
+    endpoint.insert("host".into(), json!("10.0.0.5"));
+    endpoint.insert("port".into(), json!(17440));
+    endpoint.insert("protocol".into(), json!("nwp"));
+    let f = AnnounceFrame {
+        activation_mode: Some("resident".into()),
+        activation_endpoint: Some(endpoint.clone()),
+        ..make_announce(&id, 300)
+    };
+
+    let d = f.to_dict();
+    assert_eq!(
+        d.get("activation_endpoint")
+            .and_then(|v| v.get("host"))
+            .and_then(|v| v.as_str()),
+        Some("10.0.0.5")
+    );
+    let back = AnnounceFrame::from_dict(&d).unwrap();
+    assert_eq!(back.activation_endpoint, Some(endpoint));
+    assert_eq!(
+        f.unsigned_dict()
+            .get("activation_endpoint")
+            .and_then(|v| v.get("host"))
+            .and_then(|v| v.as_str()),
+        Some("10.0.0.5")
+    );
+}
 
 #[test]
 fn announce_frame_roundtrip() {
     let id = NipIdentity::generate();
     let frame = make_announce(&id, 300);
+    let dict = frame.to_dict();
+    assert!(dict.contains_key("capabilities"));
+    assert!(!dict.contains_key("caps"));
     let back = AnnounceFrame::from_dict(&frame.to_dict()).unwrap();
     assert_eq!(back.nid, NID);
     assert_eq!(back.ttl, 300);
     assert!(back.unsigned_dict().get("signature").is_none());
+    assert!(back.unsigned_dict().get("node_type").is_none());
+}
+
+#[test]
+fn announce_frame_accepts_legacy_caps_alias() {
+    let mut dict = Map::new();
+    dict.insert("nid".into(), json!(NID));
+    dict.insert("addresses".into(), json!([]));
+    dict.insert("caps".into(), json!(["nwp:query"]));
+    dict.insert("ttl".into(), json!(300));
+    dict.insert("timestamp".into(), json!(TS));
+    dict.insert("signature".into(), json!("ed25519:placeholder"));
+
+    let back = AnnounceFrame::from_dict(&dict).unwrap();
+    assert_eq!(back.caps, vec!["nwp:query"]);
 }
 
 #[test]
@@ -158,7 +249,11 @@ fn graph_frame_roundtrip() {
     let codec = full_codec();
     let frame = GraphFrame {
         graph_id: "g1".into(),
-        nodes: vec![GraphNode { nid: NID.into(), cluster_anchor: None, node_roles: None }],
+        nodes: vec![GraphNode {
+            nid: NID.into(),
+            cluster_anchor: None,
+            node_roles: None,
+        }],
         edges: vec![],
         ttl: 300,
         metadata: None,
@@ -177,6 +272,91 @@ fn graph_frame_roundtrip() {
     assert_eq!(back.nodes.len(), 1);
     assert_eq!(back.nodes[0].nid, NID);
     assert!(back.edges.is_empty());
+}
+
+#[test]
+fn graph_frame_rejects_too_large() {
+    use nps_ndp::GraphNode;
+    let nodes = (0..257)
+        .map(|i| GraphNode {
+            nid: format!("urn:nps:node:example.com:{i}"),
+            cluster_anchor: None,
+            node_roles: None,
+        })
+        .collect();
+    let frame = GraphFrame {
+        graph_id: "too-big".into(),
+        nodes,
+        edges: vec![],
+        ttl: 60,
+        metadata: None,
+    };
+    let err = frame.validate().unwrap_err();
+    assert!(format!("{err:?}").contains("NDP-GRAPH-TOO-LARGE"));
+}
+
+#[test]
+fn graph_frame_rejects_invalid_edges() {
+    use nps_ndp::{GraphEdge, GraphNode};
+    let nodes = vec![GraphNode {
+        nid: "urn:nps:node:example.com:a".into(),
+        cluster_anchor: None,
+        node_roles: None,
+    }];
+    for edge in [
+        GraphEdge {
+            from_nid: nodes[0].nid.clone(),
+            to_nid: nodes[0].nid.clone(),
+            latency_ms: None,
+            protocol: None,
+        },
+        GraphEdge {
+            from_nid: nodes[0].nid.clone(),
+            to_nid: "urn:nps:node:example.com:missing".into(),
+            latency_ms: None,
+            protocol: None,
+        },
+    ] {
+        let frame = GraphFrame {
+            graph_id: "bad-edge".into(),
+            nodes: nodes.clone(),
+            edges: vec![edge],
+            ttl: 60,
+            metadata: None,
+        };
+        let err = frame.validate().unwrap_err();
+        assert!(format!("{err:?}").contains("NDP-GRAPH-INVALID"));
+    }
+}
+
+#[test]
+fn federation_forwarded_by_helpers() {
+    let header = "urn:nps:agent:registry-a.example.com:r1, urn:nps:agent:registry-b.example.com:r2";
+    assert_eq!(
+        nps_ndp::parse_forwarded_by(Some(header)),
+        vec![
+            "urn:nps:agent:registry-a.example.com:r1".to_string(),
+            "urn:nps:agent:registry-b.example.com:r2".to_string(),
+        ]
+    );
+
+    let next =
+        nps_ndp::append_forwarded_by("urn:nps:agent:registry-c.example.com:r3", Some(header))
+            .unwrap()
+            .unwrap();
+    assert!(next.contains("registry-c"));
+
+    let err = nps_ndp::append_forwarded_by("urn:nps:agent:registry-b.example.com:r2", Some(header))
+        .unwrap_err();
+    assert!(format!("{err:?}").contains("NDP-FEDERATION-LOOP"));
+
+    let full_header = format!("{header}, urn:nps:agent:registry-c.example.com:r3");
+    let dropped = nps_ndp::append_forwarded_by(
+        "urn:nps:agent:registry-d.example.com:r4",
+        Some(&full_header),
+    )
+    .unwrap();
+    assert!(dropped.is_none());
 }
 
 // ── InMemoryNdpRegistry ───────────────────────────────────────────────────────
@@ -261,11 +441,15 @@ fn get_all_returns_active_entries() {
         timestamp: TS.into(),
         signature: "ph".into(),
         node_type: None,
-        node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
-        bridge_protocols: None, activation_mode: None, activation_endpoint: None,
+        node_roles: None,
+        cluster_anchor: None,
+        spawn_spec_ref: None,
+        bridge_protocols: None,
+        activation_mode: None,
+        activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     };
     let tmp2 = AnnounceFrame {
         nid: nid2.into(),
@@ -275,11 +459,15 @@ fn get_all_returns_active_entries() {
         timestamp: TS.into(),
         signature: "ph".into(),
         node_type: None,
-        node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
-        bridge_protocols: None, activation_mode: None, activation_endpoint: None,
+        node_roles: None,
+        cluster_anchor: None,
+        spawn_spec_ref: None,
+        bridge_protocols: None,
+        activation_mode: None,
+        activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     };
     let sig1 = id1.sign(&tmp1.unsigned_dict());
     let sig2 = id2.sign(&tmp2.unsigned_dict());
@@ -292,11 +480,15 @@ fn get_all_returns_active_entries() {
         timestamp: TS.into(),
         signature: sig1,
         node_type: None,
-        node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
-        bridge_protocols: None, activation_mode: None, activation_endpoint: None,
+        node_roles: None,
+        cluster_anchor: None,
+        spawn_spec_ref: None,
+        bridge_protocols: None,
+        activation_mode: None,
+        activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     });
     reg.announce(AnnounceFrame {
         nid: nid2.into(),
@@ -306,11 +498,15 @@ fn get_all_returns_active_entries() {
         timestamp: TS.into(),
         signature: sig2,
         node_type: None,
-        node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
-        bridge_protocols: None, activation_mode: None, activation_endpoint: None,
+        node_roles: None,
+        cluster_anchor: None,
+        spawn_spec_ref: None,
+        bridge_protocols: None,
+        activation_mode: None,
+        activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     });
 
     *elapsed.lock().unwrap() = 2;
@@ -554,15 +750,22 @@ fn rejects_wrong_signature_prefix() {
         timestamp: TS.into(),
         signature: "rsa:invalid".into(),
         node_type: None,
-        node_roles: None, cluster_anchor: None, spawn_spec_ref: None,
-        bridge_protocols: None, activation_mode: None, activation_endpoint: None,
+        node_roles: None,
+        cluster_anchor: None,
+        spawn_spec_ref: None,
+        bridge_protocols: None,
+        activation_mode: None,
+        activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
-            health: None,
-            last_seen: None,
+        health: None,
+        last_seen: None,
     };
     let r = v.validate(&frame);
     assert!(!r.is_valid);
-    assert_eq!(r.error_code.as_deref(), Some("NDP-ANNOUNCE-SIG-INVALID"));
+    assert_eq!(
+        r.error_code.as_deref(),
+        Some("NDP-ANNOUNCE-SIGNATURE-INVALID")
+    );
 }
 
 #[test]

@@ -8,5 +8,5 @@ pub mod models;
 
 pub use client::NopClient;
 pub use frames::{AlignStreamFrame, DelegateFrame, SyncFrame, TaskFrame};
-pub use models::{BackoffStrategy, DagNode, NopTaskStatus, TaskState};
 pub use models::{aggregate_strategy, compensation_policy};
+pub use models::{BackoffStrategy, DagNode, NopTaskStatus, TaskState};

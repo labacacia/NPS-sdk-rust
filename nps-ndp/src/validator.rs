@@ -1,6 +1,7 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error_codes::{ANNOUNCE_NID_MISMATCH, ANNOUNCE_SIGNATURE_INVALID};
 use crate::frames::AnnounceFrame;
 use nps_nip::identity::NipIdentity;
 use std::collections::HashMap;
@@ -58,7 +59,7 @@ impl NdpAnnounceValidator {
             Some(k) => k,
             None => {
                 return NdpAnnounceResult::fail(
-                    "NDP-ANNOUNCE-NID-MISMATCH",
+                    ANNOUNCE_NID_MISMATCH,
                     format!("no public key registered for NID {}", frame.nid),
                 )
             }
@@ -66,7 +67,7 @@ impl NdpAnnounceValidator {
 
         if !frame.signature.starts_with("ed25519:") {
             return NdpAnnounceResult::fail(
-                "NDP-ANNOUNCE-SIG-INVALID",
+                ANNOUNCE_SIGNATURE_INVALID,
                 "signature must have ed25519: prefix",
             );
         }
@@ -75,7 +76,7 @@ impl NdpAnnounceValidator {
         if NipIdentity::verify_with_pub_key_str(&unsigned, pub_key, &frame.signature) {
             NdpAnnounceResult::ok()
         } else {
-            NdpAnnounceResult::fail("NDP-ANNOUNCE-SIG-INVALID", "signature verification failed")
+            NdpAnnounceResult::fail(ANNOUNCE_SIGNATURE_INVALID, "signature verification failed")
         }
     }
 }

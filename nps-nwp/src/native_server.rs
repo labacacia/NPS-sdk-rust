@@ -6,6 +6,8 @@ use nps_core::codec::{FrameDict, NpsFrameCodec};
 use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
 use nps_core::registry::FrameRegistry;
+use nps_core::status_codes;
+use nps_ncp::error_codes;
 use nps_ncp::CapsFrame;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -22,6 +24,7 @@ pub type NativeActionHandler = Arc<dyn Fn(ActionFrame) -> NpsResult<Value> + Sen
 pub struct NwpNativeNodeServer {
     codec: NpsFrameCodec,
     tier: EncodingTier,
+    enabled_encodings: Vec<String>,
     anchor_ref: String,
     query_handler: Option<NativeQueryHandler>,
     action_handler: Option<NativeActionHandler>,
@@ -32,6 +35,7 @@ impl NwpNativeNodeServer {
         Self {
             codec: NpsFrameCodec::new(FrameRegistry::create_full()),
             tier: EncodingTier::MsgPack,
+            enabled_encodings: vec!["msgpack".to_string()],
             anchor_ref: "native:nwp".to_string(),
             query_handler: None,
             action_handler: None,
@@ -40,6 +44,16 @@ impl NwpNativeNodeServer {
 
     pub fn with_tier(mut self, tier: EncodingTier) -> Self {
         self.tier = tier;
+        self.enabled_encodings = vec![encoding_token(tier).to_string()];
+        self
+    }
+
+    pub fn with_enabled_encodings<I, S>(mut self, enabled_encodings: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.enabled_encodings = enabled_encodings.into_iter().map(Into::into).collect();
         self
     }
 
@@ -65,6 +79,24 @@ impl NwpNativeNodeServer {
     }
 
     pub fn dispatch_wire(&self, wire: &[u8]) -> NpsResult<Vec<u8>> {
+        let header = FrameHeader::parse(wire)?;
+        if !encoding_allowed(&header, self.tier, &self.enabled_encodings) {
+            return self.codec.encode(
+                FrameType::Error,
+                &error_dict(
+                    status_codes::NPS_SERVER_ENCODING_UNSUPPORTED,
+                    error_codes::ENCODING_UNSUPPORTED,
+                    format!(
+                        "Frame type 0x{:02X} used {}, but the negotiated policy allows {}.",
+                        header.frame_type.as_u8(),
+                        encoding_token(header.encoding_tier()),
+                        self.enabled_encodings.join(", ")
+                    ),
+                ),
+                self.tier,
+                true,
+            );
+        }
         let (frame_type, dict) = self.codec.decode(wire)?;
         let (response_type, response_dict) = self.dispatch(frame_type, dict);
         self.codec
@@ -184,4 +216,20 @@ fn error_dict(status: &str, error: &str, message: String) -> FrameDict {
     out.insert("error_code".into(), json!(error));
     out.insert("message".into(), json!(message));
     out
+}
+
+fn encoding_allowed(header: &FrameHeader, default_tier: EncodingTier, enabled: &[String]) -> bool {
+    header.encoding_tier() == default_tier
+        || (header.encoding_tier() == EncodingTier::BinaryVector
+            && header.frame_type == FrameType::Query
+            && enabled.iter().any(|enc| enc == "binary_vector.v1"))
+}
+
+fn encoding_token(tier: EncodingTier) -> &'static str {
+    match tier {
+        EncodingTier::Json => "json",
+        EncodingTier::MsgPack => "msgpack",
+        EncodingTier::BinaryVector => "binary_vector.v1",
+        EncodingTier::Reserved => "reserved",
+    }
 }

@@ -2,8 +2,8 @@ English | [中文版](./README.cn.md)
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.14-orange.svg)](../../CHANGELOG.md)
-[![NCP](https://img.shields.io/badge/NCP-v0.8-5b8cff.svg)]()
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.15-orange.svg)](../../CHANGELOG.md)
+[![NCP](https://img.shields.io/badge/NCP-v0.9-5b8cff.svg)]()
 [![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
 [![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
 [![NDP](https://img.shields.io/badge/NDP-v0.9-f0a050.svg)]()
@@ -15,13 +15,13 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.14 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
+**v1.0.0-alpha.15 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
 Tests: 99 across the workspace, all passing.
 
-Alpha.14 candidate additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient`), native-mode NWP serving helper (`nps_nwp::NwpNativeNodeServer`), and TC-N1/TC-N2 conformance manifest helpers (`nps_conformance`, re-exported by `nps-sdk`).
+Alpha.15 additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient`), native-mode NWP serving helper (`nps_nwp::NwpNativeNodeServer`), and TC-N1/TC-N2 conformance manifest helpers (`nps_conformance`, re-exported by `nps-sdk`).
 
 ### Earlier additions (nps-nip)
 
@@ -193,10 +193,10 @@ let results = catalog_for_profile(NODE_L1)?
 let manifest = NpsConformanceManifest::create(
     NODE_L1,
     "my-node",
-    "1.0.0-alpha.14",
+    "1.0.0-alpha.15",
     "urn:nps:node:example.com:my-node",
     "labacacia-fixture",
-    "1.0.0-alpha.14",
+    "1.0.0-alpha.15",
     results,
     "ci",
 );

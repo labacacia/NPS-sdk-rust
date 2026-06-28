@@ -29,7 +29,7 @@ struct Fixture {
 }
 
 fn create_fixture() -> Fixture {
-    let ca_nid = "urn:nps:ca:acme-test".to_string();
+    let ca_nid = "urn:nps:org:acme-test".to_string();
     let agent_nid = "urn:nps:agent:acme-test:1".to_string();
 
     let ca_sk = SigningKey::generate(&mut OsRng);

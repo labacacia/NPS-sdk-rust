@@ -7,6 +7,10 @@ use nps_core::frames::FrameType;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::error_codes::REVOKE_FRAME_INVALID;
+
+const REASON_PARENT_REVOKED: &str = "parent_revoked";
+
 fn get_str<'a>(d: &'a FrameDict, k: &str) -> NpsResult<&'a str> {
     d.get(k)
         .and_then(Value::as_str)
@@ -122,10 +126,13 @@ impl IdentFrame {
                 .filter_map(|v| v.as_str().map(String::from))
                 .collect()
         });
-        let reputation_policy = d.get("reputation_policy")
+        let reputation_policy = d
+            .get("reputation_policy")
             .and_then(|v| serde_json::from_value(v.clone()).ok());
         let node_roles = d.get("node_roles").and_then(Value::as_array).map(|a| {
-            a.iter().filter_map(|v| v.as_str().map(String::from)).collect()
+            a.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
         });
         Ok(IdentFrame {
             nid: get_str(d, "nid")?.to_string(),
@@ -146,11 +153,15 @@ impl IdentFrame {
 
 #[derive(Debug, Clone)]
 pub struct TrustFrame {
-    pub issuer_nid: String,
-    pub subject_nid: String,
-    pub scopes: Vec<String>,
-    pub expires_at: Option<String>,
-    pub signature: Option<String>,
+    pub grantor_nid: String,
+    pub grantee_ca: String,
+    pub trust_scope: Vec<String>,
+    pub nodes: Vec<String>,
+    pub issued_at: String,
+    pub expires_at: String,
+    pub serial: String,
+    pub signer_nid: String,
+    pub signature: String,
 }
 
 impl TrustFrame {
@@ -158,37 +169,52 @@ impl TrustFrame {
         FrameType::Trust
     }
 
-    pub fn to_dict(&self) -> FrameDict {
+    pub fn unsigned_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("issuer_nid".into(), json!(self.issuer_nid));
-        m.insert("subject_nid".into(), json!(self.subject_nid));
-        m.insert("scopes".into(), json!(self.scopes));
-        if let Some(v) = &self.expires_at {
-            m.insert("expires_at".into(), json!(v));
-        }
-        if let Some(v) = &self.signature {
-            m.insert("signature".into(), json!(v));
-        }
+        m.insert("frame".into(), json!("0x21"));
+        m.insert("grantor_nid".into(), json!(self.grantor_nid));
+        m.insert("grantee_ca".into(), json!(self.grantee_ca));
+        m.insert("trust_scope".into(), json!(self.trust_scope));
+        m.insert("nodes".into(), json!(self.nodes));
+        m.insert("issued_at".into(), json!(self.issued_at));
+        m.insert("expires_at".into(), json!(self.expires_at));
+        m.insert("serial".into(), json!(self.serial));
+        m.insert("signer_nid".into(), json!(self.signer_nid));
+        m
+    }
+
+    pub fn to_dict(&self) -> FrameDict {
+        let mut m = self.unsigned_dict();
+        m.insert("signature".into(), json!(self.signature));
         m
     }
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
-        let scopes = d
-            .get("scopes")
-            .and_then(Value::as_array)
-            .map(|a| {
-                a.iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect()
-            })
+        let grantor_nid = opt_str(d, "grantor_nid")
+            .or_else(|| opt_str(d, "issuer_nid"))
+            .ok_or_else(|| NpsError::Frame("missing field: grantor_nid".into()))?
+            .to_string();
+        let grantee_ca = opt_str(d, "grantee_ca")
+            .or_else(|| opt_str(d, "subject_nid"))
+            .ok_or_else(|| NpsError::Frame("missing field: grantee_ca".into()))?
+            .to_string();
+        let trust_scope = string_list(d, "trust_scope")
+            .or_else(|| string_list(d, "scopes"))
             .unwrap_or_default();
         Ok(TrustFrame {
-            issuer_nid: get_str(d, "issuer_nid")?.to_string(),
-            subject_nid: get_str(d, "subject_nid")?.to_string(),
-            scopes,
-            expires_at: opt_str(d, "expires_at").map(str::to_string),
-            signature: opt_str(d, "signature").map(str::to_string),
+            grantor_nid,
+            grantee_ca,
+            trust_scope,
+            nodes: string_list(d, "nodes").unwrap_or_default(),
+            issued_at: opt_str(d, "issued_at").unwrap_or("").to_string(),
+            expires_at: get_str(d, "expires_at")?.to_string(),
+            serial: opt_str(d, "serial").unwrap_or("").to_string(),
+            signer_nid: opt_str(d, "signer_nid")
+                .or_else(|| opt_str(d, "grantor_nid"))
+                .or_else(|| opt_str(d, "issuer_nid"))
+                .unwrap_or("")
+                .to_string(),
+            signature: get_str(d, "signature")?.to_string(),
         })
     }
 }
@@ -197,9 +223,13 @@ impl TrustFrame {
 
 #[derive(Debug, Clone)]
 pub struct RevokeFrame {
-    pub nid: String,
-    pub reason: Option<String>,
-    pub revoked_at: Option<String>,
+    pub target_nid: String,
+    pub serial: Option<String>,
+    pub reason: String,
+    pub revoked_at: String,
+    pub parent_nid: Option<String>,
+    pub signer_nid: String,
+    pub signature: String,
 }
 
 impl RevokeFrame {
@@ -207,23 +237,66 @@ impl RevokeFrame {
         FrameType::Revoke
     }
 
-    pub fn to_dict(&self) -> FrameDict {
+    pub fn unsigned_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("nid".into(), json!(self.nid));
-        if let Some(v) = &self.reason {
-            m.insert("reason".into(), json!(v));
+        m.insert("frame".into(), json!("0x22"));
+        m.insert("target_nid".into(), json!(self.target_nid));
+        m.insert("reason".into(), json!(self.reason));
+        m.insert("revoked_at".into(), json!(self.revoked_at));
+        m.insert("signer_nid".into(), json!(self.signer_nid));
+        if let Some(v) = &self.serial {
+            m.insert("serial".into(), json!(v));
         }
-        if let Some(v) = &self.revoked_at {
-            m.insert("revoked_at".into(), json!(v));
+        if let Some(v) = &self.parent_nid {
+            m.insert("parent_nid".into(), json!(v));
         }
         m
     }
 
-    pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
-        Ok(RevokeFrame {
-            nid: get_str(d, "nid")?.to_string(),
-            reason: opt_str(d, "reason").map(str::to_string),
-            revoked_at: opt_str(d, "revoked_at").map(str::to_string),
-        })
+    pub fn to_dict(&self) -> FrameDict {
+        let mut m = self.unsigned_dict();
+        m.insert("signature".into(), json!(self.signature));
+        m
     }
+
+    pub fn validate(&self) -> NpsResult<()> {
+        if self.reason == REASON_PARENT_REVOKED {
+            if self.parent_nid.as_deref().unwrap_or("").is_empty() {
+                return Err(NpsError::Frame(format!(
+                    "{REVOKE_FRAME_INVALID}: parent_nid is required when reason=parent_revoked"
+                )));
+            }
+        } else if self.parent_nid.is_some() {
+            return Err(NpsError::Frame(format!(
+                "{REVOKE_FRAME_INVALID}: parent_nid must be omitted unless reason=parent_revoked"
+            )));
+        }
+        Ok(())
+    }
+
+    pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
+        let frame = RevokeFrame {
+            target_nid: opt_str(d, "target_nid")
+                .or_else(|| opt_str(d, "nid"))
+                .ok_or_else(|| NpsError::Frame("missing field: target_nid".into()))?
+                .to_string(),
+            serial: opt_str(d, "serial").map(str::to_string),
+            reason: get_str(d, "reason")?.to_string(),
+            revoked_at: get_str(d, "revoked_at")?.to_string(),
+            parent_nid: opt_str(d, "parent_nid").map(str::to_string),
+            signer_nid: opt_str(d, "signer_nid").unwrap_or("").to_string(),
+            signature: opt_str(d, "signature").unwrap_or("").to_string(),
+        };
+        frame.validate()?;
+        Ok(frame)
+    }
+}
+
+fn string_list(d: &FrameDict, k: &str) -> Option<Vec<String>> {
+    d.get(k).and_then(Value::as_array).map(|a| {
+        a.iter()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect()
+    })
 }

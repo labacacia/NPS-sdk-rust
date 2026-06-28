@@ -8,7 +8,10 @@ use nps_core::codec::{
 use nps_core::error::NpsError;
 use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
 use nps_core::registry::FrameRegistry;
+use serde::Deserialize;
 use serde_json::{json, Map};
+use std::fs;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -66,7 +69,7 @@ fn frame_header_too_short_returns_err() {
 #[test]
 fn frame_header_extended_too_short_returns_err() {
     // EXT flag set but only 4 bytes
-    let wire = vec![0x01, 0x01, 0x00, 0x00];
+    let wire = vec![0x01, 0x80, 0x00, 0x00];
     assert!(FrameHeader::parse(&wire).is_err());
 }
 
@@ -74,6 +77,14 @@ fn frame_header_extended_too_short_returns_err() {
 fn frame_header_encoding_tier_json() {
     let hdr = FrameHeader::new(FrameType::Anchor, EncodingTier::Json, true, 10);
     assert_eq!(hdr.encoding_tier(), EncodingTier::Json);
+}
+
+#[test]
+fn frame_header_encoding_tier_binary_vector() {
+    let hdr = FrameHeader::new(FrameType::Query, EncodingTier::BinaryVector, true, 10);
+    assert_eq!(hdr.encoding_tier(), EncodingTier::BinaryVector);
+    assert!(hdr.is_final());
+    assert_eq!(hdr.to_bytes()[1], 0x06);
 }
 
 // ── Codec (JSON / MsgPack encode + decode) ────────────────────────────────────
@@ -136,6 +147,116 @@ fn codec_encode_decode_json() {
         .unwrap();
     let (ft, _) = codec.decode(&wire).unwrap();
     assert_eq!(ft, FrameType::Stream);
+}
+
+#[test]
+fn codec_encode_decode_binary_vector() {
+    let reg = FrameRegistry::create_full();
+    let codec = NpsFrameCodec::new(reg);
+    let mut vector_search = Map::new();
+    vector_search.insert("field".into(), json!("embedding"));
+    vector_search.insert("vector".into(), json!([0.25, -1.5, 3.0]));
+    vector_search.insert("top_k".into(), json!(2));
+    vector_search.insert("metric".into(), json!("cosine"));
+
+    let mut dict = Map::new();
+    dict.insert(
+        "anchor_ref".into(),
+        json!("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+    );
+    dict.insert("limit".into(), json!(3));
+    dict.insert("vector_search".into(), json!(vector_search));
+
+    let wire = codec
+        .encode(FrameType::Query, &dict, EncodingTier::BinaryVector, true)
+        .unwrap();
+    let hdr = NpsFrameCodec::peek_header(&wire).unwrap();
+    assert_eq!(hdr.encoding_tier(), EncodingTier::BinaryVector);
+    assert_eq!(&wire[hdr.header_size()..hdr.header_size() + 4], b"NPBV");
+
+    let (ft, back) = codec.decode(&wire).unwrap();
+    assert_eq!(ft, FrameType::Query);
+    let vector = back["vector_search"]["vector"].as_array().unwrap();
+    assert!((vector[0].as_f64().unwrap() - 0.25).abs() < 0.00001);
+    assert!((vector[1].as_f64().unwrap() + 1.5).abs() < 0.00001);
+    assert!((vector[2].as_f64().unwrap() - 3.0).abs() < 0.00001);
+}
+
+#[test]
+fn codec_decode_binary_vector_nan_returns_error() {
+    let reg = FrameRegistry::create_full();
+    let codec = NpsFrameCodec::new(reg);
+    let mut vector_search = Map::new();
+    vector_search.insert("field".into(), json!("embedding"));
+    vector_search.insert("vector".into(), json!([0.25, -1.5, 3.0]));
+    vector_search.insert("top_k".into(), json!(2));
+
+    let mut dict = Map::new();
+    dict.insert(
+        "anchor_ref".into(),
+        json!("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+    );
+    dict.insert("vector_search".into(), json!(vector_search));
+
+    let mut wire = codec
+        .encode(FrameType::Query, &dict, EncodingTier::BinaryVector, true)
+        .unwrap();
+    let first_vector_value = wire.len() - (3 * std::mem::size_of::<f32>());
+    wire[first_vector_value..first_vector_value + 4].copy_from_slice(&f32::NAN.to_le_bytes());
+
+    let err = codec.decode(&wire).unwrap_err();
+    match err {
+        NpsError::Codec(message) => assert!(message.contains("finite float32")),
+        other => panic!("expected codec error, got {other:?}"),
+    }
+}
+
+#[derive(Deserialize)]
+struct BinaryVectorFixture {
+    vectors: Vec<BinaryVectorCase>,
+}
+
+#[derive(Deserialize)]
+struct BinaryVectorCase {
+    kind: String,
+    input: BinaryVectorInput,
+}
+
+#[derive(Deserialize)]
+struct BinaryVectorInput {
+    payload_hex: String,
+}
+
+#[test]
+fn codec_binary_vector_conformance_fixture() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../spec/conformance/ncp/binary_vector_payload_vectors.json");
+    let raw = fs::read_to_string(path).unwrap();
+    let fixture: BinaryVectorFixture = serde_json::from_str(&raw).unwrap();
+
+    let codec = NpsFrameCodec::new(FrameRegistry::create_full());
+    for case in fixture.vectors {
+        let payload = hex::decode(case.input.payload_hex).unwrap();
+        let hdr = FrameHeader::new(
+            FrameType::Query,
+            EncodingTier::BinaryVector,
+            true,
+            payload.len() as u64,
+        );
+        let mut wire = hdr.to_bytes();
+        wire.extend_from_slice(&payload);
+
+        let decoded = codec.decode(&wire);
+        if case.kind == "negative" {
+            assert!(decoded.is_err());
+            continue;
+        }
+        let (_, back) = decoded.unwrap();
+        let vector = back["vector_search"]["vector"].as_array().unwrap();
+        assert!((vector[0].as_f64().unwrap() - 0.25).abs() < 0.00001);
+        assert!((vector[1].as_f64().unwrap() + 1.5).abs() < 0.00001);
+        assert!((vector[2].as_f64().unwrap() - 3.0).abs() < 0.00001);
+    }
 }
 
 #[test]

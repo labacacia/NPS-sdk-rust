@@ -129,7 +129,7 @@ fn verify_with_pub_key_str_bad_prefix() {
 fn ident_frame_roundtrip() {
     let codec = full_codec();
     let mut meta = serde_json::Map::new();
-    meta.insert("issuer".into(), json!("urn:nps:ca:root"));
+    meta.insert("issuer".into(), json!("urn:nps:org:root"));
     let frame = IdentFrame {
         nid: "urn:nps:node:a:1".into(),
         pub_key: "ed25519:aabbcc".into(),
@@ -191,12 +191,17 @@ fn ident_frame_optional_fields_null() {
 fn trust_frame_roundtrip() {
     let codec = full_codec();
     let frame = TrustFrame {
-        issuer_nid: "urn:nps:node:a:1".into(),
-        subject_nid: "urn:nps:node:b:1".into(),
-        scopes: vec!["nwp/query".into()],
-        expires_at: Some("2027-01-01T00:00:00Z".into()),
-        signature: Some("ed25519:sig".into()),
+        grantor_nid: "urn:nps:org:org-a.com".into(),
+        grantee_ca: "urn:nps:org:org-b.com".into(),
+        trust_scope: vec!["nwp:query".into()],
+        nodes: vec!["nwp://api.org-a.com/public/**".into()],
+        issued_at: "2026-05-11T00:00:00Z".into(),
+        expires_at: "2027-01-01T00:00:00Z".into(),
+        serial: "00000000000A3F9C".into(),
+        signer_nid: "urn:nps:org:org-a.com".into(),
+        signature: "ed25519:sig".into(),
     };
+    assert!(!frame.unsigned_dict().contains_key("signature"));
     let wire = codec
         .encode(
             TrustFrame::frame_type(),
@@ -207,8 +212,11 @@ fn trust_frame_roundtrip() {
         .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = TrustFrame::from_dict(&dict).unwrap();
-    assert_eq!(back.subject_nid, "urn:nps:node:b:1");
-    assert_eq!(back.scopes, vec!["nwp/query"]);
+    assert_eq!(back.grantee_ca, "urn:nps:org:org-b.com");
+    assert_eq!(back.trust_scope, vec!["nwp:query"]);
+    assert_eq!(back.nodes, vec!["nwp://api.org-a.com/public/**"]);
+    assert_eq!(back.serial, "00000000000A3F9C");
+    assert_eq!(back.signer_nid, "urn:nps:org:org-a.com");
 }
 
 // ── RevokeFrame ───────────────────────────────────────────────────────────────
@@ -217,10 +225,15 @@ fn trust_frame_roundtrip() {
 fn revoke_frame_roundtrip() {
     let codec = full_codec();
     let frame = RevokeFrame {
-        nid: "urn:nps:node:a:1".into(),
-        reason: Some("compromised".into()),
-        revoked_at: Some("2026-06-01T00:00:00Z".into()),
+        target_nid: "urn:nps:agent:ca.example.com:session-1".into(),
+        serial: Some("0x0A3F9C".into()),
+        reason: "parent_revoked".into(),
+        revoked_at: "2026-06-01T00:00:00Z".into(),
+        parent_nid: Some("urn:nps:agent:ca.example.com:group-1".into()),
+        signer_nid: "urn:nps:org:ca.example.com".into(),
+        signature: "ed25519:sig".into(),
     };
+    assert!(!frame.unsigned_dict().contains_key("signature"));
     let wire = codec
         .encode(
             RevokeFrame::frame_type(),
@@ -231,17 +244,26 @@ fn revoke_frame_roundtrip() {
         .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = RevokeFrame::from_dict(&dict).unwrap();
-    assert_eq!(back.reason.as_deref(), Some("compromised"));
-    assert_eq!(back.revoked_at.as_deref(), Some("2026-06-01T00:00:00Z"));
+    assert_eq!(back.reason, "parent_revoked");
+    assert_eq!(back.revoked_at, "2026-06-01T00:00:00Z");
+    assert_eq!(back.serial.as_deref(), Some("0x0A3F9C"));
+    assert_eq!(
+        back.parent_nid.as_deref(),
+        Some("urn:nps:agent:ca.example.com:group-1")
+    );
 }
 
 #[test]
-fn revoke_frame_optional_fields_null() {
+fn revoke_frame_whole_nid_revocation_omits_serial() {
     let codec = full_codec();
     let frame = RevokeFrame {
-        nid: "urn:nps:node:x:1".into(),
-        reason: None,
-        revoked_at: None,
+        target_nid: "urn:nps:agent:ca.example.com:old".into(),
+        serial: None,
+        reason: "affiliation_changed".into(),
+        revoked_at: "2026-06-01T00:00:00Z".into(),
+        parent_nid: None,
+        signer_nid: "urn:nps:org:ca.example.com".into(),
+        signature: "ed25519:sig".into(),
     };
     let wire = codec
         .encode(
@@ -253,6 +275,38 @@ fn revoke_frame_optional_fields_null() {
         .unwrap();
     let (_, dict) = codec.decode(&wire).unwrap();
     let back = RevokeFrame::from_dict(&dict).unwrap();
-    assert!(back.reason.is_none());
-    assert!(back.revoked_at.is_none());
+    assert!(back.serial.is_none());
+    assert_eq!(back.reason, "affiliation_changed");
+}
+
+#[test]
+fn revoke_frame_rejects_invalid_parent_nid_shape() {
+    let missing_parent = json!({
+        "frame": "0x22",
+        "target_nid": "urn:nps:agent:ca.example.com:session-1",
+        "reason": "parent_revoked",
+        "revoked_at": "2026-06-01T00:00:00Z",
+        "signer_nid": "urn:nps:org:ca.example.com",
+        "signature": "ed25519:sig"
+    })
+    .as_object()
+    .unwrap()
+    .clone();
+    let err = RevokeFrame::from_dict(&missing_parent).unwrap_err();
+    assert!(format!("{err:?}").contains("NIP-REVOKE-FRAME-INVALID"));
+
+    let stray_parent = json!({
+        "frame": "0x22",
+        "target_nid": "urn:nps:agent:ca.example.com:old",
+        "reason": "key_compromise",
+        "revoked_at": "2026-06-01T00:00:00Z",
+        "parent_nid": "urn:nps:agent:ca.example.com:group-1",
+        "signer_nid": "urn:nps:org:ca.example.com",
+        "signature": "ed25519:sig"
+    })
+    .as_object()
+    .unwrap()
+    .clone();
+    let err = RevokeFrame::from_dict(&stray_parent).unwrap_err();
+    assert!(format!("{err:?}").contains("NIP-REVOKE-FRAME-INVALID"));
 }

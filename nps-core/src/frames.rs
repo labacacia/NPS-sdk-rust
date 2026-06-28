@@ -66,6 +66,8 @@ impl FrameType {
 pub enum EncodingTier {
     Json = 0,
     MsgPack = 1,
+    BinaryVector = 2,
+    Reserved = 3,
 }
 
 // ── FrameHeader ───────────────────────────────────────────────────────────────
@@ -76,9 +78,11 @@ pub enum EncodingTier {
 /// Extended (EXT=1): 8 bytes — `[frame_type, flags, 0, 0, len_b3, len_b2, len_b1, len_b0]`
 ///
 /// Flags byte:
-///   bit 7 (0x80) — TIER: 0 = JSON, 1 = MsgPack
-///   bit 6 (0x40) — FINAL: 1 = last frame in stream
-///   bit 0 (0x01) — EXT: 1 = 8-byte extended header
+///   bits 0-1 (0x03) — TIER: 0 = JSON, 1 = MsgPack, 2 = BinaryVector
+///   bit 2  (0x04) — FINAL: 1 = last frame in stream
+///   bit 3  (0x08) — ENC: encrypted payload
+///   bits 4-6       — reserved
+///   bit 7  (0x80) — EXT: 1 = 8-byte extended header
 #[derive(Debug, Clone)]
 pub struct FrameHeader {
     pub frame_type: FrameType,
@@ -95,15 +99,12 @@ impl FrameHeader {
         payload_length: u64,
     ) -> Self {
         let is_extended = payload_length > 0xFFFF;
-        let mut flags: u8 = 0;
-        if tier == EncodingTier::MsgPack {
-            flags |= 0x80;
-        }
+        let mut flags: u8 = (tier as u8) & 0x03;
         if is_final {
-            flags |= 0x40;
+            flags |= 0x04;
         }
         if is_extended {
-            flags |= 0x01;
+            flags |= 0x80;
         }
         FrameHeader {
             frame_type,
@@ -114,15 +115,16 @@ impl FrameHeader {
     }
 
     pub fn encoding_tier(&self) -> EncodingTier {
-        if self.flags & 0x80 != 0 {
-            EncodingTier::MsgPack
-        } else {
-            EncodingTier::Json
+        match self.flags & 0x03 {
+            0 => EncodingTier::Json,
+            1 => EncodingTier::MsgPack,
+            2 => EncodingTier::BinaryVector,
+            _ => EncodingTier::Reserved,
         }
     }
 
     pub fn is_final(&self) -> bool {
-        self.flags & 0x40 != 0
+        self.flags & 0x04 != 0
     }
 
     pub fn header_size(&self) -> usize {
@@ -139,7 +141,7 @@ impl FrameHeader {
         }
         let frame_type = FrameType::from_u8(wire[0])?;
         let flags = wire[1];
-        let is_ext = flags & 0x01 != 0;
+        let is_ext = flags & 0x80 != 0;
 
         if is_ext {
             if wire.len() < 8 {
