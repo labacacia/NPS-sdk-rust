@@ -230,7 +230,7 @@ struct BinaryVectorInput {
 #[test]
 fn codec_binary_vector_conformance_fixture() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../spec/conformance/ncp/binary_vector_payload_vectors.json");
+        .join("tests/fixtures/conformance/ncp/binary_vector_payload_vectors.json");
     let raw = fs::read_to_string(path).unwrap();
     let fixture: BinaryVectorFixture = serde_json::from_str(&raw).unwrap();
 
