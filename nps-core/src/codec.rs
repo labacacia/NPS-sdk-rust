@@ -236,7 +236,9 @@ fn restore_vector_search_vector(metadata: &mut FrameDict, vectors: &[Vec<f32>]) 
         .map(|value| {
             Number::from_f64(*value as f64)
                 .map(Value::Number)
-                .ok_or_else(|| NpsError::Codec("binary vector values must be finite float32".into()))
+                .ok_or_else(|| {
+                    NpsError::Codec("binary vector values must be finite float32".into())
+                })
         })
         .collect::<NpsResult<Vec<_>>>()?;
     vector_search.insert("vector".into(), Value::Array(vector));

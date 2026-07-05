@@ -3,7 +3,7 @@
 
 //! NPS native status-code constants and HTTP mapping.
 //!
-//! Mirrors the full table in `spec/status-codes.md` (version 0.4, 2026-04-26).
+//! Mirrors the full table in `spec/status-codes.md` (version 0.5, 2026-07-05).
 
 // ── Success ───────────────────────────────────────────────────────────────────
 pub const NPS_OK: &str = "NPS-OK";

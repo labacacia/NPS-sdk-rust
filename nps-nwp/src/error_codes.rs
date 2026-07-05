@@ -64,6 +64,14 @@ pub const MANIFEST_NODE_TYPE_UNKNOWN: &str = "NWP-MANIFEST-NODE-TYPE-UNKNOWN";
 pub const RATE_LIMIT_EXCEEDED: &str = "NWP-RATE-LIMIT-EXCEEDED";
 pub const RESERVED_TYPE_UNSUPPORTED: &str = "NWP-RESERVED-TYPE-UNSUPPORTED";
 
+// ── HTTP binding / advertised capability ─────────────────────────────────────
+pub const HTTP_ORIGIN_FORBIDDEN: &str = "NWP-HTTP-ORIGIN-FORBIDDEN";
+pub const HTTP_CONTENT_TYPE_UNSUPPORTED: &str = "NWP-HTTP-CONTENT-TYPE-UNSUPPORTED";
+pub const HTTP_ACCEPT_UNSATISFIABLE: &str = "NWP-HTTP-ACCEPT-UNSATISFIABLE";
+pub const HTTP_REQUEST_ID_MISMATCH: &str = "NWP-HTTP-REQUEST-ID-MISMATCH";
+pub const HTTP_FRAME_BODY_MALFORMED: &str = "NWP-HTTP-FRAME-BODY-MALFORMED";
+pub const CAPABILITY_ADVERTISED_UNIMPLEMENTED: &str = "NWP-CAPABILITY-ADVERTISED-UNIMPLEMENTED";
+
 // ── Topology (NPS-CR-0002) ────────────────────────────────────────────────────
 pub const TOPOLOGY_UNAUTHORIZED: &str = "NWP-TOPOLOGY-UNAUTHORIZED";
 pub const TOPOLOGY_UNSUPPORTED_SCOPE: &str = "NWP-TOPOLOGY-UNSUPPORTED-SCOPE";
@@ -124,6 +132,12 @@ pub fn to_nps_status(code: &str) -> &'static str {
 
         RATE_LIMIT_EXCEEDED => "NPS-LIMIT-RATE",
         RESERVED_TYPE_UNSUPPORTED => "NPS-SERVER-UNSUPPORTED",
+        HTTP_ORIGIN_FORBIDDEN => "NPS-AUTH-FORBIDDEN",
+        HTTP_CONTENT_TYPE_UNSUPPORTED => "NPS-CLIENT-BAD-FRAME",
+        HTTP_ACCEPT_UNSATISFIABLE => "NPS-CLIENT-BAD-PARAM",
+        HTTP_REQUEST_ID_MISMATCH => "NPS-CLIENT-BAD-PARAM",
+        HTTP_FRAME_BODY_MALFORMED => "NPS-CLIENT-BAD-FRAME",
+        CAPABILITY_ADVERTISED_UNIMPLEMENTED => "NPS-SERVER-UNSUPPORTED",
 
         TOPOLOGY_UNAUTHORIZED => "NPS-AUTH-FORBIDDEN",
         TOPOLOGY_UNSUPPORTED_SCOPE => "NPS-CLIENT-BAD-PARAM",
@@ -257,6 +271,31 @@ mod tests {
     }
 
     #[test]
+    fn http_binding_errors() {
+        assert_eq!(to_nps_status(HTTP_ORIGIN_FORBIDDEN), "NPS-AUTH-FORBIDDEN");
+        assert_eq!(
+            to_nps_status(HTTP_CONTENT_TYPE_UNSUPPORTED),
+            "NPS-CLIENT-BAD-FRAME"
+        );
+        assert_eq!(
+            to_nps_status(HTTP_ACCEPT_UNSATISFIABLE),
+            "NPS-CLIENT-BAD-PARAM"
+        );
+        assert_eq!(
+            to_nps_status(HTTP_REQUEST_ID_MISMATCH),
+            "NPS-CLIENT-BAD-PARAM"
+        );
+        assert_eq!(
+            to_nps_status(HTTP_FRAME_BODY_MALFORMED),
+            "NPS-CLIENT-BAD-FRAME"
+        );
+        assert_eq!(
+            to_nps_status(CAPABILITY_ADVERTISED_UNIMPLEMENTED),
+            "NPS-SERVER-UNSUPPORTED"
+        );
+    }
+
+    #[test]
     fn unknown_falls_back_to_internal() {
         assert_eq!(to_nps_status("NWP-BOGUS"), "NPS-SERVER-INTERNAL");
     }
@@ -304,6 +343,12 @@ mod tests {
             MANIFEST_NODE_TYPE_UNKNOWN,
             RATE_LIMIT_EXCEEDED,
             RESERVED_TYPE_UNSUPPORTED,
+            HTTP_ORIGIN_FORBIDDEN,
+            HTTP_CONTENT_TYPE_UNSUPPORTED,
+            HTTP_ACCEPT_UNSATISFIABLE,
+            HTTP_REQUEST_ID_MISMATCH,
+            HTTP_FRAME_BODY_MALFORMED,
+            CAPABILITY_ADVERTISED_UNIMPLEMENTED,
             TOPOLOGY_UNAUTHORIZED,
             TOPOLOGY_UNSUPPORTED_SCOPE,
             TOPOLOGY_DEPTH_UNSUPPORTED,
