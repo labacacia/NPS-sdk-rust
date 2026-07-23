@@ -2,7 +2,7 @@
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.15-orange.svg)](../../CHANGELOG.cn.md)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.16-orange.svg)](../../CHANGELOG.cn.md)
 [![NCP](https://img.shields.io/badge/NCP-v0.9-5b8cff.svg)]()
 [![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
 [![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
@@ -15,7 +15,7 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.15 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
+**v1.0.0-alpha.16 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
 
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
@@ -51,7 +51,7 @@ cargo build --workspace --release
 
 | Crate | 说明 |
 |-------|------|
-| `nps-core`  | 帧头、编解码器（Tier-1 JSON / Tier-2 MsgPack）、帧注册表、anchor 缓存、错误类型 |
+| `nps-core`  | 帧头、编解码器（Tier-1 JSON / Tier-2 MsgPack / Tier-3 BinaryVector）、帧注册表、anchor 缓存、错误类型 |
 | `nps-ncp`   | NCP 帧：`AnchorFrame`、`DiffFrame`、`StreamFrame`、`CapsFrame`、`HelloFrame`、`ErrorFrame` |
 | `nps-nwp`   | NWP 帧：`QueryFrame`、`ActionFrame`、`AsyncActionResponse`；异步 `NwpClient`（reqwest）；`NwpNativeNodeServer` native 服务端 |
 | `nps-nip`   | NIP 帧：`IdentFrame`、`TrustFrame`、`RevokeFrame`；`NipIdentity`（Ed25519 密钥管理） |
@@ -193,10 +193,10 @@ let results = catalog_for_profile(NODE_L1)?
 let manifest = NpsConformanceManifest::create(
     NODE_L1,
     "my-node",
-    "1.0.0-alpha.15",
+    "1.0.0-alpha.16",
     "urn:nps:node:example.com:my-node",
     "labacacia-fixture",
-    "1.0.0-alpha.15",
+    "1.0.0-alpha.16",
     results,
     "ci",
 );
@@ -289,6 +289,7 @@ let delay_ms = BackoffStrategy::Exponential.compute_delay_ms(1000, 30_000, 2);
 |------|---------|------|
 | Tier-1 | `EncodingTier::Json`    | 可读 JSON（调试 / 互操作） |
 | Tier-2 | `EncodingTier::MsgPack` | MsgPack 二进制（默认，约 60% 压缩） |
+| Tier-3 | `EncodingTier::BinaryVector` | `binary_vector.v1`，用于向量密集型帧 |
 
 ## 错误处理
 

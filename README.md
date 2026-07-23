@@ -2,7 +2,7 @@ English | [中文版](./README.cn.md)
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.15-orange.svg)](../../CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.16-orange.svg)](../../CHANGELOG.md)
 [![NCP](https://img.shields.io/badge/NCP-v0.9-5b8cff.svg)]()
 [![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
 [![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
@@ -15,7 +15,7 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.15 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
+**v1.0.0-alpha.16 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
@@ -51,7 +51,7 @@ cargo build --workspace --release
 
 | Crate | Description |
 |-------|-------------|
-| `nps-core`  | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack), frame registry, anchor cache, error types |
+| `nps-core`  | Frame header, codec (Tier-1 JSON / Tier-2 MsgPack / Tier-3 BinaryVector), frame registry, anchor cache, error types |
 | `nps-ncp`   | NCP frames: `AnchorFrame`, `DiffFrame`, `StreamFrame`, `CapsFrame`, `HelloFrame`, `ErrorFrame` |
 | `nps-nwp`   | NWP frames: `QueryFrame`, `ActionFrame`, `AsyncActionResponse`; async `NwpClient` (reqwest); native serving via `NwpNativeNodeServer` |
 | `nps-nip`   | NIP frames: `IdentFrame`, `TrustFrame`, `RevokeFrame`; `NipIdentity` (Ed25519 key management) |
@@ -193,10 +193,10 @@ let results = catalog_for_profile(NODE_L1)?
 let manifest = NpsConformanceManifest::create(
     NODE_L1,
     "my-node",
-    "1.0.0-alpha.15",
+    "1.0.0-alpha.16",
     "urn:nps:node:example.com:my-node",
     "labacacia-fixture",
-    "1.0.0-alpha.15",
+    "1.0.0-alpha.16",
     results,
     "ci",
 );
@@ -289,6 +289,7 @@ let delay_ms = BackoffStrategy::Exponential.compute_delay_ms(1000, 30_000, 2);
 |------|---------|-------------|
 | Tier-1 | `EncodingTier::Json`    | Human-readable JSON (debug, interop) |
 | Tier-2 | `EncodingTier::MsgPack` | MsgPack binary (default, ~60% smaller) |
+| Tier-3 | `EncodingTier::BinaryVector` | `binary_vector.v1` for vector-heavy frames |
 
 ## Error Handling
 

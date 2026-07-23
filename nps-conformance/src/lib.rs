@@ -482,7 +482,7 @@ mod tests {
             "0.1.0",
             "urn:nps:node:example.test:node-1",
             "reference",
-            "1.0.0-alpha.15",
+            "1.0.0-alpha.16",
             results,
             "",
         );
