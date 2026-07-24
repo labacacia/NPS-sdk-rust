@@ -29,6 +29,20 @@ Alpha.15 additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient
 - `nps_nip::acme` — `AcmeClient` (reqwest async) + in-process `AcmeServer` (tiny_http) + JWS / messages helpers (RFC 8555 + EdDSA per RFC 8037).
 - `IdentFrame` extended with non-breaking `assurance_level` / `cert_format` / `cert_chain` fields; v1 verifiers ignore the new fields.
 
+## Unreleased on `main`
+
+The `main` branch additionally carries the **alpha.16-cycle server-surface parity wave**
+(not yet in any published package; ships with the next suite release):
+
+- **NOP orchestration engine** — DAG validator, condition evaluator, input mapper,
+  result aggregator, task store, worker client, callback validator, instrumentation
+- **NCP native-mode transport** — server, session, client, frame IO, handshake caps,
+  encoding policy, patch format
+- **NIP CA service** — CA router + RA admission model, SQL-backed CA store,
+  TrustFrame validator, full six-step §7 `VerifyFull` verifier
+- **NWP server surface** extensions (memory/complex node serving)
+- **Daemon observability** (health / metrics / logging / shutdown) and **telemetry**
+
 ## Requirements
 
 - Rust stable (1.70+)
