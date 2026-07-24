@@ -950,6 +950,7 @@ dependencies = [
  "nps-core",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -992,10 +993,16 @@ dependencies = [
 name = "nps-nop"
 version = "1.0.0-alpha.16"
 dependencies = [
+ "async-stream",
+ "base64",
+ "futures",
+ "hex",
+ "hmac",
  "nps-core",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
 ]
 
@@ -1006,12 +1013,14 @@ dependencies = [
  "async-stream",
  "bytes",
  "futures",
+ "hex",
  "nps-core",
  "nps-ncp",
  "nps-nip",
  "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror 2.0.18",
  "time",
  "tiny_http",

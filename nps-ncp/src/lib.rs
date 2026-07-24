@@ -1,8 +1,17 @@
 // Copyright 2026 INNO LOTUS PTY LTD
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod encoding_policy;
 pub mod error_codes;
+pub mod patch_format;
 pub mod preamble;
+pub mod transport;
+
+pub use encoding_policy::NcpEncodingPolicy;
+pub use transport::{
+    read_frame_header, ConnectError, NcpHandshakeError, NcpNativeClient, NcpServer,
+    NcpServerConnection, NcpServerOptions, NcpSession, HANDSHAKE_UNEXPECTED_FRAME,
+};
 
 use nps_core::codec::FrameDict;
 use nps_core::error::{NpsError, NpsResult};
@@ -166,6 +175,12 @@ pub struct CapsFrame {
     pub cached: Option<bool>,
     pub tokenizer_used: Option<String>,
     pub payload: Option<Value>,
+    /// Handshake — stable default encoding selected for ordinary session frames.
+    /// Mirrors .NET `NcpHandshakeCapsFrame.NegotiatedEncoding`.
+    pub negotiated_encoding: Option<String>,
+    /// Handshake — all encodings enabled by the negotiated policy, including
+    /// optional extensions. Mirrors .NET `NcpHandshakeCapsFrame.EnabledEncodings`.
+    pub enabled_encodings: Option<Vec<String>>,
 }
 
 impl CapsFrame {
@@ -185,6 +200,8 @@ impl CapsFrame {
             cached: None,
             tokenizer_used: None,
             payload: None,
+            negotiated_encoding: None,
+            enabled_encodings: None,
         }
     }
 
@@ -221,6 +238,12 @@ impl CapsFrame {
         if let Some(v) = &self.payload {
             m.insert("payload".into(), v.clone());
         }
+        if let Some(v) = &self.negotiated_encoding {
+            m.insert("negotiated_encoding".into(), json!(v));
+        }
+        if let Some(v) = &self.enabled_encodings {
+            m.insert("enabled_encodings".into(), json!(v));
+        }
         m
     }
 
@@ -251,6 +274,13 @@ impl CapsFrame {
             cached: d.get("cached").and_then(Value::as_bool),
             tokenizer_used: opt_str(d, "tokenizer_used").map(str::to_string),
             payload: d.get("payload").cloned(),
+            negotiated_encoding: opt_str(d, "negotiated_encoding").map(str::to_string),
+            enabled_encodings: d.get("enabled_encodings").and_then(Value::as_array).map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            }),
         })
     }
 }

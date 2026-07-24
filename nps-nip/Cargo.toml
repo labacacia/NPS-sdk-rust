@@ -41,4 +41,4 @@ tiny_http      = { workspace = true }
 reqwest        = { workspace = true }
 thiserror      = { workspace = true }
 tokio          = { workspace = true }
-time           = { workspace = true }
+time           = { workspace = true, features = ["parsing", "formatting", "macros"] }

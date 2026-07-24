@@ -40,6 +40,20 @@ pub struct IdentFrame {
     pub meta: Option<serde_json::Map<String, Value>>,
     pub signature: Option<String>,
 
+    /// Capability list, e.g. `["nwp:query", "nwp:stream"]` (NPS-3 §5.1).
+    pub capabilities: Vec<String>,
+    /// Access scope declaration. Contains `nodes`, `actions`, optionally
+    /// `max_token_budget` (NPS-3 §5.1).
+    pub scope: Option<Value>,
+    /// Issuer NID (Org CA), e.g. `urn:nps:org:ca.example.com`.
+    pub issued_by: Option<String>,
+    /// Issuance timestamp (ISO 8601 UTC).
+    pub issued_at: Option<String>,
+    /// Expiry timestamp (ISO 8601 UTC).
+    pub expires_at: Option<String>,
+    /// Globally unique certificate serial number (hex string, e.g. `0x0A3F9C`).
+    pub serial: Option<String>,
+
     /// NPS-RFC-0003 — optional assurance level.
     pub assurance_level: Option<crate::assurance_level::AssuranceLevel>,
     /// NPS-RFC-0002 — optional v2 X.509 dual-trust extensions.
@@ -66,6 +80,12 @@ impl IdentFrame {
             pub_key,
             meta: None,
             signature: None,
+            capabilities: Vec::new(),
+            scope: None,
+            issued_by: None,
+            issued_at: None,
+            expires_at: None,
+            serial: None,
             assurance_level: None,
             cert_format: None,
             cert_chain: None,
@@ -93,6 +113,24 @@ impl IdentFrame {
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = self.unsigned_dict();
+        if !self.capabilities.is_empty() {
+            m.insert("capabilities".into(), json!(self.capabilities));
+        }
+        if let Some(v) = &self.scope {
+            m.insert("scope".into(), v.clone());
+        }
+        if let Some(s) = &self.issued_by {
+            m.insert("issued_by".into(), json!(s));
+        }
+        if let Some(s) = &self.issued_at {
+            m.insert("issued_at".into(), json!(s));
+        }
+        if let Some(s) = &self.expires_at {
+            m.insert("expires_at".into(), json!(s));
+        }
+        if let Some(s) = &self.serial {
+            m.insert("serial".into(), json!(s));
+        }
         if let Some(s) = &self.signature {
             m.insert("signature".into(), json!(s));
         }
@@ -139,6 +177,12 @@ impl IdentFrame {
             pub_key: get_str(d, "pub_key")?.to_string(),
             meta: d.get("metadata").and_then(Value::as_object).cloned(),
             signature: opt_str(d, "signature").map(str::to_string),
+            capabilities: string_list(d, "capabilities").unwrap_or_default(),
+            scope: d.get("scope").cloned(),
+            issued_by: opt_str(d, "issued_by").map(str::to_string),
+            issued_at: opt_str(d, "issued_at").map(str::to_string),
+            expires_at: opt_str(d, "expires_at").map(str::to_string),
+            serial: opt_str(d, "serial").map(str::to_string),
             assurance_level,
             cert_format: opt_str(d, "cert_format").map(str::to_string),
             cert_chain,

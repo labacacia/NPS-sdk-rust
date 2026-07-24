@@ -16,11 +16,12 @@ use nps_nip::cert_format::V2_X509;
 use nps_nip::error_codes;
 use nps_nip::x509::{self, IssueLeafOptions, IssueRootOptions, LeafRole};
 use nps_nip::{
-    AssuranceLevel, IdentFrame, NipIdentVerifier, NipVerifierOptions, ANONYMOUS, ATTESTED,
+    AssuranceLevel, IdentFrame, NipIdentVerifier, NipVerifierOptions, NipVerifyContext, ANONYMOUS,
+    ATTESTED,
 };
 
-#[test]
-fn register_x509_round_trip_verifier_accepts() {
+#[tokio::test]
+async fn register_x509_round_trip_verifier_accepts() {
     let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:happy:1";
 
@@ -53,7 +54,9 @@ fn register_x509_round_trip_verifier_accepts() {
         trusted_x509_roots_der: vec![root.der().to_vec()],
         ..Default::default()
     });
-    let r = verifier.verify(&frame, ca_nid);
+    let r = verifier
+        .verify(&frame, ca_nid, &NipVerifyContext::default())
+        .await;
     assert!(
         r.valid,
         "expected valid; got step={} code={:?} msg={:?}",
@@ -61,8 +64,8 @@ fn register_x509_round_trip_verifier_accepts() {
     );
 }
 
-#[test]
-fn register_x509_leaf_eku_stripped_rejects_eku_missing() {
+#[tokio::test]
+async fn register_x509_leaf_eku_stripped_rejects_eku_missing() {
     let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:eku-stripped:1";
 
@@ -93,7 +96,9 @@ fn register_x509_leaf_eku_stripped_rejects_eku_missing() {
         trusted_x509_roots_der: vec![root.der().to_vec()],
         ..Default::default()
     });
-    let r = verifier.verify(&frame, ca_nid);
+    let r = verifier
+        .verify(&frame, ca_nid, &NipVerifyContext::default())
+        .await;
     assert!(!r.valid);
     assert_eq!(
         r.error_code,
@@ -105,8 +110,8 @@ fn register_x509_leaf_eku_stripped_rejects_eku_missing() {
     assert_eq!(r.step_failed, 3);
 }
 
-#[test]
-fn register_x509_leaf_for_different_nid_rejects_subject_mismatch() {
+#[tokio::test]
+async fn register_x509_leaf_for_different_nid_rejects_subject_mismatch() {
     let ca_nid = "urn:nps:org:test";
     let victim_nid = "urn:nps:agent:victim:1";
     let forged_nid = "urn:nps:agent:attacker:9";
@@ -142,7 +147,9 @@ fn register_x509_leaf_for_different_nid_rejects_subject_mismatch() {
         trusted_x509_roots_der: vec![root.der().to_vec()],
         ..Default::default()
     });
-    let r = verifier.verify(&frame, ca_nid);
+    let r = verifier
+        .verify(&frame, ca_nid, &NipVerifyContext::default())
+        .await;
     assert!(!r.valid);
     assert_eq!(
         r.error_code,
@@ -154,8 +161,8 @@ fn register_x509_leaf_for_different_nid_rejects_subject_mismatch() {
     assert_eq!(r.step_failed, 3);
 }
 
-#[test]
-fn v1_only_verifier_accepts_v2_frame_by_ignoring_chain() {
+#[tokio::test]
+async fn v1_only_verifier_accepts_v2_frame_by_ignoring_chain() {
     let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:v1-compat:1";
 
@@ -188,7 +195,9 @@ fn v1_only_verifier_accepts_v2_frame_by_ignoring_chain() {
         trusted_ca_public_keys: map(&[(ca_nid, &pub_key_str(&ca_sk))]),
         ..Default::default()
     });
-    let r = verifier.verify(&frame, ca_nid);
+    let r = verifier
+        .verify(&frame, ca_nid, &NipVerifyContext::default())
+        .await;
     assert!(
         r.valid,
         "v1-only verifier MUST accept v2 frames; got code={:?} msg={:?}",
@@ -196,8 +205,8 @@ fn v1_only_verifier_accepts_v2_frame_by_ignoring_chain() {
     );
 }
 
-#[test]
-fn v2_verifier_rejects_v2_frame_when_trusted_roots_missing() {
+#[tokio::test]
+async fn v2_verifier_rejects_v2_frame_when_trusted_roots_missing() {
     let ca_nid = "urn:nps:org:test";
     let agent_nid = "urn:nps:agent:wrong-trust:1";
 
@@ -234,7 +243,9 @@ fn v2_verifier_rejects_v2_frame_when_trusted_roots_missing() {
         trusted_x509_roots_der: vec![other_root.der().to_vec()],
         ..Default::default()
     });
-    let r = verifier.verify(&frame, ca_nid);
+    let r = verifier
+        .verify(&frame, ca_nid, &NipVerifyContext::default())
+        .await;
     assert!(!r.valid);
     assert_eq!(
         r.error_code,

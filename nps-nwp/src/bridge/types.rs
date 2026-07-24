@@ -8,11 +8,18 @@ pub const NODE_TYPE_BRIDGE: &str = "bridge";
 
 /// Standard bridge_protocols wire-string constants.
 pub mod bridge_protocols {
+    /// HTTP / HTTPS, REST + streaming.
     pub const HTTP: &str = "http";
+    /// gRPC (transported as gRPC-JSON over HTTP here).
     pub const GRPC: &str = "grpc";
+    /// Model Context Protocol.
     pub const MCP: &str = "mcp";
+    /// Agent-to-Agent (Google A2A v0.2).
     pub const A2A: &str = "a2a";
+    /// The full set of standard targets.
     pub const STANDARD: &[&str] = &[HTTP, GRPC, MCP, A2A];
+    /// Protocols with built-in dispatchers in this package.
+    pub const BUILT_IN: &[&str] = &[HTTP, GRPC, MCP, A2A];
 }
 
 /// Declares which external protocols a Bridge Node deployment can reach.

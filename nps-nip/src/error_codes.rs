@@ -66,6 +66,12 @@ pub const OCSP_STAPLE_EXPIRED: &str = "NIP-OCSP-STAPLE-EXPIRED";
 // ── NIP v0.10 — node_roles ────────────────────────────────────────────────────
 pub const CERT_NODE_ROLES_MISMATCH: &str = "NIP-CERT-NODE-ROLES-MISMATCH";
 
+// ── RA enrollment (NPS-CR-0005) ──────────────────────────────────────────────
+pub const RA_TOKEN_INVALID: &str = "NIP-RA-TOKEN-INVALID";
+pub const RA_TOKEN_EXPIRED: &str = "NIP-RA-TOKEN-EXPIRED";
+pub const RA_NID_NOT_ALLOWED: &str = "NIP-RA-NID-NOT-ALLOWED";
+pub const RA_PENDING_REJECTED: &str = "NIP-RA-PENDING-REJECTED";
+
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
 /// Map a NIP error code to the corresponding NPS status code.
@@ -127,6 +133,12 @@ pub fn to_nps_status(code: &str) -> &'static str {
 
         // NIP v0.10 (node_roles)
         CERT_NODE_ROLES_MISMATCH => "NPS-AUTH-FORBIDDEN",
+
+        // NPS-CR-0005 (RA enrollment)
+        RA_TOKEN_INVALID => "NPS-AUTH-UNAUTHENTICATED",
+        RA_TOKEN_EXPIRED => "NPS-AUTH-UNAUTHENTICATED",
+        RA_NID_NOT_ALLOWED => "NPS-AUTH-FORBIDDEN",
+        RA_PENDING_REJECTED => "NPS-AUTH-FORBIDDEN",
 
         _ => "NPS-SERVER-INTERNAL",
     }

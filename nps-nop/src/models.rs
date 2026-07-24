@@ -7,17 +7,60 @@ use serde_json::Value;
 // ── compensation_policy constants ────────────────────────────────────────────
 
 pub mod compensation_policy {
+    /// Run compensation for completed predecessors when the task fails;
+    /// compensation failures are reported but do not stop remaining compensation.
+    pub const BEST_EFFORT: &str = "best_effort";
+    /// Run compensation for completed predecessors when the task fails;
+    /// missing or failed compensation is terminal.
+    pub const STRICT: &str = "strict";
+    /// Legacy alias: no saga rollback. Not a NPS-5 wire value.
     pub const NONE: &str = "none";
+    /// Legacy alias for [`BEST_EFFORT`].
     pub const ON_FAILURE: &str = "on_failure";
+    /// Non-standard extension: run compensation after both success and failure.
     pub const ALWAYS: &str = "always";
+
+    /// Returns true when the policy runs compensation after a task failure.
+    pub fn runs_on_failure(policy: Option<&str>) -> bool {
+        matches!(policy, Some(BEST_EFFORT | STRICT | ON_FAILURE | ALWAYS))
+    }
+
+    /// Returns true when the policy runs compensation after a successful task.
+    pub fn runs_on_success(policy: Option<&str>) -> bool {
+        policy == Some(ALWAYS)
+    }
+
+    /// Returns true when any missing or failed compensation step is terminal.
+    pub fn is_strict(policy: Option<&str>) -> bool {
+        policy == Some(STRICT)
+    }
 }
 
 // ── aggregate_strategy constants ──────────────────────────────────────────────
 
 pub mod aggregate_strategy {
     pub const MERGE: &str = "merge";
+    pub const FIRST: &str = "first";
+    pub const ALL: &str = "all";
+    pub const FASTEST_K: &str = "fastest_k";
     pub const WEIGHTED_FIRST_K: &str = "weighted_first_k";
     pub const MERGE_ALL: &str = "merge_all";
+}
+
+// ── task_priority constants ────────────────────────────────────────────────────
+
+pub mod task_priority {
+    pub const LOW: &str = "low";
+    pub const NORMAL: &str = "normal";
+    pub const HIGH: &str = "high";
+}
+
+// ── backoff_strategy constants ─────────────────────────────────────────────────
+
+pub mod backoff_strategy {
+    pub const FIXED: &str = "fixed";
+    pub const LINEAR: &str = "linear";
+    pub const EXPONENTIAL: &str = "exponential";
 }
 
 // ── DagNode ───────────────────────────────────────────────────────────────────
@@ -64,11 +107,16 @@ impl BackoffStrategy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TaskState {
     Pending,
+    Preflight,
     Running,
+    WaitingSync,
     Completed,
     Failed,
     Cancelled,
+    Skipped,
+    /// Saga rollback in progress — compensation actions are being dispatched.
     Compensating,
+    /// Saga rollback complete — all compensation actions have been dispatched.
     Compensated,
 }
 
@@ -76,13 +124,32 @@ impl TaskState {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "pending" => Some(TaskState::Pending),
+            "preflight" => Some(TaskState::Preflight),
             "running" => Some(TaskState::Running),
+            "waiting_sync" => Some(TaskState::WaitingSync),
             "completed" => Some(TaskState::Completed),
             "failed" => Some(TaskState::Failed),
             "cancelled" => Some(TaskState::Cancelled),
+            "skipped" => Some(TaskState::Skipped),
             "compensating" => Some(TaskState::Compensating),
             "compensated" => Some(TaskState::Compensated),
             _ => None,
+        }
+    }
+
+    /// Snake-case wire representation.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            TaskState::Pending => "pending",
+            TaskState::Preflight => "preflight",
+            TaskState::Running => "running",
+            TaskState::WaitingSync => "waiting_sync",
+            TaskState::Completed => "completed",
+            TaskState::Failed => "failed",
+            TaskState::Cancelled => "cancelled",
+            TaskState::Skipped => "skipped",
+            TaskState::Compensating => "compensating",
+            TaskState::Compensated => "compensated",
         }
     }
 
