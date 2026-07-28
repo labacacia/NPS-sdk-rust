@@ -65,7 +65,10 @@ impl SqlParams {
     }
 
     pub fn get(&self, name: &str) -> Option<&SqlValue> {
-        self.params.iter().find(|p| p.name == name).map(|p| &p.value)
+        self.params
+            .iter()
+            .find(|p| p.name == name)
+            .map(|p| &p.value)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &SqlParam> {
@@ -137,7 +140,11 @@ impl<'a> NwpFilterTranslator<'a> {
 
     /// Translates `filter` into a `WHERE` clause fragment and populates `params`.
     /// Returns an empty string when `filter` is `None` or JSON `null`.
-    pub fn translate(&mut self, filter: Option<&Value>, params: &mut SqlParams) -> FilterResult<String> {
+    pub fn translate(
+        &mut self,
+        filter: Option<&Value>,
+        params: &mut SqlParams,
+    ) -> FilterResult<String> {
         self.param_index = 0;
         match filter {
             None => Ok(String::new()),
@@ -147,9 +154,9 @@ impl<'a> NwpFilterTranslator<'a> {
     }
 
     fn build_object(&mut self, obj: &Value, p: &mut SqlParams) -> FilterResult<String> {
-        let map = obj.as_object().ok_or_else(|| {
-            NwpFilterError::new("Filter condition must be an object.")
-        })?;
+        let map = obj
+            .as_object()
+            .ok_or_else(|| NwpFilterError::new("Filter condition must be an object."))?;
 
         let mut clauses = Vec::new();
         for (name, value) in map {
@@ -172,7 +179,12 @@ impl<'a> NwpFilterTranslator<'a> {
         })
     }
 
-    fn build_logical(&mut self, op: &str, value: &Value, p: &mut SqlParams) -> FilterResult<String> {
+    fn build_logical(
+        &mut self,
+        op: &str,
+        value: &Value,
+        p: &mut SqlParams,
+    ) -> FilterResult<String> {
         let arr = value.as_array().ok_or_else(|| {
             NwpFilterError::new(format!("Logical operator '{op}' requires an array value."))
         })?;
@@ -274,10 +286,16 @@ impl<'a> NwpFilterTranslator<'a> {
         Ok(format!("{col} {sql_op} @{param_name}"))
     }
 
-    fn build_in(&mut self, col: &str, arr: &Value, p: &mut SqlParams, negate: bool) -> FilterResult<String> {
-        let items = arr.as_array().ok_or_else(|| {
-            NwpFilterError::new("$in/$nin requires an array value.")
-        })?;
+    fn build_in(
+        &mut self,
+        col: &str,
+        arr: &Value,
+        p: &mut SqlParams,
+        negate: bool,
+    ) -> FilterResult<String> {
+        let items = arr
+            .as_array()
+            .ok_or_else(|| NwpFilterError::new("$in/$nin requires an array value."))?;
 
         let values: Vec<SqlValue> = items.iter().map(extract_value).collect();
         if values.is_empty() {
@@ -395,7 +413,12 @@ impl<'a> SqlQueryBuilder<'a> {
         let frame_limit = frame.limit.unwrap_or(0);
         let default_limit = options.default_limit as u64;
         let max_limit = options.max_limit as u64;
-        let limit = (if frame_limit == 0 { default_limit } else { frame_limit }).min(max_limit);
+        let limit = (if frame_limit == 0 {
+            default_limit
+        } else {
+            frame_limit
+        })
+        .min(max_limit);
         let offset = decode_cursor(frame.cursor.as_deref());
 
         // SELECT
@@ -436,7 +459,7 @@ impl<'a> SqlQueryBuilder<'a> {
         }
 
         p.add("_limit", SqlValue::Int(limit as i64));
-        p.add("_offset", SqlValue::Int(offset as i64));
+        p.add("_offset", SqlValue::Int(offset));
 
         Ok((sql, p))
     }
@@ -462,7 +485,7 @@ impl<'a> SqlQueryBuilder<'a> {
     fn build_select_list(&self, fields: Option<&[String]>) -> FilterResult<String> {
         match fields {
             None => Ok(self.all_columns()),
-            Some(f) if f.is_empty() => Ok(self.all_columns()),
+            Some([]) => Ok(self.all_columns()),
             Some(f) => {
                 for name in f {
                     if !self.schema.has_field(name) {

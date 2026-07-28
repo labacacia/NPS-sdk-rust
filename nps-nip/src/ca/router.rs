@@ -17,7 +17,9 @@ use crate::frames::IdentFrame;
 use super::error::NipCaError;
 use super::group_jws::{self, FlattenedJws};
 use super::ra::{BootstrapTokenStore, EnrollmentPolicy, PendingStatus, PendingStore};
-use super::service::{self, IssueSessionParams, NipCaService, NipVerifyResult, RegisterWithRaError};
+use super::service::{
+    self, IssueSessionParams, NipCaService, NipVerifyResult, RegisterWithRaError,
+};
 use super::signer;
 use super::store::{NipCaStore, ROLE_GROUP};
 
@@ -134,7 +136,11 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
     }
 
     fn pfx(&self) -> String {
-        self.ca.options().route_prefix.trim_end_matches('/').to_string()
+        self.ca
+            .options()
+            .route_prefix
+            .trim_end_matches('/')
+            .to_string()
     }
 
     /// Dispatch a request to the matching handler.
@@ -198,23 +204,23 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
         }
 
         // Path-parameterised routes.
-        if let Some(nid) = seg_between(rel, "/v1/agents/", "/renew").or_else(|| {
-            seg_between(rel, "/v1/nodes/", "/renew")
-        }) {
+        if let Some(nid) = seg_between(rel, "/v1/agents/", "/renew")
+            .or_else(|| seg_between(rel, "/v1/nodes/", "/renew"))
+        {
             if m == "POST" {
                 return self.renew(req, &nid);
             }
         }
-        if let Some(nid) = seg_between(rel, "/v1/agents/", "/revoke").or_else(|| {
-            seg_between(rel, "/v1/nodes/", "/revoke")
-        }) {
+        if let Some(nid) = seg_between(rel, "/v1/agents/", "/revoke")
+            .or_else(|| seg_between(rel, "/v1/nodes/", "/revoke"))
+        {
             if m == "POST" {
                 return self.revoke(req, &nid);
             }
         }
-        if let Some(nid) = seg_between(rel, "/v1/agents/", "/verify").or_else(|| {
-            seg_between(rel, "/v1/nodes/", "/verify")
-        }) {
+        if let Some(nid) = seg_between(rel, "/v1/agents/", "/verify")
+            .or_else(|| seg_between(rel, "/v1/nodes/", "/verify"))
+        {
             if m == "GET" {
                 return self.verify(&nid);
             }
@@ -294,7 +300,10 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             .collect();
         let mut body = Map::new();
         body.insert("issued_by".into(), json!(opts.ca_nid));
-        body.insert("issued_at".into(), json!(service::fmt_ts(OffsetDateTime::now_utc())));
+        body.insert(
+            "issued_at".into(),
+            json!(service::fmt_ts(OffsetDateTime::now_utc())),
+        );
         body.insert("entries".into(), json!(entries));
         let signature = self.ca.sign_artifact(&Value::Object(body.clone()));
         let mut out = body;
@@ -302,7 +311,12 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
         CaResponse::json(200, Value::Object(out))
     }
 
-    fn register(&self, req: &CaRequest, entity_type: &str, node_default_caps: &[String]) -> CaResponse {
+    fn register(
+        &self,
+        req: &CaRequest,
+        entity_type: &str,
+        node_default_caps: &[String],
+    ) -> CaResponse {
         if !self.authorized(req) {
             return unauthorized();
         }
@@ -314,7 +328,8 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             Ok(t) => t,
             Err(e) => return bad_request(&e),
         };
-        let capabilities = string_list(&body, "capabilities").unwrap_or_else(|| node_default_caps.to_vec());
+        let capabilities =
+            string_list(&body, "capabilities").unwrap_or_else(|| node_default_caps.to_vec());
         let scope_json = scope_json(&body);
         let metadata_json = opt_string_field(&body, "metadata_json");
         let token = req.header("x-nps-enrollment-token").map(str::to_string);
@@ -330,14 +345,20 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             self.policy.as_ref(),
         ) {
             Ok(frame) => CaResponse::json(201, frame_to_json(&frame)),
-            Err(RegisterWithRaError::Pending(p)) => {
-                CaResponse::json(202, json!({ "pending_id": p.pending_id, "status": "queued" }))
-            }
+            Err(RegisterWithRaError::Pending(p)) => CaResponse::json(
+                202,
+                json!({ "pending_id": p.pending_id, "status": "queued" }),
+            ),
             Err(RegisterWithRaError::Ca(e)) => error_result(&e),
         }
     }
 
-    fn register_x509(&self, req: &CaRequest, entity_type: &str, node_default_caps: &[String]) -> CaResponse {
+    fn register_x509(
+        &self,
+        req: &CaRequest,
+        entity_type: &str,
+        node_default_caps: &[String],
+    ) -> CaResponse {
         if !self.authorized(req) {
             return unauthorized();
         }
@@ -349,7 +370,8 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             Ok(t) => t,
             Err(e) => return bad_request(&e),
         };
-        let capabilities = string_list(&body, "capabilities").unwrap_or_else(|| node_default_caps.to_vec());
+        let capabilities =
+            string_list(&body, "capabilities").unwrap_or_else(|| node_default_caps.to_vec());
         let scope_json = scope_json(&body);
         let metadata_json = opt_string_field(&body, "metadata_json");
         let assurance = parse_assurance(opt_string_field(&body, "assurance_level").as_deref());
@@ -448,7 +470,10 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
         let (session_pub_key, purpose, validity_seconds, capabilities, scope_json, metadata_json);
 
         if is_jws {
-            let jws: FlattenedJws = match req.json_value().and_then(|v| serde_json::from_value(v).ok()) {
+            let jws: FlattenedJws = match req
+                .json_value()
+                .and_then(|v| serde_json::from_value(v).ok())
+            {
                 Some(j) => j,
                 None => return bad_request("Invalid JWS body."),
             };
@@ -532,7 +557,10 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
                 .and_then(Value::as_str)
                 .unwrap_or_default()
                 .to_string();
-            purpose = payload.get("purpose").and_then(Value::as_str).map(str::to_string);
+            purpose = payload
+                .get("purpose")
+                .and_then(Value::as_str)
+                .map(str::to_string);
             validity_seconds = payload.get("validity_seconds").and_then(Value::as_i64);
             capabilities = string_list(&payload, "capabilities");
             scope_json = payload
@@ -563,9 +591,7 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             return bad_request("session_pub_key must be 'ed25519:<base64url>'.");
         }
 
-        let validity = validity_seconds
-            .filter(|s| *s > 0)
-            .map(Duration::seconds);
+        let validity = validity_seconds.filter(|s| *s > 0).map(Duration::seconds);
 
         match self.ca.issue_session(
             &group_nid,
@@ -720,7 +746,10 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             .unwrap_or_else(|| "rejected_by_operator".to_string());
 
         if store.reject(id, &reason) {
-            return CaResponse::json(200, json!({ "id": id, "status": "rejected", "reason": reason }));
+            return CaResponse::json(
+                200,
+                json!({ "id": id, "status": "rejected", "reason": reason }),
+            );
         }
         match store.get(id) {
             None => CaResponse::json(
@@ -748,7 +777,10 @@ impl<'a, S: NipCaStore> NipCaRouter<'a, S> {
             None => return true,
         };
         let header = req.header("authorization").unwrap_or("");
-        let provided = match header.strip_prefix("Bearer ").or_else(|| header.strip_prefix("bearer ")) {
+        let provided = match header
+            .strip_prefix("Bearer ")
+            .or_else(|| header.strip_prefix("bearer "))
+        {
             Some(p) => p.trim(),
             None => return false,
         };
@@ -812,9 +844,9 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 fn valid_identifier(id: &str) -> bool {
     !id.is_empty()
         && id.len() <= 256
-        && id.chars().all(|c| {
-            c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '@' | '/' | '-')
-        })
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '@' | '/' | '-'))
 }
 
 fn valid_pub_key(pk: &str) -> bool {
@@ -828,7 +860,9 @@ fn validate_register(body: &Value) -> Result<(String, String), String> {
         return Err("identifier and pub_key are required.".into());
     }
     if !valid_identifier(&identifier) {
-        return Err("identifier contains invalid characters. Allowed: a-z A-Z 0-9 . _ : @ / -".into());
+        return Err(
+            "identifier contains invalid characters. Allowed: a-z A-Z 0-9 . _ : @ / -".into(),
+        );
     }
     if !valid_pub_key(&pub_key) {
         return Err("pub_key must be 'ed25519:<base64url>'.".into());
@@ -887,7 +921,11 @@ fn ocsp_result(r: NipVerifyResult) -> CaResponse {
         );
     }
     let code = r.error_code.unwrap_or(error_codes::CA_NID_NOT_FOUND);
-    let status = if code == error_codes::CA_NID_NOT_FOUND { 404 } else { 200 };
+    let status = if code == error_codes::CA_NID_NOT_FOUND {
+        404
+    } else {
+        200
+    };
     CaResponse::json(
         status,
         json!({ "valid": false, "error_code": code, "message": r.message }),
@@ -917,11 +955,17 @@ fn error_result(e: &NipCaError) -> CaResponse {
         error_codes::RA_PENDING_REJECTED => 403,
         _ => 400,
     };
-    CaResponse::json(status, json!({ "error_code": e.code, "message": e.message }))
+    CaResponse::json(
+        status,
+        json!({ "error_code": e.code, "message": e.message }),
+    )
 }
 
 fn bad_request(msg: &str) -> CaResponse {
-    CaResponse::json(400, json!({ "error_code": "NIP-CA-BAD-REQUEST", "message": msg }))
+    CaResponse::json(
+        400,
+        json!({ "error_code": "NIP-CA-BAD-REQUEST", "message": msg }),
+    )
 }
 
 fn unauthorized() -> CaResponse {

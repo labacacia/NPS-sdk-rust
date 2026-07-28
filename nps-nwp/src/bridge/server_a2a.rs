@@ -277,7 +277,9 @@ impl A2aServerBridge {
 
         self.options.actions.iter().find(|action| {
             action.action_id.eq_ignore_ascii_case(&requested)
-                || action.effective_tool_name().eq_ignore_ascii_case(&requested)
+                || action
+                    .effective_tool_name()
+                    .eq_ignore_ascii_case(&requested)
         })
     }
 }

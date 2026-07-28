@@ -43,7 +43,11 @@ impl NcpHandshakeError {
 
 impl std::fmt::Display for NcpHandshakeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "NCP handshake error [{}]: {}", self.error_code, self.message)
+        write!(
+            f,
+            "NCP handshake error [{}]: {}",
+            self.error_code, self.message
+        )
     }
 }
 
@@ -414,7 +418,8 @@ impl NcpServerConnection {
     /// are set from the negotiated policy, matching .NET `AcceptAsync`.
     pub async fn accept(mut self, mut server_caps: CapsFrame) -> NpsResult<NcpSession> {
         let policy = Self::negotiate_encoding_policy(&self.client_hello)?;
-        server_caps.negotiated_encoding = Some(NcpEncodingPolicy::encoding_token(policy.default_tier));
+        server_caps.negotiated_encoding =
+            Some(NcpEncodingPolicy::encoding_token(policy.default_tier));
         server_caps.enabled_encodings = Some(policy.enabled_encodings());
 
         let wire = encode_frame(FrameType::Caps, &server_caps.to_dict(), policy.default_tier)?;

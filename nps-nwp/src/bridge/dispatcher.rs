@@ -24,8 +24,11 @@ pub trait BridgeDispatcher: Send + Sync {
     fn protocol(&self) -> &str;
 
     /// Dispatch an action frame to the requested external target.
-    fn dispatch<'a>(&'a self, frame: &'a ActionFrame, target: &'a BridgeTarget)
-        -> DispatchFuture<'a>;
+    fn dispatch<'a>(
+        &'a self,
+        frame: &'a ActionFrame,
+        target: &'a BridgeTarget,
+    ) -> DispatchFuture<'a>;
 }
 
 /// In-memory registry mapping bridge protocol identifiers to dispatchers.
@@ -58,7 +61,7 @@ impl BridgeDispatcherRegistry {
     /// The currently registered protocol identifiers (sorted).
     pub fn protocols(&self) -> Vec<String> {
         let mut out: Vec<String> = self.dispatchers.keys().cloned().collect();
-        out.sort_by(|a, b| a.to_ascii_lowercase().cmp(&b.to_ascii_lowercase()));
+        out.sort_by_key(|a| a.to_ascii_lowercase());
         out
     }
 
@@ -76,7 +79,10 @@ impl BridgeDispatcherRegistry {
     }
 
     /// Resolve a dispatcher for `protocol`.
-    pub fn resolve(&self, protocol: &str) -> Result<Arc<dyn BridgeDispatcher>, BridgeDispatchError> {
+    pub fn resolve(
+        &self,
+        protocol: &str,
+    ) -> Result<Arc<dyn BridgeDispatcher>, BridgeDispatchError> {
         if protocol.trim().is_empty() {
             return Err(BridgeDispatchError::new(
                 bridge_error_codes::TARGET_INVALID,

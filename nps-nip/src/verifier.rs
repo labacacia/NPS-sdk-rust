@@ -158,11 +158,7 @@ pub(crate) fn ok() -> NipIdentVerifyResult {
     }
 }
 
-pub(crate) fn fail(
-    step: u8,
-    code: &'static str,
-    msg: impl Into<String>,
-) -> NipIdentVerifyResult {
+pub(crate) fn fail(step: u8, code: &'static str, msg: impl Into<String>) -> NipIdentVerifyResult {
     NipIdentVerifyResult {
         valid: false,
         step_failed: step,
@@ -223,9 +219,7 @@ impl NipIdentVerifier {
                 return fail(
                     2,
                     error_codes::CERT_UNTRUSTED_ISSUER,
-                    format!(
-                        "Issuer '{declared}' does not match expected issuer '{issuer_nid}'."
-                    ),
+                    format!("Issuer '{declared}' does not match expected issuer '{issuer_nid}'."),
                 );
             }
         }
@@ -417,11 +411,7 @@ impl NipIdentVerifier {
 
 fn verify_signature(frame: &IdentFrame, ca_pub_key_str: &str) -> NipIdentVerifyResult {
     let Some(sig_str) = frame.signature.as_ref() else {
-        return fail(
-            3,
-            error_codes::CERT_SIGNATURE_INVALID,
-            "missing signature",
-        );
+        return fail(3, error_codes::CERT_SIGNATURE_INVALID, "missing signature");
     };
     if !sig_str.starts_with("ed25519:") {
         return fail(
@@ -522,8 +512,7 @@ pub fn nwp_path_matches(pattern: &str, path: &str) -> bool {
         let lower_path = path.to_ascii_lowercase();
         let lower_prefix = prefix.to_ascii_lowercase();
         return lower_path.starts_with(&lower_prefix)
-            && (path.len() == prefix.len()
-                || path.as_bytes().get(prefix.len()) == Some(&b'/'));
+            && (path.len() == prefix.len() || path.as_bytes().get(prefix.len()) == Some(&b'/'));
     }
     pattern.eq_ignore_ascii_case(path)
 }

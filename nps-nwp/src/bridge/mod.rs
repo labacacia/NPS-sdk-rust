@@ -47,8 +47,8 @@ pub use node_middleware::{BridgeNodeMiddleware, BridgeNodeOptions};
 pub use server_a2a::A2aServerBridge;
 pub use server_a2a::{
     A2aAgentAuthentication, A2aAgentCapabilities, A2aAgentCard, A2aAgentProvider, A2aAgentSkill,
-    A2aArtifact, A2aMessage, A2aPart, A2aSendTaskParams, A2aTask, A2aTaskStatus, A2A_SERVER_VERSION,
-    A2A_TASK_STATE_COMPLETED, A2A_TASK_STATE_FAILED,
+    A2aArtifact, A2aMessage, A2aPart, A2aSendTaskParams, A2aTask, A2aTaskStatus,
+    A2A_SERVER_VERSION, A2A_TASK_STATE_COMPLETED, A2A_TASK_STATE_FAILED,
 };
 pub use server_mcp::McpServerBridge;
 pub use server_mcp::{
@@ -62,6 +62,6 @@ pub use server_options::{
     LocalActionDispatcher,
 };
 pub use target::{
-    bridge_target_from_action_frame, bridge_target_from_json, target_get_string, target_get_json,
+    bridge_target_from_action_frame, bridge_target_from_json, target_get_json, target_get_string,
 };
 pub use types::{bridge_protocols, BridgeNodeDescriptor, BridgeTarget, NODE_TYPE_BRIDGE};

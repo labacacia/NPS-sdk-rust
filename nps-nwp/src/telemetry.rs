@@ -40,8 +40,11 @@ impl Default for NwpTelemetry {
 impl NwpTelemetry {
     pub fn new() -> Self {
         let meter = Meter::new(INSTRUMENTATION_NAME, INSTRUMENTATION_VERSION);
-        let frames_processed =
-            meter.counter("nps.frames.processed", "{frames}", "Total NWP frames processed");
+        let frames_processed = meter.counter(
+            "nps.frames.processed",
+            "{frames}",
+            "Total NWP frames processed",
+        );
         let frame_duration_ms = meter.histogram(
             "nps.frames.processing_ms",
             "ms",

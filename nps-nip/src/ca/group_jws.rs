@@ -49,7 +49,10 @@ pub struct JwsVerified {
 /// Parse + verify a flattened JWS against `group_pub_key`. On success returns
 /// [`JwsVerified`]; on failure returns the matching error code
 /// ([`error_codes::CA_JWS_INVALID`]).
-pub fn try_verify(jws: &FlattenedJws, group_pub_key: &VerifyingKey) -> Result<JwsVerified, &'static str> {
+pub fn try_verify(
+    jws: &FlattenedJws,
+    group_pub_key: &VerifyingKey,
+) -> Result<JwsVerified, &'static str> {
     let protected = jws.protected.as_deref().unwrap_or("");
     let payload = jws.payload.as_deref().unwrap_or("");
     let signature = jws.signature.as_deref().unwrap_or("");
@@ -77,7 +80,9 @@ pub fn try_verify(jws: &FlattenedJws, group_pub_key: &VerifyingKey) -> Result<Jw
         return Err(error_codes::CA_JWS_INVALID);
     }
 
-    let sig_arr: [u8; 64] = sig_bytes.try_into().map_err(|_| error_codes::CA_JWS_INVALID)?;
+    let sig_arr: [u8; 64] = sig_bytes
+        .try_into()
+        .map_err(|_| error_codes::CA_JWS_INVALID)?;
     let sig = Signature::from_bytes(&sig_arr);
 
     // RFC 7515 §3 signing input: ASCII(protected) "." ASCII(payload).
@@ -90,8 +95,7 @@ pub fn try_verify(jws: &FlattenedJws, group_pub_key: &VerifyingKey) -> Result<Jw
         return Err(error_codes::CA_JWS_INVALID);
     }
 
-    let payload_json =
-        String::from_utf8(payload_bytes).map_err(|_| error_codes::CA_JWS_INVALID)?;
+    let payload_json = String::from_utf8(payload_bytes).map_err(|_| error_codes::CA_JWS_INVALID)?;
     Ok(JwsVerified {
         payload_json,
         kid: header.kid.unwrap(),

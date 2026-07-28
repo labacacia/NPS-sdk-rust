@@ -8,6 +8,23 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.17] — Unreleased
+
+### Added
+
+- Port the reference server surface into the Rust SDK: NCP native transport, NWP action/complex/memory nodes and bidirectional bridges, NIP CA services and full verification, and NOP orchestration.
+
+### Changed
+
+- Enforce clean `cargo fmt` and strict Clippy checks across the workspace.
+- Upgrade `quinn-proto` and `rustls-webpki` to resolve the current RustSec vulnerabilities.
+
+## [1.0.0-alpha.16] — 2026-07-23
+
+### Changed
+
+- Suite-wide alpha.16 source synchronization and protocol compatibility update.
+
 ## [1.0.0-alpha.15] — 2026-06-28
 
 ### Changed

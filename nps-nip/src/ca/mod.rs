@@ -41,9 +41,7 @@ pub use ra::{
     PendingRegistration, PendingStatus, PendingStore,
 };
 pub use router::{CaRequest, CaResponse, NipCaRouter};
-pub use service::{
-    IssueSessionParams, NipCaService, NipVerifyResult, RegisterWithRaError,
-};
+pub use service::{IssueSessionParams, NipCaService, NipVerifyResult, RegisterWithRaError};
 pub use signer::{
     canonical_json as ca_canonical_json, decode_public_key, encode_public_key,
     encode_verifying_key, sign as ca_sign, verify as ca_verify,

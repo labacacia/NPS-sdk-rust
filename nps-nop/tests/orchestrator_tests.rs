@@ -279,12 +279,29 @@ fn dag_duplicate_node_id() {
 fn dag_cycle_detected() {
     // s → a → b → a (cycle), a → e
     let dag = TaskDag {
-        nodes: vec![node("s", None), node("a", None), node("b", None), node("e", None)],
+        nodes: vec![
+            node("s", None),
+            node("a", None),
+            node("b", None),
+            node("e", None),
+        ],
         edges: vec![
-            DagEdge { from: "s".into(), to: "a".into() },
-            DagEdge { from: "a".into(), to: "b".into() },
-            DagEdge { from: "b".into(), to: "a".into() },
-            DagEdge { from: "a".into(), to: "e".into() },
+            DagEdge {
+                from: "s".into(),
+                to: "a".into(),
+            },
+            DagEdge {
+                from: "a".into(),
+                to: "b".into(),
+            },
+            DagEdge {
+                from: "b".into(),
+                to: "a".into(),
+            },
+            DagEdge {
+                from: "a".into(),
+                to: "e".into(),
+            },
         ],
     };
     let r = validate_dag(&dag);
@@ -295,17 +312,26 @@ fn dag_cycle_detected() {
 #[test]
 fn dag_too_large() {
     let nodes: Vec<DagNode> = (0..33).map(|i| node(&format!("n{i}"), None)).collect();
-    let dag = TaskDag { nodes, edges: vec![] };
+    let dag = TaskDag {
+        nodes,
+        edges: vec![],
+    };
     let r = validate_dag(&dag);
     assert!(!r.is_valid);
-    assert_eq!(r.error_code.as_deref(), Some(error_codes::TASK_DAG_TOO_LARGE));
+    assert_eq!(
+        r.error_code.as_deref(),
+        Some(error_codes::TASK_DAG_TOO_LARGE)
+    );
 }
 
 #[test]
 fn dag_edge_unknown_node() {
     let dag = TaskDag {
         nodes: vec![node("a", None)],
-        edges: vec![DagEdge { from: "a".into(), to: "ghost".into() }],
+        edges: vec![DagEdge {
+            from: "a".into(),
+            to: "ghost".into(),
+        }],
     };
     let r = validate_dag(&dag);
     assert!(!r.is_valid);
@@ -318,8 +344,14 @@ fn dag_no_start_node() {
     let dag = TaskDag {
         nodes: vec![node("a", None), node("b", None)],
         edges: vec![
-            DagEdge { from: "a".into(), to: "b".into() },
-            DagEdge { from: "b".into(), to: "a".into() },
+            DagEdge {
+                from: "a".into(),
+                to: "b".into(),
+            },
+            DagEdge {
+                from: "b".into(),
+                to: "a".into(),
+            },
         ],
     };
     let r = validate_dag(&dag);
@@ -360,7 +392,10 @@ fn callback_url_public_ip_ok() {
 // ══════════════════════════════════════════════════════════════════════════════
 
 fn ctx(pairs: &[(&str, Value)]) -> HashMap<String, Value> {
-    pairs.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+    pairs
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.clone()))
+        .collect()
 }
 
 #[test]
@@ -429,7 +464,10 @@ fn mapper_resolves_nested() {
         input_mapper::resolve("$.n1.data.value", &c).unwrap(),
         Some(json!(42))
     );
-    assert_eq!(input_mapper::resolve("$.n1", &c).unwrap(), Some(json!({"data": {"value": 42}})));
+    assert_eq!(
+        input_mapper::resolve("$.n1", &c).unwrap(),
+        Some(json!({"data": {"value": 42}}))
+    );
 }
 
 #[test]
@@ -486,19 +524,28 @@ fn aggregate_merge() {
 #[test]
 fn aggregate_first() {
     let results = vec![json!({"a": 1}), json!({"b": 2})];
-    assert_eq!(aggregator::aggregate(aggregate_strategy::FIRST, &results, 0), json!({"a": 1}));
+    assert_eq!(
+        aggregator::aggregate(aggregate_strategy::FIRST, &results, 0),
+        json!({"a": 1})
+    );
 }
 
 #[test]
 fn aggregate_all() {
     let results = vec![json!(1), json!(2), json!(3)];
-    assert_eq!(aggregator::aggregate(aggregate_strategy::ALL, &results, 0), json!([1, 2, 3]));
+    assert_eq!(
+        aggregator::aggregate(aggregate_strategy::ALL, &results, 0),
+        json!([1, 2, 3])
+    );
 }
 
 #[test]
 fn aggregate_fastest_k() {
     let results = vec![json!(1), json!(2), json!(3)];
-    assert_eq!(aggregator::aggregate(aggregate_strategy::FASTEST_K, &results, 2), json!([1, 2]));
+    assert_eq!(
+        aggregator::aggregate(aggregate_strategy::FASTEST_K, &results, 2),
+        json!([1, 2])
+    );
 }
 
 #[test]
@@ -510,7 +557,10 @@ fn aggregate_merge_non_object() {
 
 #[test]
 fn aggregate_empty_is_object() {
-    assert_eq!(aggregator::aggregate(aggregate_strategy::MERGE, &[], 0), json!({}));
+    assert_eq!(
+        aggregator::aggregate(aggregate_strategy::MERGE, &[], 0),
+        json!({})
+    );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -537,7 +587,9 @@ fn linear_chain_all_complete() {
             worker.setup_success(id, json!({"step": id}));
         }
         let orch = build_orch(worker, false);
-        let result = orch.execute(linear_task(&["fetch", "analyze", "report"])).await;
+        let result = orch
+            .execute(linear_task(&["fetch", "analyze", "report"]))
+            .await;
         assert_eq!(result.final_state, TaskState::Completed);
         assert_eq!(result.node_results.len(), 3);
     });
@@ -560,10 +612,22 @@ fn diamond_dag_both_branches() {
                 node("end", Some(vec!["left", "right"])),
             ],
             edges: vec![
-                DagEdge { from: "start".into(), to: "left".into() },
-                DagEdge { from: "start".into(), to: "right".into() },
-                DagEdge { from: "left".into(), to: "end".into() },
-                DagEdge { from: "right".into(), to: "end".into() },
+                DagEdge {
+                    from: "start".into(),
+                    to: "left".into(),
+                },
+                DagEdge {
+                    from: "start".into(),
+                    to: "right".into(),
+                },
+                DagEdge {
+                    from: "left".into(),
+                    to: "end".into(),
+                },
+                DagEdge {
+                    from: "right".into(),
+                    to: "end".into(),
+                },
             ],
         };
         let mut task = TaskFrame::new(new_id(), dag);
@@ -610,7 +674,10 @@ fn condition_false_node_skipped() {
         report.condition = Some("$.fetch.count > 0".to_string());
         let dag = TaskDag {
             nodes: vec![node("fetch", None), report],
-            edges: vec![DagEdge { from: "fetch".into(), to: "report".into() }],
+            edges: vec![DagEdge {
+                from: "fetch".into(),
+                to: "report".into(),
+            }],
         };
         let mut task = TaskFrame::new(new_id(), dag);
         task.timeout_ms = 10_000;
@@ -632,7 +699,10 @@ fn condition_true_node_executes() {
         report.condition = Some("$.fetch.count > 0".to_string());
         let dag = TaskDag {
             nodes: vec![node("fetch", None), report],
-            edges: vec![DagEdge { from: "fetch".into(), to: "report".into() }],
+            edges: vec![DagEdge {
+                from: "fetch".into(),
+                to: "report".into(),
+            }],
         };
         let mut task = TaskFrame::new(new_id(), dag);
         task.timeout_ms = 10_000;
@@ -697,12 +767,30 @@ fn k_of_n_one_branch_fails_still_completes() {
                 end,
             ],
             edges: vec![
-                DagEdge { from: "start".into(), to: "a".into() },
-                DagEdge { from: "start".into(), to: "b".into() },
-                DagEdge { from: "start".into(), to: "c".into() },
-                DagEdge { from: "a".into(), to: "end".into() },
-                DagEdge { from: "b".into(), to: "end".into() },
-                DagEdge { from: "c".into(), to: "end".into() },
+                DagEdge {
+                    from: "start".into(),
+                    to: "a".into(),
+                },
+                DagEdge {
+                    from: "start".into(),
+                    to: "b".into(),
+                },
+                DagEdge {
+                    from: "start".into(),
+                    to: "c".into(),
+                },
+                DagEdge {
+                    from: "a".into(),
+                    to: "end".into(),
+                },
+                DagEdge {
+                    from: "b".into(),
+                    to: "end".into(),
+                },
+                DagEdge {
+                    from: "c".into(),
+                    to: "end".into(),
+                },
             ],
         };
         let mut task = TaskFrame::new(new_id(), dag);
@@ -736,12 +824,30 @@ fn k_of_n_too_many_failures_aborts() {
                 end,
             ],
             edges: vec![
-                DagEdge { from: "start".into(), to: "a".into() },
-                DagEdge { from: "start".into(), to: "b".into() },
-                DagEdge { from: "start".into(), to: "c".into() },
-                DagEdge { from: "a".into(), to: "end".into() },
-                DagEdge { from: "b".into(), to: "end".into() },
-                DagEdge { from: "c".into(), to: "end".into() },
+                DagEdge {
+                    from: "start".into(),
+                    to: "a".into(),
+                },
+                DagEdge {
+                    from: "start".into(),
+                    to: "b".into(),
+                },
+                DagEdge {
+                    from: "start".into(),
+                    to: "c".into(),
+                },
+                DagEdge {
+                    from: "a".into(),
+                    to: "end".into(),
+                },
+                DagEdge {
+                    from: "b".into(),
+                    to: "end".into(),
+                },
+                DagEdge {
+                    from: "c".into(),
+                    to: "end".into(),
+                },
             ],
         };
         let mut task = TaskFrame::new(new_id(), dag);
@@ -771,10 +877,20 @@ fn retry_succeeds_on_second_attempt() {
                         "s",
                         "op",
                         0,
-                        StreamError { code: "ERR".into(), message: "".into(), retryable: true },
+                        StreamError {
+                            code: "ERR".into(),
+                            message: "".into(),
+                            retryable: true,
+                        },
                     )]
                 } else {
-                    vec![AlignStreamFrame::final_ok("t", "s", "op", 0, Some(json!({"ok": true})))]
+                    vec![AlignStreamFrame::final_ok(
+                        "t",
+                        "s",
+                        "op",
+                        0,
+                        Some(json!({"ok": true})),
+                    )]
                 }
             }),
         );
@@ -786,7 +902,13 @@ fn retry_succeeds_on_second_attempt() {
             initial_delay_ms: 1,
             ..Default::default()
         });
-        let mut task = TaskFrame::new(new_id(), TaskDag { nodes: vec![n], edges: vec![] });
+        let mut task = TaskFrame::new(
+            new_id(),
+            TaskDag {
+                nodes: vec![n],
+                edges: vec![],
+            },
+        );
         task.max_retries = 2;
         task.timeout_ms = 10_000;
         let result = orch.execute(task).await;
@@ -809,7 +931,13 @@ fn retry_on_allowlist_skips_non_listed() {
             retry_on: Some(vec!["RETRYABLE-ERR".to_string()]),
             ..Default::default()
         });
-        let mut task = TaskFrame::new(new_id(), TaskDag { nodes: vec![n], edges: vec![] });
+        let mut task = TaskFrame::new(
+            new_id(),
+            TaskDag {
+                nodes: vec![n],
+                edges: vec![],
+            },
+        );
         task.timeout_ms = 10_000;
         let result = orch.execute(task).await;
         assert_eq!(result.final_state, TaskState::Failed);
@@ -833,7 +961,13 @@ fn saga_best_effort_compensates_predecessor() {
             Arc::new(move |f: &DelegateFrame| {
                 if f.action == "nwp://payments/refund" {
                     rc.fetch_add(1, Ordering::SeqCst);
-                    vec![AlignStreamFrame::final_ok("t", "s", "charge", 0, Some(json!({"refunded": true})))]
+                    vec![AlignStreamFrame::final_ok(
+                        "t",
+                        "s",
+                        "charge",
+                        0,
+                        Some(json!({"refunded": true})),
+                    )]
                 } else {
                     vec![AlignStreamFrame::final_ok(
                         "t",
@@ -856,7 +990,10 @@ fn saga_best_effort_compensates_predecessor() {
 
         let dag = TaskDag {
             nodes: vec![charge, node("ship", Some(vec!["charge"]))],
-            edges: vec![DagEdge { from: "charge".into(), to: "ship".into() }],
+            edges: vec![DagEdge {
+                from: "charge".into(),
+                to: "ship".into(),
+            }],
         };
         let mut task = TaskFrame::new(new_id(), dag);
         task.timeout_ms = 10_000;
@@ -888,7 +1025,10 @@ fn saga_strict_missing_compensate_action_not_supported() {
 
         let dag = TaskDag {
             nodes: vec![node("charge", None), node("ship", Some(vec!["charge"]))],
-            edges: vec![DagEdge { from: "charge".into(), to: "ship".into() }],
+            edges: vec![DagEdge {
+                from: "charge".into(),
+                to: "ship".into(),
+            }],
         };
         let mut task = TaskFrame::new(new_id(), dag);
         task.timeout_ms = 10_000;
@@ -896,7 +1036,10 @@ fn saga_strict_missing_compensate_action_not_supported() {
 
         let result = orch.execute(task).await;
         assert_eq!(result.final_state, TaskState::Failed);
-        assert_eq!(result.error_code.as_deref(), Some(error_codes::COMPENSATION_NOT_SUPPORTED));
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some(error_codes::COMPENSATION_NOT_SUPPORTED)
+        );
         let comp = result.compensation.unwrap();
         assert_eq!(comp.attempted, 0);
         assert_eq!(comp.failed, 1);
@@ -918,7 +1061,10 @@ fn duplicate_task_id_fails() {
         let _ = orch.execute(task.clone()).await;
         let result = orch.execute(task).await;
         assert_eq!(result.final_state, TaskState::Failed);
-        assert_eq!(result.error_code.as_deref(), Some(error_codes::TASK_ALREADY_COMPLETED));
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some(error_codes::TASK_ALREADY_COMPLETED)
+        );
     });
 }
 
@@ -952,19 +1098,39 @@ fn invalid_dag_cycle_returns_failed() {
         let worker = MockWorkerClient::new();
         let orch = build_orch(worker, false);
         let dag = TaskDag {
-            nodes: vec![node("s", None), node("a", None), node("b", None), node("e", None)],
+            nodes: vec![
+                node("s", None),
+                node("a", None),
+                node("b", None),
+                node("e", None),
+            ],
             edges: vec![
-                DagEdge { from: "s".into(), to: "a".into() },
-                DagEdge { from: "a".into(), to: "b".into() },
-                DagEdge { from: "b".into(), to: "a".into() },
-                DagEdge { from: "a".into(), to: "e".into() },
+                DagEdge {
+                    from: "s".into(),
+                    to: "a".into(),
+                },
+                DagEdge {
+                    from: "a".into(),
+                    to: "b".into(),
+                },
+                DagEdge {
+                    from: "b".into(),
+                    to: "a".into(),
+                },
+                DagEdge {
+                    from: "a".into(),
+                    to: "e".into(),
+                },
             ],
         };
         let mut task = TaskFrame::new(new_id(), dag);
         task.timeout_ms = 10_000;
         let result = orch.execute(task).await;
         assert_eq!(result.final_state, TaskState::Failed);
-        assert_eq!(result.error_code.as_deref(), Some(error_codes::TASK_DAG_CYCLE));
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some(error_codes::TASK_DAG_CYCLE)
+        );
     });
 }
 
@@ -978,7 +1144,10 @@ fn delegate_depth_exceeded_rejected() {
         task.delegate_depth = 3;
         let result = orch.execute(task).await;
         assert_eq!(result.final_state, TaskState::Failed);
-        assert_eq!(result.error_code.as_deref(), Some(error_codes::DELEGATE_CHAIN_TOO_DEEP));
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some(error_codes::DELEGATE_CHAIN_TOO_DEEP)
+        );
     });
 }
 
@@ -993,7 +1162,10 @@ fn preflight_unavailable_fails() {
         task.preflight = true;
         let result = orch.execute(task).await;
         assert_eq!(result.final_state, TaskState::Failed);
-        assert_eq!(result.error_code.as_deref(), Some(error_codes::RESOURCE_INSUFFICIENT));
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some(error_codes::RESOURCE_INSUFFICIENT)
+        );
     });
 }
 
@@ -1042,7 +1214,13 @@ fn sender_nid_mismatch_detected() {
         worker.setup_handler(
             "a",
             Arc::new(|_f: &DelegateFrame| {
-                vec![AlignStreamFrame::final_ok("t", "s", "wrong-agent", 0, Some(json!({})))]
+                vec![AlignStreamFrame::final_ok(
+                    "t",
+                    "s",
+                    "wrong-agent",
+                    0,
+                    Some(json!({})),
+                )]
             }),
         );
         let orch = build_orch(worker, true); // validate_sender_nid = true
@@ -1065,9 +1243,14 @@ fn callback_signature_valid_key() {
     assert!(sig.starts_with("sha256="));
     // 64 hex chars after the prefix
     assert_eq!(sig.len(), "sha256=".len() + 64);
-    assert!(sig["sha256=".len()..].chars().all(|c| c.is_ascii_hexdigit()));
+    assert!(sig["sha256=".len()..]
+        .chars()
+        .all(|c| c.is_ascii_hexdigit()));
     // deterministic
-    assert_eq!(sig, build_callback_signature(Some(&secret), "{\"a\":1}").unwrap());
+    assert_eq!(
+        sig,
+        build_callback_signature(Some(&secret), "{\"a\":1}").unwrap()
+    );
 }
 
 #[test]

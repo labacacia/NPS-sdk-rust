@@ -46,7 +46,10 @@ fn header_pairs(target: &BridgeTarget) -> Vec<(String, String)> {
     out
 }
 
-fn apply_headers(mut builder: reqwest::RequestBuilder, target: &BridgeTarget) -> reqwest::RequestBuilder {
+fn apply_headers(
+    mut builder: reqwest::RequestBuilder,
+    target: &BridgeTarget,
+) -> reqwest::RequestBuilder {
     for (name, value) in header_pairs(target) {
         builder = builder.header(name, value);
     }
@@ -94,15 +97,15 @@ impl HttpBridgeDispatcher {
         target: &BridgeTarget,
     ) -> Result<CapsFrame, BridgeDispatchError> {
         let uri = parse_http_endpoint(target)?;
-        let method_str = target_get_string(target, "method", Some("POST"))
-            .unwrap_or_else(|| "POST".to_string());
+        let method_str =
+            target_get_string(target, "method", Some("POST")).unwrap_or_else(|| "POST".to_string());
         let method_norm = if method_str.trim().is_empty() {
             "POST".to_string()
         } else {
             method_str.trim().to_ascii_uppercase()
         };
-        let method = reqwest::Method::from_bytes(method_norm.as_bytes())
-            .unwrap_or(reqwest::Method::POST);
+        let method =
+            reqwest::Method::from_bytes(method_norm.as_bytes()).unwrap_or(reqwest::Method::POST);
 
         let mut builder = self.client.request(method.clone(), &uri.url);
         builder = apply_headers(builder, target);
@@ -115,13 +118,12 @@ impl HttpBridgeDispatcher {
             }
         }
 
-        let resp = builder
-            .send()
-            .await
-            .map_err(|e| BridgeDispatchError::new(
+        let resp = builder.send().await.map_err(|e| {
+            BridgeDispatchError::new(
                 bridge_error_codes::UPSTREAM_FAILED,
                 format!("HTTP bridge request failed. ({e})"),
-            ))?;
+            )
+        })?;
 
         let status = resp.status();
         let content_type = resp
@@ -132,13 +134,12 @@ impl HttpBridgeDispatcher {
         let headers = response_headers_map(&resp);
         let reason = status.canonical_reason().map(str::to_string);
 
-        let body_text = resp
-            .text()
-            .await
-            .map_err(|e| BridgeDispatchError::new(
+        let body_text = resp.text().await.map_err(|e| {
+            BridgeDispatchError::new(
                 bridge_error_codes::UPSTREAM_FAILED,
                 format!("HTTP bridge response read failed. ({e})"),
-            ))?;
+            )
+        })?;
 
         let mut record = Map::new();
         record.insert("status_code".into(), json!(status.as_u16()));
@@ -146,7 +147,13 @@ impl HttpBridgeDispatcher {
         record.insert("success".into(), json!(status.is_success()));
         record.insert("content_type".into(), json!(content_type));
         record.insert("headers".into(), headers);
-        write_json_or_text_body(&mut record, "body", "body_text", &body_text, content_type.as_deref());
+        write_json_or_text_body(
+            &mut record,
+            "body",
+            "body_text",
+            &body_text,
+            content_type.as_deref(),
+        );
 
         Ok(caps_from_record(
             Self::RESPONSE_ANCHOR_REF,
@@ -243,13 +250,12 @@ impl GrpcBridgeDispatcher {
             .body(message);
         builder = apply_headers(builder, target);
 
-        let resp = builder
-            .send()
-            .await
-            .map_err(|e| BridgeDispatchError::new(
+        let resp = builder.send().await.map_err(|e| {
+            BridgeDispatchError::new(
                 bridge_error_codes::UPSTREAM_FAILED,
                 format!("gRPC bridge request failed. ({e})"),
-            ))?;
+            )
+        })?;
 
         let status = resp.status();
         let content_type = resp
@@ -261,13 +267,12 @@ impl GrpcBridgeDispatcher {
         let grpc_message = read_header(&resp, "grpc-message");
         let headers = response_headers_map(&resp);
 
-        let bytes = resp
-            .bytes()
-            .await
-            .map_err(|e| BridgeDispatchError::new(
+        let bytes = resp.bytes().await.map_err(|e| {
+            BridgeDispatchError::new(
                 bridge_error_codes::UPSTREAM_FAILED,
                 format!("gRPC bridge response read failed. ({e})"),
-            ))?;
+            )
+        })?;
 
         let grpc_ok = matches!(grpc_status.as_deref(), Some("0") | None);
         let messages: Vec<Value> = read_grpc_messages(&bytes)
@@ -447,7 +452,10 @@ impl JsonRpcBridgeDispatcher {
         let body_text = resp.text().await.map_err(|e| {
             BridgeDispatchError::new(
                 bridge_error_codes::UPSTREAM_FAILED,
-                format!("{} JSON-RPC bridge response read failed. ({e})", self.protocol),
+                format!(
+                    "{} JSON-RPC bridge response read failed. ({e})",
+                    self.protocol
+                ),
             )
         })?;
 
@@ -510,8 +518,8 @@ impl JsonRpcBridgeDispatcher {
     }
 
     fn rpc_params(&self, frame: &ActionFrame, target: &BridgeTarget) -> Value {
-        if let Some(p) = target_get_json(target, "rpc_params")
-            .or_else(|| target_get_json(target, "params"))
+        if let Some(p) =
+            target_get_json(target, "rpc_params").or_else(|| target_get_json(target, "params"))
         {
             return p;
         }
@@ -528,7 +536,10 @@ impl JsonRpcBridgeDispatcher {
 
         let mut out = Map::new();
         for (name, value) in params {
-            if matches!(name.as_str(), "bridge_target" | "rpc_method" | "method" | "id") {
+            if matches!(
+                name.as_str(),
+                "bridge_target" | "rpc_method" | "method" | "id"
+            ) {
                 continue;
             }
             out.insert(name.clone(), value.clone());
@@ -537,7 +548,11 @@ impl JsonRpcBridgeDispatcher {
     }
 }
 
-fn write_jsonrpc_body(record: &mut Map<String, Value>, body_text: &str, content_type: Option<&str>) {
+fn write_jsonrpc_body(
+    record: &mut Map<String, Value>,
+    body_text: &str,
+    content_type: Option<&str>,
+) {
     let is_json = content_type
         .map(|c| c.to_ascii_lowercase().contains("json"))
         .unwrap_or(false);

@@ -183,9 +183,7 @@ fn check_assurance_level(
     leaf: &X509Certificate,
     asserted: Option<&AssuranceLevel>,
 ) -> Option<VerifyResult> {
-    let Some(asserted) = asserted else {
-        return None;
-    };
+    let asserted = asserted?;
     for ext in leaf.extensions() {
         if oid_equals(&ext.oid, NID_ASSURANCE_LEVEL_OID) {
             // ASN.1 ENUMERATED: tag=0x0A, len=0x01, content=<rank>.

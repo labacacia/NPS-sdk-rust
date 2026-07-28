@@ -59,7 +59,10 @@ impl BridgeServerMiddleware {
         let path = req.path.as_str();
         let prefix = self.options.path_prefix.trim_end_matches('/');
 
-        if !path.to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase()) {
+        if !path
+            .to_ascii_lowercase()
+            .starts_with(&prefix.to_ascii_lowercase())
+        {
             return None;
         }
 
@@ -87,10 +90,7 @@ impl BridgeServerMiddleware {
             let endpoint = join(&self.options.path_prefix, &self.options.mcp_path);
             return NodeResponse {
                 status: 200,
-                headers: vec![(
-                    "content-type".to_string(),
-                    "text/event-stream".to_string(),
-                )],
+                headers: vec![("content-type".to_string(), "text/event-stream".to_string())],
                 body: format!("event: endpoint\ndata: {endpoint}\n\n").into_bytes(),
             };
         }
@@ -238,10 +238,7 @@ fn write_sse(status: u16, response: &BridgeJsonRpcResponse) -> NodeResponse {
     let payload = serde_json::to_string(response).unwrap_or_default();
     NodeResponse {
         status,
-        headers: vec![(
-            "content-type".to_string(),
-            "text/event-stream".to_string(),
-        )],
+        headers: vec![("content-type".to_string(), "text/event-stream".to_string())],
         body: format!("event: message\ndata: {payload}\n\n").into_bytes(),
     }
 }

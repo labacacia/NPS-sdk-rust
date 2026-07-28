@@ -158,6 +158,7 @@ impl<S: NipCaStore> NipCaService<S> {
     /// delegating to [`Self::register`].
     ///
     /// A `Pending` outcome is surfaced as `Err(RegisterWithRaError::Pending(..))`.
+    #[allow(clippy::too_many_arguments)]
     pub fn register_with_ra(
         &self,
         entity_type: &str,
@@ -199,6 +200,7 @@ impl<S: NipCaStore> NipCaService<S> {
     /// Register an Agent/Node and issue an IdentFrame carrying both the v1
     /// CA-signed JSON proof and a DER X.509 chain (leaf + root) per
     /// NPS-RFC-0002 §4.1.
+    #[allow(clippy::too_many_arguments)]
     pub fn register_x509(
         &self,
         entity_type: &str,
@@ -279,10 +281,7 @@ impl<S: NipCaStore> NipCaService<S> {
         })
         .map_err(|e| NipCaError::new(e, error_codes::CERT_FORMAT_INVALID))?;
 
-        let chain = vec![
-            B64URL.encode(leaf.der()),
-            B64URL.encode(root.der()),
-        ];
+        let chain = vec![B64URL.encode(leaf.der()), B64URL.encode(root.der())];
 
         self.persist(NipCertRecord {
             nid: nid.clone(),
@@ -324,7 +323,7 @@ impl<S: NipCaStore> NipCaService<S> {
     ) -> Result<IdentFrame, NipCaError> {
         let identifier: String = match identifier {
             None => format!("group-{}", super::ra::new_uuid_hex()),
-            Some(id) if id.is_empty() => format!("group-{}", super::ra::new_uuid_hex()),
+            Some("") => format!("group-{}", super::ra::new_uuid_hex()),
             Some(id) if !id.starts_with("group-") => {
                 return Err(NipCaError::new(
                     format!(
@@ -414,7 +413,10 @@ impl<S: NipCaStore> NipCaService<S> {
         }
         if let Some(rev) = group.revoked_at {
             return Err(NipCaError::new(
-                format!("Group {group_nid} was revoked at {}; cannot issue new sessions.", fmt_ts(rev)),
+                format!(
+                    "Group {group_nid} was revoked at {}; cannot issue new sessions.",
+                    fmt_ts(rev)
+                ),
                 error_codes::CA_GROUP_REVOKED,
             ));
         }
@@ -429,7 +431,9 @@ impl<S: NipCaStore> NipCaService<S> {
         }
 
         // Validity window.
-        let v = params.validity.unwrap_or(self.opts.session_default_validity);
+        let v = params
+            .validity
+            .unwrap_or(self.opts.session_default_validity);
         if v < self.opts.session_min_validity || v > self.opts.session_max_validity {
             return Err(NipCaError::new(
                 format!(
@@ -536,7 +540,10 @@ impl<S: NipCaStore> NipCaService<S> {
     /// Renew a certificate — only within the renewal window before expiry.
     pub fn renew(&self, nid: &str) -> Result<IdentFrame, NipCaError> {
         let record = self.store.get_by_nid(nid).ok_or_else(|| {
-            NipCaError::new(format!("NID not found: {nid}"), error_codes::CA_NID_NOT_FOUND)
+            NipCaError::new(
+                format!("NID not found: {nid}"),
+                error_codes::CA_NID_NOT_FOUND,
+            )
         })?;
         if record.revoked_at.is_some() {
             return Err(NipCaError::new(
@@ -605,7 +612,10 @@ impl<S: NipCaStore> NipCaService<S> {
     /// target is a group). Returns the signed RevokeFrame for the target.
     pub fn revoke(&self, nid: &str, reason: &str) -> Result<RevokeFrame, NipCaError> {
         let record = self.store.get_by_nid(nid).ok_or_else(|| {
-            NipCaError::new(format!("NID not found: {nid}"), error_codes::CA_NID_NOT_FOUND)
+            NipCaError::new(
+                format!("NID not found: {nid}"),
+                error_codes::CA_NID_NOT_FOUND,
+            )
         })?;
 
         let now = OffsetDateTime::now_utc();
@@ -753,8 +763,10 @@ impl<S: NipCaStore> NipCaService<S> {
 
     fn check_capabilities(&self, capabilities: &[String]) -> Result<(), NipCaError> {
         if let Some(allowed) = &self.opts.allowed_capabilities {
-            let disallowed: Vec<&String> =
-                capabilities.iter().filter(|c| !allowed.contains(*c)).collect();
+            let disallowed: Vec<&String> = capabilities
+                .iter()
+                .filter(|c| !allowed.contains(*c))
+                .collect();
             if !disallowed.is_empty() {
                 let list = disallowed
                     .iter()
@@ -797,8 +809,12 @@ impl<S: NipCaStore> NipCaService<S> {
         assurance_level: Option<crate::assurance_level::AssuranceLevel>,
         lineage: Option<&Value>,
     ) -> Result<IdentFrame, NipCaError> {
-        let scope: Value = serde_json::from_str(scope_json)
-            .map_err(|e| NipCaError::new(format!("invalid scope_json: {e}"), error_codes::CA_NID_ALREADY_EXISTS))?;
+        let scope: Value = serde_json::from_str(scope_json).map_err(|e| {
+            NipCaError::new(
+                format!("invalid scope_json: {e}"),
+                error_codes::CA_NID_ALREADY_EXISTS,
+            )
+        })?;
         let issued_at_str = fmt_ts(issued_at);
         let expires_at_str = fmt_ts(expires_at);
 
@@ -823,9 +839,7 @@ impl<S: NipCaStore> NipCaService<S> {
         }
         let signature = signer::sign(&self.signing_key, &Value::Object(payload));
 
-        let meta = metadata_json.and_then(|m| {
-            serde_json::from_str::<Map<String, Value>>(m).ok()
-        });
+        let meta = metadata_json.and_then(|m| serde_json::from_str::<Map<String, Value>>(m).ok());
 
         let mut frame = IdentFrame::new(nid.to_string(), pub_key.to_string());
         frame.capabilities = capabilities.to_vec();
@@ -946,7 +960,7 @@ fn parse_serial_bytes(serial: &str) -> Vec<u8> {
         .strip_prefix("0x")
         .or_else(|| serial.strip_prefix("0X"))
         .unwrap_or(serial);
-    let hex_str = if hex_str.len() % 2 != 0 {
+    let hex_str = if hex_str.len() & 1 != 0 {
         format!("0{hex_str}")
     } else {
         hex_str.to_string()

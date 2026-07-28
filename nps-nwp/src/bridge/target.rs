@@ -61,7 +61,11 @@ pub fn bridge_target_from_json(target: &Value) -> Result<BridgeTarget, BridgeDis
     Ok(BridgeTarget {
         protocol,
         endpoint,
-        extras: if extras.is_empty() { None } else { Some(extras) },
+        extras: if extras.is_empty() {
+            None
+        } else {
+            Some(extras)
+        },
     })
 }
 
@@ -79,10 +83,10 @@ fn read_required_string(
 }
 
 /// Read a string extra from a target (case-insensitive key match).
-pub fn target_get_string<'a>(
+pub fn target_get_string(
     target: &BridgeTarget,
     name: &str,
-    default_value: Option<&'a str>,
+    default_value: Option<&str>,
 ) -> Option<String> {
     match get_extra(target, name) {
         Some(value) => match value {

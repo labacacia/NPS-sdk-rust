@@ -50,9 +50,7 @@ fn serve_once(
             let len = body.len();
             let mut resp = Response::from_data(body)
                 .with_status_code(status as i32)
-                .with_header(
-                    Header::from_str(&format!("Content-Type: {content_type}")).unwrap(),
-                )
+                .with_header(Header::from_str(&format!("Content-Type: {content_type}")).unwrap())
                 .with_header(Header::from_str(&format!("Content-Length: {len}")).unwrap());
             for (k, v) in extra_headers {
                 resp = resp.with_header(Header::from_str(&format!("{k}: {v}")).unwrap());
@@ -207,7 +205,10 @@ async fn http_dispatcher_posts_body_and_maps_json_response() {
     let t = target("http", &url, json!({ "method": "POST" }));
     let caps = dispatcher.dispatch(&frame, &t).await.unwrap();
 
-    assert_eq!(caps.anchor_ref.as_deref(), Some(HttpBridgeDispatcher::RESPONSE_ANCHOR_REF));
+    assert_eq!(
+        caps.anchor_ref.as_deref(),
+        Some(HttpBridgeDispatcher::RESPONSE_ANCHOR_REF)
+    );
     let record = &caps.data[0];
     assert_eq!(record["status_code"], 201);
     assert_eq!(record["success"], true);
@@ -416,7 +417,10 @@ async fn mcp_server_dispatcher_missing_surfaces_error_frame() {
     assert_eq!(result["isError"], true);
     let text = result["content"][0]["text"].as_str().unwrap();
     let frame: Value = serde_json::from_str(text).unwrap();
-    assert_eq!(frame["error"], bridge_error_codes::SERVER_DISPATCHER_MISSING);
+    assert_eq!(
+        frame["error"],
+        bridge_error_codes::SERVER_DISPATCHER_MISSING
+    );
 }
 
 // ── inbound A2A server bridge ────────────────────────────────────────────────

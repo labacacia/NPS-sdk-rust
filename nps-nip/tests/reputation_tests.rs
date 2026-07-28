@@ -62,7 +62,7 @@ fn leaf_hash(entry: &ReputationLogEntry) -> Vec<u8> {
     );
     m.insert(
         "severity".into(),
-        serde_json::to_value(&entry.severity).unwrap(),
+        serde_json::to_value(entry.severity).unwrap(),
     );
     if let Some(w) = &entry.window {
         m.insert("window".into(), serde_json::to_value(w).unwrap());
@@ -90,7 +90,7 @@ fn leaf_hash(entry: &ReputationLogEntry) -> Vec<u8> {
 
     let canonical = serde_json::to_string(&m).unwrap();
     let mut h = Sha256::new();
-    h.update(&[0x00u8]);
+    h.update([0x00u8]);
     h.update(canonical.as_bytes());
     h.finalize().to_vec()
 }

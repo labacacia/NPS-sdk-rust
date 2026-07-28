@@ -2,7 +2,7 @@ English | [中文版](./README.cn.md)
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.16-orange.svg)](../../CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.17-orange.svg)](../../CHANGELOG.md)
 [![NCP](https://img.shields.io/badge/NCP-v0.9-5b8cff.svg)]()
 [![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
 [![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
@@ -15,11 +15,11 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.16 — RFC-0002 cross-SDK port (fifth language — completes the wave)**
+**v1.0.0-alpha.17 candidate — server and orchestration surface parity**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
-Tests: 99 across the workspace, all passing.
+Tests: 564 across the workspace, all passing.
 
 Alpha.15 additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient`), native-mode NWP serving helper (`nps_nwp::NwpNativeNodeServer`), and TC-N1/TC-N2 conformance manifest helpers (`nps_conformance`, re-exported by `nps-sdk`).
 
@@ -28,20 +28,6 @@ Alpha.15 additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient
 - `nps_nip::x509` — `issue_leaf` / `issue_root` / `verify` (built on `rcgen` + `x509-parser` + `ed25519-dalek`).
 - `nps_nip::acme` — `AcmeClient` (reqwest async) + in-process `AcmeServer` (tiny_http) + JWS / messages helpers (RFC 8555 + EdDSA per RFC 8037).
 - `IdentFrame` extended with non-breaking `assurance_level` / `cert_format` / `cert_chain` fields; v1 verifiers ignore the new fields.
-
-## Unreleased on `main`
-
-The `main` branch additionally carries the **alpha.16-cycle server-surface parity wave**
-(not yet in any published package; ships with the next suite release):
-
-- **NOP orchestration engine** — DAG validator, condition evaluator, input mapper,
-  result aggregator, task store, worker client, callback validator, instrumentation
-- **NCP native-mode transport** — server, session, client, frame IO, handshake caps,
-  encoding policy, patch format
-- **NIP CA service** — CA router + RA admission model, SQL-backed CA store,
-  TrustFrame validator, full six-step §7 `VerifyFull` verifier
-- **NWP server surface** extensions (memory/complex node serving)
-- **Daemon observability** (health / metrics / logging / shutdown) and **telemetry**
 
 ## Requirements
 
@@ -207,10 +193,10 @@ let results = catalog_for_profile(NODE_L1)?
 let manifest = NpsConformanceManifest::create(
     NODE_L1,
     "my-node",
-    "1.0.0-alpha.16",
+    "1.0.0-alpha.17",
     "urn:nps:node:example.com:my-node",
     "labacacia-fixture",
-    "1.0.0-alpha.16",
+    "1.0.0-alpha.17",
     results,
     "ci",
 );

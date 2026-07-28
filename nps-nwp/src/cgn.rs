@@ -11,7 +11,7 @@ pub fn estimate_cgn(s: &str) -> usize {
     if n == 0 {
         0
     } else {
-        (n + BYTES_PER_CGN - 1) / BYTES_PER_CGN
+        n.div_ceil(BYTES_PER_CGN)
     }
 }
 
@@ -21,7 +21,7 @@ pub fn estimate_cgn_bytes(b: &[u8]) -> usize {
     if n == 0 {
         0
     } else {
-        (n + BYTES_PER_CGN - 1) / BYTES_PER_CGN
+        n.div_ceil(BYTES_PER_CGN)
     }
 }
 

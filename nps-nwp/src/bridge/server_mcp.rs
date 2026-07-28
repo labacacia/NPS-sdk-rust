@@ -123,7 +123,9 @@ impl McpServerBridge {
                 version: self.options.server_version.clone(),
             },
             capabilities: McpServerCapabilities {
-                tools: Some(McpToolCapabilities { list_changed: false }),
+                tools: Some(McpToolCapabilities {
+                    list_changed: false,
+                }),
             },
         }
     }
@@ -174,7 +176,10 @@ impl McpServerBridge {
             return BridgeJsonRpcResponse::error_data(
                 request,
                 codes::TOOL_NOT_FOUND,
-                format!("MCP tool '{}' is not exposed by NWP Bridge server.", call.name),
+                format!(
+                    "MCP tool '{}' is not exposed by NWP Bridge server.",
+                    call.name
+                ),
                 json!({
                     "error": bridge_error_codes::SERVER_TOOL_NOT_FOUND,
                     "tool": call.name,

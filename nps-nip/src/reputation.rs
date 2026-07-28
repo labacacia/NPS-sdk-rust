@@ -226,7 +226,7 @@ fn signing_map(entry: &ReputationLogEntry) -> BTreeMap<String, serde_json::Value
 
     m.insert(
         "severity".into(),
-        serde_json::to_value(&entry.severity).unwrap(),
+        serde_json::to_value(entry.severity).unwrap(),
     );
     m.insert("issuer_nid".into(), Value::String(entry.issuer_nid.clone()));
 
@@ -313,7 +313,7 @@ impl ReputationLogClient {
         // 1. Compute leaf hash: 0x00 || leaf_canonical_json
         let leaf_json = leaf_canonical_json(entry);
         let mut hasher = Sha256::new();
-        hasher.update(&[0x00u8]);
+        hasher.update([0x00u8]);
         hasher.update(leaf_json.as_bytes());
         let mut node_hash: [u8; 32] = hasher.finalize().into();
 
@@ -344,7 +344,7 @@ impl ReputationLogClient {
                 buf[1..33].copy_from_slice(&sibling);
                 buf[33..65].copy_from_slice(&node_hash);
             }
-            node_hash = Sha256::digest(&buf).into();
+            node_hash = Sha256::digest(buf).into();
         }
 
         // 4. Compare to STH root hash

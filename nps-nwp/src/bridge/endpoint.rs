@@ -86,9 +86,7 @@ pub(crate) fn parse_absolute_http(raw: &str) -> Option<ParsedEndpoint> {
     }
 
     // Split authority from path/query/fragment.
-    let authority_end = rest
-        .find(['/', '?', '#'])
-        .unwrap_or(rest.len());
+    let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
     let authority = &rest[..authority_end];
     let mut path = &rest[authority_end..];
     // Strip query/fragment for the path component.
@@ -101,7 +99,10 @@ pub(crate) fn parse_absolute_http(raw: &str) -> Option<ParsedEndpoint> {
     }
 
     // Strip userinfo.
-    let host_port = authority.rsplit_once('@').map(|(_, h)| h).unwrap_or(authority);
+    let host_port = authority
+        .rsplit_once('@')
+        .map(|(_, h)| h)
+        .unwrap_or(authority);
 
     let (host, port_str) = if host_port.starts_with('[') {
         // IPv6 literal: [::1]:8080

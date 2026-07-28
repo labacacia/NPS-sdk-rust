@@ -31,10 +31,7 @@ pub struct TrustFrameValidationContext {
 }
 
 /// Validate a [`TrustFrame`] against a [`TrustFrameValidationContext`].
-pub fn validate(
-    frame: &TrustFrame,
-    context: &TrustFrameValidationContext,
-) -> NipIdentVerifyResult {
+pub fn validate(frame: &TrustFrame, context: &TrustFrameValidationContext) -> NipIdentVerifyResult {
     if frame.grantor_nid.trim().is_empty()
         || frame.grantee_ca.trim().is_empty()
         || frame.issued_at.trim().is_empty()
@@ -57,7 +54,10 @@ pub fn validate(
         return fail(
             3,
             error_codes::TRUST_FRAME_INVALID,
-            format!("TrustFrame issued_at is not a valid timestamp: {}.", frame.issued_at),
+            format!(
+                "TrustFrame issued_at is not a valid timestamp: {}.",
+                frame.issued_at
+            ),
         );
     }
 
@@ -135,9 +135,7 @@ pub fn validate(
             return fail(
                 6,
                 error_codes::CERT_SCOPE_VIOLATION,
-                format!(
-                    "Target path '{target}' is not covered by the TrustFrame node scope."
-                ),
+                format!("Target path '{target}' is not covered by the TrustFrame node scope."),
             );
         }
     }

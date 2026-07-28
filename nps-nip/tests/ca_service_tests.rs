@@ -11,10 +11,9 @@ use time::{Duration, OffsetDateTime};
 
 use nps_nip::ca::{
     build_flattened_jws, ca_verify, create_enrollment_policy, decode_public_key,
-    BootstrapTokenStore, CaRequest, EnrollmentOutcome, EnrollmentRequest,
-    EnrollmentTier, InMemoryBootstrapTokenStore, InMemoryNipCaStore, InMemoryPendingStore,
-    IssueSessionParams, NipCaCertStore, NipCaOptions, NipCaRouter, NipCaService, PendingStore,
-    RegisterWithRaError,
+    BootstrapTokenStore, CaRequest, EnrollmentOutcome, EnrollmentRequest, EnrollmentTier,
+    InMemoryBootstrapTokenStore, InMemoryNipCaStore, InMemoryPendingStore, IssueSessionParams,
+    NipCaCertStore, NipCaOptions, NipCaRouter, NipCaService, PendingStore, RegisterWithRaError,
 };
 use nps_nip::error_codes;
 
@@ -80,7 +79,8 @@ fn register_then_verify_and_signature_valid() {
 fn duplicate_nid_rejected() {
     let ca = service();
     let (_, pk) = pub_key(1);
-    ca.register("agent", "bob", &pk, &caps(&[]), "{}", None).unwrap();
+    ca.register("agent", "bob", &pk, &caps(&[]), "{}", None)
+        .unwrap();
     let err = ca
         .register("agent", "bob", &pk, &caps(&[]), "{}", None)
         .unwrap_err();
@@ -102,7 +102,8 @@ fn renew_too_early_then_allowed() {
     // Agent validity 30d, renewal window 7d. Fresh cert can't renew.
     let ca = service();
     let (_, pk) = pub_key(2);
-    ca.register("agent", "carol", &pk, &caps(&[]), "{}", None).unwrap();
+    ca.register("agent", "carol", &pk, &caps(&[]), "{}", None)
+        .unwrap();
     let nid = "urn:nps:agent:ca.example.com:carol";
     let err = ca.renew(nid).unwrap_err();
     assert_eq!(err.code, error_codes::CA_RENEWAL_TOO_EARLY);
@@ -111,8 +112,11 @@ fn renew_too_early_then_allowed() {
     let mut opts = NipCaOptions::new(CA_NID, BASE_URL);
     opts.agent_cert_validity_days = 1;
     let ca2 = NipCaService::new(opts, InMemoryNipCaStore::new(), ca_key());
-    ca2.register("agent", "dave", &pk, &caps(&[]), "{}", None).unwrap();
-    let frame = ca2.renew("urn:nps:agent:ca.example.com:dave").expect("renew");
+    ca2.register("agent", "dave", &pk, &caps(&[]), "{}", None)
+        .unwrap();
+    let frame = ca2
+        .renew("urn:nps:agent:ca.example.com:dave")
+        .expect("renew");
     assert!(frame.serial.is_some());
 }
 
@@ -122,7 +126,8 @@ fn renew_too_early_then_allowed() {
 fn revoke_agent_then_verify_revoked() {
     let ca = service();
     let (_, pk) = pub_key(3);
-    ca.register("agent", "eve", &pk, &caps(&[]), "{}", None).unwrap();
+    ca.register("agent", "eve", &pk, &caps(&[]), "{}", None)
+        .unwrap();
     let nid = "urn:nps:agent:ca.example.com:eve";
     let rf = ca.revoke(nid, "key_compromise").expect("revoke");
     assert_eq!(rf.target_nid, nid);
@@ -142,7 +147,15 @@ fn revoke_group_cascades_to_sessions() {
     let ca = service();
     let (_, gpk) = pub_key(4);
     let group = ca
-        .register_group(Some("group-orch"), &gpk, &caps(&["nwp:query", "nwp:stream"]), "{}", Some("user-1"), None, None)
+        .register_group(
+            Some("group-orch"),
+            &gpk,
+            &caps(&["nwp:query", "nwp:stream"]),
+            "{}",
+            Some("user-1"),
+            None,
+            None,
+        )
         .expect("register group");
     let group_nid = group.nid.clone();
 
@@ -157,7 +170,8 @@ fn revoke_group_cascades_to_sessions() {
 
     // Revoke the group → cascades to the session (its own revoked_at is set
     // with reason parent_revoked, so verify reports CERT-REVOKED first).
-    ca.revoke(&group_nid, "cessation_of_operation").expect("revoke group");
+    ca.revoke(&group_nid, "cessation_of_operation")
+        .expect("revoke group");
     let r = ca.verify(&session_nid);
     assert!(!r.valid);
     assert_eq!(r.error_code, Some(error_codes::CERT_REVOKED));
@@ -177,7 +191,15 @@ fn verify_session_chain_rejects_revoked_parent_without_cascade() {
     let ca = service();
     let (_, gpk) = pub_key(40);
     let group = ca
-        .register_group(Some("group-chain"), &gpk, &caps(&["a"]), "{}", None, None, None)
+        .register_group(
+            Some("group-chain"),
+            &gpk,
+            &caps(&["a"]),
+            "{}",
+            None,
+            None,
+            None,
+        )
         .unwrap();
     let group_nid = group.nid.clone();
     let (_, spk) = pub_key(41);
@@ -186,7 +208,9 @@ fn verify_session_chain_rejects_revoked_parent_without_cascade() {
         .unwrap();
 
     // Revoke only the parent record directly in the store (no cascade).
-    assert!(ca.store().revoke(&group_nid, "key_compromise", OffsetDateTime::now_utc()));
+    assert!(ca
+        .store()
+        .revoke(&group_nid, "key_compromise", OffsetDateTime::now_utc()));
 
     let r = ca.verify(&session.nid);
     assert!(!r.valid);
@@ -200,7 +224,15 @@ fn issue_session_clamps_and_enforces_subset() {
     let ca = service();
     let (_, gpk) = pub_key(6);
     let group = ca
-        .register_group(None, &gpk, &caps(&["a", "b"]), r#"{"nodes":["x"]}"#, None, None, None)
+        .register_group(
+            None,
+            &gpk,
+            &caps(&["a", "b"]),
+            r#"{"nodes":["x"]}"#,
+            None,
+            None,
+            None,
+        )
         .expect("group");
     assert!(group.nid.contains(":agent:"));
     assert!(group.nid.contains(":group-"));
@@ -269,7 +301,8 @@ fn issue_session_clamps_and_enforces_subset() {
 fn issue_session_under_non_group_rejected() {
     let ca = service();
     let (_, pk) = pub_key(8);
-    ca.register("agent", "plain", &pk, &caps(&[]), "{}", None).unwrap();
+    ca.register("agent", "plain", &pk, &caps(&[]), "{}", None)
+        .unwrap();
     let (_, spk) = pub_key(9);
     let err = ca
         .issue_session(
@@ -290,10 +323,16 @@ fn ra_allowlist_admits_and_denies() {
     opts.enrollment_allowlist_patterns = vec!["svc-*".into()];
     let policy = create_enrollment_policy(&opts, None, None).unwrap();
 
-    let admit = EnrollmentRequest { identifier: "svc-a", ..base_req() };
+    let admit = EnrollmentRequest {
+        identifier: "svc-a",
+        ..base_req()
+    };
     assert!(matches!(policy.check(&admit), EnrollmentOutcome::Admit));
 
-    let denied = EnrollmentRequest { identifier: "other", ..base_req() };
+    let denied = EnrollmentRequest {
+        identifier: "other",
+        ..base_req()
+    };
     match policy.check(&denied) {
         EnrollmentOutcome::Deny(e) => assert_eq!(e.code, error_codes::RA_NID_NOT_ALLOWED),
         other => panic!("expected deny, got {other:?}"),
@@ -317,23 +356,35 @@ fn ra_bootstrap_token_tier() {
     let mut opts = NipCaOptions::new(CA_NID, BASE_URL);
     opts.enrollment_tier = EnrollmentTier::BootstrapToken;
     let store = InMemoryBootstrapTokenStore::new();
-    let token = store.create(Some("ci".into()), OffsetDateTime::now_utc() + Duration::hours(1));
+    let token = store.create(
+        Some("ci".into()),
+        OffsetDateTime::now_utc() + Duration::hours(1),
+    );
 
     let policy = create_enrollment_policy(&opts, Some(&store), None).unwrap();
 
     // Missing token → invalid.
-    let missing = EnrollmentRequest { enrollment_token: None, ..base_req() };
+    let missing = EnrollmentRequest {
+        enrollment_token: None,
+        ..base_req()
+    };
     match policy.check(&missing) {
         EnrollmentOutcome::Deny(e) => assert_eq!(e.code, error_codes::RA_TOKEN_INVALID),
         o => panic!("expected deny, got {o:?}"),
     }
 
     // Valid token → admit (single use).
-    let good = EnrollmentRequest { enrollment_token: Some(&token), ..base_req() };
+    let good = EnrollmentRequest {
+        enrollment_token: Some(&token),
+        ..base_req()
+    };
     assert!(matches!(policy.check(&good), EnrollmentOutcome::Admit));
 
     // Second use of the same token → expired/consumed.
-    let reuse = EnrollmentRequest { enrollment_token: Some(&token), ..base_req() };
+    let reuse = EnrollmentRequest {
+        enrollment_token: Some(&token),
+        ..base_req()
+    };
     match policy.check(&reuse) {
         EnrollmentOutcome::Deny(e) => assert_eq!(e.code, error_codes::RA_TOKEN_EXPIRED),
         o => panic!("expected deny, got {o:?}"),
@@ -408,10 +459,14 @@ fn router_register_and_verify_and_crl() {
     let router = NipCaRouter::new(&ca, policy, None, None);
 
     let (_, pk) = pub_key(20);
-    let body = json!({ "identifier": "router-agent", "pub_key": pk, "capabilities": ["nwp:query"] });
+    let body =
+        json!({ "identifier": "router-agent", "pub_key": pk, "capabilities": ["nwp:query"] });
     let resp = router.handle(&CaRequest::new("POST", "/v1/agents/register").with_json(&body));
     assert_eq!(resp.status, 201, "body={:?}", resp.json_value());
-    let nid = resp.json_value().unwrap()["nid"].as_str().unwrap().to_string();
+    let nid = resp.json_value().unwrap()["nid"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert_eq!(nid, "urn:nps:agent:ca.example.com:router-agent");
 
     // Verify via OCSP endpoint.
@@ -430,7 +485,7 @@ fn router_register_and_verify_and_crl() {
 
     // Revoke → then CRL has an entry + is signed.
     let rev = router.handle(
-        &CaRequest::new("POST", &format!("/v1/agents/{nid}/revoke"))
+        &CaRequest::new("POST", format!("/v1/agents/{nid}/revoke"))
             .with_json(&json!({ "reason": "superseded" })),
     );
     assert_eq!(rev.status, 200);
@@ -500,10 +555,13 @@ fn router_group_register_and_session_issue_via_jws() {
 
     let (gsk, gpk) = pub_key(22);
     let greq = json!({ "identifier": "group-r", "pub_key": gpk, "capabilities": ["a", "b"] });
-    let gresp =
-        router.handle(&CaRequest::new("POST", "/v1/orchestrators/groups/register").with_json(&greq));
+    let gresp = router
+        .handle(&CaRequest::new("POST", "/v1/orchestrators/groups/register").with_json(&greq));
     assert_eq!(gresp.status, 201, "body={:?}", gresp.json_value());
-    let group_nid = gresp.json_value().unwrap()["nid"].as_str().unwrap().to_string();
+    let group_nid = gresp.json_value().unwrap()["nid"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     // Issue a session via group-JWS (jose+json content type).
     let (_, spk) = pub_key(23);
@@ -519,7 +577,7 @@ fn router_group_register_and_session_issue_via_jws() {
     let issue = router.handle(
         &CaRequest::new(
             "POST",
-            &format!("/v1/orchestrators/groups/{group_nid}/sessions/issue"),
+            format!("/v1/orchestrators/groups/{group_nid}/sessions/issue"),
         )
         .with_json(&jws_body)
         .with_header("Content-Type", "application/jose+json"),
@@ -532,7 +590,7 @@ fn router_group_register_and_session_issue_via_jws() {
     // List sessions endpoint.
     let list = router.handle(&CaRequest::new(
         "GET",
-        &format!("/v1/orchestrators/groups/{group_nid}/sessions"),
+        format!("/v1/orchestrators/groups/{group_nid}/sessions"),
     ));
     assert_eq!(list.status, 200);
     assert_eq!(list.json_value().unwrap()["count"], json!(1));
@@ -547,9 +605,12 @@ fn router_session_issue_bad_jws_signature() {
 
     let (_gsk, gpk) = pub_key(24);
     let greq = json!({ "identifier": "group-bad", "pub_key": gpk });
-    let gresp =
-        router.handle(&CaRequest::new("POST", "/v1/orchestrators/groups/register").with_json(&greq));
-    let group_nid = gresp.json_value().unwrap()["nid"].as_str().unwrap().to_string();
+    let gresp = router
+        .handle(&CaRequest::new("POST", "/v1/orchestrators/groups/register").with_json(&greq));
+    let group_nid = gresp.json_value().unwrap()["nid"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     // Sign with the WRONG key.
     let (wrong_sk, _) = pub_key(99);
@@ -557,12 +618,13 @@ fn router_session_issue_bad_jws_signature() {
     let iat = OffsetDateTime::now_utc().unix_timestamp();
     let payload = json!({ "session_pub_key": spk, "iat": iat }).to_string();
     let jws = build_flattened_jws(&wrong_sk, &group_nid, &payload);
-    let jws_body = json!({ "protected": jws.protected, "payload": jws.payload, "signature": jws.signature });
+    let jws_body =
+        json!({ "protected": jws.protected, "payload": jws.payload, "signature": jws.signature });
 
     let issue = router.handle(
         &CaRequest::new(
             "POST",
-            &format!("/v1/orchestrators/groups/{group_nid}/sessions/issue"),
+            format!("/v1/orchestrators/groups/{group_nid}/sessions/issue"),
         )
         .with_json(&jws_body)
         .with_header("Content-Type", "application/jose+json"),
@@ -588,7 +650,10 @@ fn router_pending_queue_flow() {
     let body = json!({ "identifier": "pending-agent", "pub_key": pk });
     let resp = router.handle(&CaRequest::new("POST", "/v1/agents/register").with_json(&body));
     assert_eq!(resp.status, 202);
-    let id = resp.json_value().unwrap()["pending_id"].as_str().unwrap().to_string();
+    let id = resp.json_value().unwrap()["pending_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
     // List pending.
     let list = router.handle(&CaRequest::new("GET", "/v1/enrollment/pending"));
@@ -598,7 +663,7 @@ fn router_pending_queue_flow() {
     // Approve → 201 issues the cert.
     let approve = router.handle(&CaRequest::new(
         "POST",
-        &format!("/v1/enrollment/pending/{id}/approve"),
+        format!("/v1/enrollment/pending/{id}/approve"),
     ));
     assert_eq!(approve.status, 201, "body={:?}", approve.json_value());
     assert_eq!(
@@ -609,7 +674,7 @@ fn router_pending_queue_flow() {
     // Re-approve → 409 (already approved).
     let again = router.handle(&CaRequest::new(
         "POST",
-        &format!("/v1/enrollment/pending/{id}/approve"),
+        format!("/v1/enrollment/pending/{id}/approve"),
     ));
     assert_eq!(again.status, 409);
 }
@@ -628,7 +693,10 @@ fn router_bootstrap_token_endpoint() {
         &CaRequest::new("POST", "/v1/enrollment/tokens").with_json(&json!({ "ttl_seconds": 3600 })),
     );
     assert_eq!(tok.status, 201);
-    let raw = tok.json_value().unwrap()["token"].as_str().unwrap().to_string();
+    let raw = tok.json_value().unwrap()["token"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert!(raw.starts_with("nps-bootstrap-"));
 
     // Register with the token → 201.
@@ -657,9 +725,20 @@ fn register_x509_carries_cert_chain() {
     let ca = service();
     let (_, pk) = pub_key(30);
     let frame = ca
-        .register_x509("agent", "x509-agent", &pk, &caps(&["nwp:query"]), "{}", None, None)
+        .register_x509(
+            "agent",
+            "x509-agent",
+            &pk,
+            &caps(&["nwp:query"]),
+            "{}",
+            None,
+            None,
+        )
         .expect("register x509");
-    assert_eq!(frame.cert_format.as_deref(), Some(nps_nip::cert_format::V2_X509));
+    assert_eq!(
+        frame.cert_format.as_deref(),
+        Some(nps_nip::cert_format::V2_X509)
+    );
     let chain = frame.cert_chain.as_ref().unwrap();
     assert_eq!(chain.len(), 2);
     assert!(ca.verify(&frame.nid).valid);

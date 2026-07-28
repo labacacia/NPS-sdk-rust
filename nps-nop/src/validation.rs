@@ -223,10 +223,7 @@ pub fn validate_callback_url(callback_url: &str) -> Option<String> {
 /// Extracts the host portion (authority host) from the part after `://`.
 fn extract_host(rest: &str) -> String {
     // Strip path/query/fragment.
-    let authority = rest
-        .split(['/', '?', '#'])
-        .next()
-        .unwrap_or("");
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
     // Strip userinfo.
     let authority = authority.rsplit('@').next().unwrap_or(authority);
 

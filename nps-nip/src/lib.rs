@@ -35,9 +35,7 @@ pub use reputation::{
     sign_entry, verify_entry, IncidentType, InclusionProof, ObservationWindow, ReputationLogClient,
     ReputationLogEntry, Severity, SignedTreeHead,
 };
-pub use trust_validator::{
-    validate as validate_trust_frame, TrustFrameValidationContext,
-};
+pub use trust_validator::{validate as validate_trust_frame, TrustFrameValidationContext};
 pub use verifier::{
     nwp_path_matches, NipCaStore, NipCertRecord, NipIdentVerifier, NipIdentVerifyResult,
     NipRevocationCheck, NipVerifierOptions, NipVerifyContext, OcspResponse,

@@ -8,6 +8,23 @@
 
 ---
 
+## [1.0.0-alpha.17] —— 未发布
+
+### 新增
+
+- 将参考服务端能力移植到 Rust SDK：NCP 原生传输、NWP action/complex/memory 节点与双向 bridge、NIP CA 服务与完整校验，以及 NOP 编排。
+
+### 变更
+
+- 在整个 workspace 启用干净的 `cargo fmt` 与严格 Clippy 检查。
+- 升级 `quinn-proto` 和 `rustls-webpki`，修复当前 RustSec 漏洞。
+
+## [1.0.0-alpha.16] —— 2026-07-23
+
+### 变更
+
+- 套件级 alpha.16 源码同步与协议兼容性更新。
+
 ## [1.0.0-alpha.15] —— 2026-06-28
 
 ### 变更

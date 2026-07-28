@@ -152,23 +152,29 @@ impl MetricsRegistry {
         if labels.is_empty() {
             cells.lock().unwrap().insert(String::new(), 0.0);
         }
-        self.entries.lock().unwrap().push(MetricEntry::Counter(PromCounter {
-            name,
-            help,
-            labels: labels.clone(),
-            cells: cells.clone(),
-        }));
+        self.entries
+            .lock()
+            .unwrap()
+            .push(MetricEntry::Counter(PromCounter {
+                name,
+                help,
+                labels: labels.clone(),
+                cells: cells.clone(),
+            }));
         PromCounterHandle { labels, cells }
     }
 
     /// Registers a gauge (may go up and down).
     pub fn register_gauge(&self, name: &'static str, help: &'static str) -> PromGaugeHandle {
         let value = std::sync::Arc::new(Mutex::new(0.0f64));
-        self.entries.lock().unwrap().push(MetricEntry::Gauge(PromGauge {
-            name,
-            help,
-            value: value.clone(),
-        }));
+        self.entries
+            .lock()
+            .unwrap()
+            .push(MetricEntry::Gauge(PromGauge {
+                name,
+                help,
+                value: value.clone(),
+            }));
         PromGaugeHandle { value }
     }
 

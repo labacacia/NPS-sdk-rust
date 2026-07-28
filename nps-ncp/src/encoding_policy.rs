@@ -160,7 +160,10 @@ mod tests {
 
     #[test]
     fn encoding_tokens() {
-        assert_eq!(NcpEncodingPolicy::encoding_token(EncodingTier::Json), "json");
+        assert_eq!(
+            NcpEncodingPolicy::encoding_token(EncodingTier::Json),
+            "json"
+        );
         assert_eq!(
             NcpEncodingPolicy::encoding_token(EncodingTier::MsgPack),
             "msgpack"

@@ -275,12 +275,15 @@ impl CapsFrame {
             tokenizer_used: opt_str(d, "tokenizer_used").map(str::to_string),
             payload: d.get("payload").cloned(),
             negotiated_encoding: opt_str(d, "negotiated_encoding").map(str::to_string),
-            enabled_encodings: d.get("enabled_encodings").and_then(Value::as_array).map(|a| {
-                a.iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect()
-            }),
+            enabled_encodings: d
+                .get("enabled_encodings")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                }),
         })
     }
 }
