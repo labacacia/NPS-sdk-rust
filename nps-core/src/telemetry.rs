@@ -186,17 +186,14 @@ impl Meter {
         description: &'static str,
     ) -> Arc<Histogram> {
         let h = Arc::new(Histogram::default());
-        self.instruments
-            .lock()
-            .unwrap()
-            .push(Instrument::Histogram(
-                InstrumentInfo {
-                    name,
-                    unit,
-                    description,
-                },
-                h.clone(),
-            ));
+        self.instruments.lock().unwrap().push(Instrument::Histogram(
+            InstrumentInfo {
+                name,
+                unit,
+                description,
+            },
+            h.clone(),
+        ));
         h
     }
 
@@ -434,6 +431,9 @@ mod tests {
         assert_eq!(spans.len(), 2);
         assert_eq!(spans[0].operation, "frame.process");
         assert_eq!(spans[0].source, "nps.test");
-        assert_eq!(spans[0].attributes[0], ("frame.type".into(), "query".into()));
+        assert_eq!(
+            spans[0].attributes[0],
+            ("frame.type".into(), "query".into())
+        );
     }
 }

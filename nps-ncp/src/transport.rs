@@ -16,6 +16,9 @@
 //! in the offline cargo cache.
 
 use crate::encoding_policy::NcpEncodingPolicy;
+use crate::handshake_profile::{
+    evaluate_hello_header, negotiate_handshake, NcpHandshakeAction, NcpHandshakeProfile,
+};
 use crate::preamble;
 use crate::{CapsFrame, ErrorFrame, HelloFrame};
 use nps_core::codec::{decode_binary_vector, decode_json, decode_msgpack, encode_json, FrameDict};
@@ -23,6 +26,7 @@ use nps_core::error::{NpsError, NpsResult};
 use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
+use tokio::time::timeout;
 
 /// Handshake error mirroring .NET `NcpHandshakeException`: carries the wire
 /// error code and human-readable message the server (or client) surfaced.
@@ -43,7 +47,11 @@ impl NcpHandshakeError {
 
 impl std::fmt::Display for NcpHandshakeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "NCP handshake error [{}]: {}", self.error_code, self.message)
+        write!(
+            f,
+            "NCP handshake error [{}]: {}",
+            self.error_code, self.message
+        )
     }
 }
 
@@ -378,12 +386,21 @@ pub struct NcpServerOptions {
     /// normal non-extended frame payload ceiling (65535 bytes) rather than the
     /// 4 GiB extended-frame limit — matching .NET `FrameHeader.DefaultMaxPayload`.
     pub max_hello_payload: u64,
+    /// Wall-clock budget for reading and validating the connection preamble.
+    pub preamble_read_timeout: std::time::Duration,
+    /// Separate wall-clock budget for the Hello header and payload.
+    pub hello_read_timeout: std::time::Duration,
+    /// Server capabilities used for deterministic handshake negotiation.
+    pub handshake_profile: NcpHandshakeProfile,
 }
 
 impl Default for NcpServerOptions {
     fn default() -> Self {
         Self {
             max_hello_payload: 0xFFFF,
+            preamble_read_timeout: std::time::Duration::from_secs(preamble::READ_TIMEOUT_SECS),
+            hello_read_timeout: std::time::Duration::from_secs(5),
+            handshake_profile: NcpHandshakeProfile::default(),
         }
     }
 }
@@ -400,6 +417,7 @@ impl Default for NcpServerOptions {
 pub struct NcpServerConnection {
     stream: TcpStream,
     client_hello: HelloFrame,
+    handshake_profile: NcpHandshakeProfile,
 }
 
 impl NcpServerConnection {
@@ -413,9 +431,42 @@ impl NcpServerConnection {
     /// The outgoing CapsFrame's `negotiated_encoding` / `enabled_encodings` fields
     /// are set from the negotiated policy, matching .NET `AcceptAsync`.
     pub async fn accept(mut self, mut server_caps: CapsFrame) -> NpsResult<NcpSession> {
-        let policy = Self::negotiate_encoding_policy(&self.client_hello)?;
-        server_caps.negotiated_encoding = Some(NcpEncodingPolicy::encoding_token(policy.default_tier));
-        server_caps.enabled_encodings = Some(policy.enabled_encodings());
+        let negotiation = negotiate_handshake(&self.handshake_profile, &self.client_hello);
+        if negotiation.action != NcpHandshakeAction::Accept {
+            let error_code = negotiation
+                .error
+                .unwrap_or(crate::error_codes::VERSION_INCOMPATIBLE);
+            let status = negotiation
+                .status
+                .unwrap_or(nps_core::status_codes::NPS_PROTO_VERSION_INCOMPATIBLE);
+            let error = ErrorFrame {
+                error_code: error_code.into(),
+                message: "Native NCP handshake negotiation failed.".into(),
+                detail: Some(serde_json::json!({ "status": status })),
+            };
+            self.reject(&error).await?;
+            return Err(NpsError::Frame(format!(
+                "[{error_code}] Native NCP handshake negotiation failed."
+            )));
+        }
+
+        let default_tier = if negotiation.negotiated_encoding.as_deref() == Some("msgpack") {
+            EncodingTier::MsgPack
+        } else {
+            EncodingTier::Json
+        };
+        let binary_vector_enabled = negotiation
+            .enabled_encodings
+            .as_deref()
+            .is_some_and(|items| items.iter().any(|item| item == "binary_vector.v1"));
+        let policy = NcpEncodingPolicy::with_binary_vector(default_tier, binary_vector_enabled);
+        server_caps.session_version = negotiation.session_version;
+        server_caps.negotiated_encoding = negotiation.negotiated_encoding;
+        server_caps.enabled_encodings = negotiation.enabled_encodings;
+        server_caps.supported_protocols = negotiation.supported_protocols;
+        server_caps.max_frame_payload = negotiation.max_frame_payload;
+        server_caps.ext_support = negotiation.ext_support;
+        server_caps.max_concurrent_streams = negotiation.max_concurrent_streams;
 
         let wire = encode_frame(FrameType::Caps, &server_caps.to_dict(), policy.default_tier)?;
         self.stream
@@ -448,39 +499,6 @@ impl NcpServerConnection {
         .await;
         let _ = self.stream.shutdown().await;
         write_res
-    }
-
-    /// Selects a stable default encoding from the client's `supported_encodings`.
-    /// Optional encodings such as BinaryVector are recorded as extensions, not
-    /// defaults. Mirrors .NET `NegotiateEncodingPolicy`.
-    fn negotiate_encoding_policy(hello: &HelloFrame) -> NpsResult<NcpEncodingPolicy> {
-        let binary_vector_enabled = hello
-            .supported_encodings
-            .iter()
-            .any(|e| e == "binary_vector.v1");
-
-        for enc in &hello.supported_encodings {
-            match enc.as_str() {
-                "msgpack" => {
-                    return Ok(NcpEncodingPolicy::with_binary_vector(
-                        EncodingTier::MsgPack,
-                        binary_vector_enabled,
-                    ))
-                }
-                "json" => {
-                    return Ok(NcpEncodingPolicy::with_binary_vector(
-                        EncodingTier::Json,
-                        binary_vector_enabled,
-                    ))
-                }
-                _ => {}
-            }
-        }
-
-        Err(NpsError::Codec(
-            "Client did not offer a supported stable default encoding (expected msgpack or json)."
-                .into(),
-        ))
     }
 }
 
@@ -530,38 +548,40 @@ impl NcpServer {
 
         // 1 — read & validate preamble.
         let mut preamble_buf = [0u8; preamble::LENGTH];
-        stream
-            .read_exact(&mut preamble_buf)
-            .await
-            .map_err(|e| NpsError::Io(e.to_string()))?;
+        timeout(
+            self.options.preamble_read_timeout,
+            stream.read_exact(&mut preamble_buf),
+        )
+        .await
+        .map_err(|_| NpsError::Io("NCP preamble read timed out.".into()))?
+        .map_err(|e| NpsError::Io(e.to_string()))?;
         preamble::validate(&preamble_buf)?;
 
-        // 2 — read frame header.
-        let (header, _) = read_frame_header(&mut stream).await?;
+        // 2 — read and validate the Hello header before allocating payload.
+        let hello_read = async {
+            let (header, _) = read_frame_header(&mut stream).await?;
+            let decision = evaluate_hello_header(
+                &header,
+                std::time::Duration::ZERO,
+                self.options.hello_read_timeout,
+                self.options.max_hello_payload,
+            );
+            if decision.action != NcpHandshakeAction::Continue {
+                return Err(NpsError::Frame("Invalid native NCP Hello header.".into()));
+            }
 
-        if header.frame_type != FrameType::Hello {
-            return Err(NpsError::Frame(format!(
-                "Expected HelloFrame (0x{:02X}) as first frame after preamble, got 0x{:02X}.",
-                FrameType::Hello.as_u8(),
-                header.frame_type.as_u8()
-            )));
-        }
-
-        if header.payload_length > self.options.max_hello_payload {
-            return Err(NpsError::Frame(format!(
-                "HelloFrame payload length {} exceeds configured maximum {} bytes.",
-                header.payload_length, self.options.max_hello_payload
-            )));
-        }
-
-        // 3 — read payload and deserialise HelloFrame (always JSON).
-        let payload = read_payload(&mut stream, header.payload_length as usize).await?;
-        let dict = decode_handshake_payload(&header, &payload)?;
-        let hello = HelloFrame::from_dict(&dict)?;
+            let payload = read_payload(&mut stream, header.payload_length as usize).await?;
+            let dict = decode_json(&payload)?;
+            HelloFrame::from_dict(&dict)
+        };
+        let hello = timeout(self.options.hello_read_timeout, hello_read)
+            .await
+            .map_err(|_| NpsError::Io("NCP Hello read timed out.".into()))??;
 
         Ok(NcpServerConnection {
             stream,
             client_hello: hello,
+            handshake_profile: self.options.handshake_profile.clone(),
         })
     }
 }

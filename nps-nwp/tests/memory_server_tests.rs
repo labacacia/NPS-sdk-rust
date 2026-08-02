@@ -128,9 +128,7 @@ async fn query_projection_selects_fields() {
 
 #[tokio::test]
 async fn query_unknown_field_is_400() {
-    let resp = app()
-        .handle(query(json!({ "fields": ["nope"] })))
-        .await;
+    let resp = app().handle(query(json!({ "fields": ["nope"] }))).await;
     assert_eq!(resp.status, 400);
     let v = resp.json_value().unwrap();
     assert_eq!(v["error"], "NWP-QUERY-FIELD-UNKNOWN");
@@ -142,7 +140,10 @@ async fn query_unsupported_operator_is_400() {
         .handle(query(json!({ "filter": { "amount": { "$mod": 2 } } })))
         .await;
     assert_eq!(resp.status, 400);
-    assert_eq!(resp.json_value().unwrap()["error"], "NWP-QUERY-FILTER-INVALID");
+    assert_eq!(
+        resp.json_value().unwrap()["error"],
+        "NWP-QUERY-FILTER-INVALID"
+    );
 }
 
 #[tokio::test]
@@ -188,5 +189,8 @@ async fn missing_agent_when_auth_required_is_401() {
     let app = MemoryNodeApp::new(opt, Arc::new(InMemoryMemoryNodeProvider::new(vec![])));
     let resp = app.handle(query(json!({}))).await;
     assert_eq!(resp.status, 401);
-    assert_eq!(resp.json_value().unwrap()["status"], "NPS-CLIENT-UNAUTHORIZED");
+    assert_eq!(
+        resp.json_value().unwrap()["status"],
+        "NPS-CLIENT-UNAUTHORIZED"
+    );
 }

@@ -20,8 +20,8 @@ use tiny_http::{Header, Response, Server};
 use nps_nip::error_codes;
 use nps_nip::{
     nwp_path_matches, validate_trust_frame, IdentFrame, NipCaStore, NipCertRecord,
-    NipIdentVerifier, NipIdentVerifyResult, NipRevocationCheck, NipVerifierOptions,
-    NipVerifyContext, TrustFrame, TrustFrameValidationContext,
+    NipIdentVerifier, NipIdentVerifyResult, NipRevocationCheck, NipRevocationMode,
+    NipVerifierOptions, NipVerifyContext, TrustFrame, TrustFrameValidationContext,
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,9 +79,7 @@ async fn step1_expired_cert_rejected() {
     let ca_sk = SigningKey::generate(&mut OsRng);
     let frame = signed_frame(&ca_sk, "2000-01-01T00:00:00Z", "0x1");
     let v = NipIdentVerifier::new(opts(&ca_sk));
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 1);
     assert_eq!(r.error_code, Some(error_codes::CERT_EXPIRED));
@@ -115,9 +113,7 @@ async fn step2_untrusted_issuer_rejected() {
     let frame = signed_frame(&ca_sk, &far_future(), "0x1");
     // Verifier trusts nobody.
     let v = NipIdentVerifier::new(NipVerifierOptions::default());
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 2);
     assert_eq!(r.error_code, Some(error_codes::CERT_UNTRUSTED_ISSUER));
@@ -129,9 +125,7 @@ async fn step2_issued_by_mismatch_rejected() {
     let mut frame = signed_frame(&ca_sk, &far_future(), "0x1");
     frame.issued_by = Some("urn:nps:org:other".into());
     let v = NipIdentVerifier::new(opts(&ca_sk));
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 2);
     assert_eq!(r.error_code, Some(error_codes::CERT_UNTRUSTED_ISSUER));
@@ -146,9 +140,7 @@ async fn step3_bad_signature_rejected() {
     // Tamper a signed field (pub_key is covered by unsigned_dict) after signing.
     frame.pub_key = "ed25519:00".into();
     let v = NipIdentVerifier::new(opts(&ca_sk));
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 3);
     assert_eq!(r.error_code, Some(error_codes::CERT_SIGNATURE_INVALID));
@@ -185,9 +177,7 @@ async fn step4_local_crl_revokes() {
         local_revoked_serials: vec!["0x0A3F9C".into()],
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 4);
     assert_eq!(r.error_code, Some(error_codes::CERT_REVOKED));
@@ -212,9 +202,7 @@ async fn step4_revocation_callback_rejects() {
         revocation_check: Some(cb),
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 4);
     assert_eq!(r.error_code, Some(error_codes::CERT_REVOKED));
@@ -246,9 +234,7 @@ async fn step4_store_revokes() {
         revocation_store: Some(Arc::new(RevokedStore)),
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 4);
     assert_eq!(r.error_code, Some(error_codes::CERT_REVOKED));
@@ -274,9 +260,7 @@ async fn step4_ocsp_valid_passes() {
         ocsp_url: Some(base),
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(r.valid, "code={:?} msg={:?}", r.error_code, r.message);
     guard.join().unwrap();
 }
@@ -301,9 +285,7 @@ async fn step4_ocsp_invalid_revokes() {
         ocsp_url: Some(base),
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 4);
     assert_eq!(r.error_code, Some(error_codes::CERT_REVOKED));
@@ -321,9 +303,7 @@ async fn step4_ocsp_transport_failure_fail_closed() {
         ocsp_fail_open: false,
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(!r.valid);
     assert_eq!(r.step_failed, 4);
     assert_eq!(r.error_code, Some(error_codes::OCSP_UNAVAILABLE));
@@ -339,9 +319,7 @@ async fn step4_ocsp_transport_failure_fail_open() {
         ocsp_fail_open: true,
         ..Default::default()
     });
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(r.valid, "fail-open should pass; code={:?}", r.error_code);
 }
 
@@ -350,10 +328,37 @@ async fn step4_unconfigured_passes_through() {
     let ca_sk = SigningKey::generate(&mut OsRng);
     let frame = signed_frame(&ca_sk, &far_future(), "0x1");
     let v = NipIdentVerifier::new(opts(&ca_sk));
-    let r = v
-        .verify(&frame, CA_NID, &NipVerifyContext::default())
-        .await;
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
     assert!(r.valid);
+}
+
+#[tokio::test]
+async fn step4_required_without_source_fails_closed() {
+    let ca_sk = SigningKey::generate(&mut OsRng);
+    let frame = signed_frame(&ca_sk, &far_future(), "0x1");
+    let v = NipIdentVerifier::new(NipVerifierOptions {
+        trusted_ca_public_keys: trusted(&ca_sk),
+        revocation_mode: NipRevocationMode::Required,
+        ..Default::default()
+    });
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
+    assert!(!r.valid);
+    assert_eq!(r.step_failed, 4);
+    assert_eq!(r.error_code, Some(error_codes::OCSP_UNAVAILABLE));
+}
+
+#[tokio::test]
+async fn step4_required_accepts_configured_empty_local_crl() {
+    let ca_sk = SigningKey::generate(&mut OsRng);
+    let frame = signed_frame(&ca_sk, &far_future(), "0x1");
+    let v = NipIdentVerifier::new(NipVerifierOptions {
+        trusted_ca_public_keys: trusted(&ca_sk),
+        local_crl_configured: true,
+        revocation_mode: NipRevocationMode::Required,
+        ..Default::default()
+    });
+    let r = v.verify(&frame, CA_NID, &NipVerifyContext::default()).await;
+    assert!(r.valid, "code={:?} msg={:?}", r.error_code, r.message);
 }
 
 // ── Step 5: Capabilities ─────────────────────────────────────────────────────

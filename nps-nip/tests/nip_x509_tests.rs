@@ -282,6 +282,7 @@ fn mk_root(ca_sk: &SigningKey, ca_nid: &str, serial: &[u8]) -> rcgen::Certificat
     .expect("issue_root")
 }
 
+#[allow(clippy::too_many_arguments)]
 fn mk_leaf(
     nid: &str,
     agent_sk: &SigningKey,
@@ -303,6 +304,8 @@ fn mk_leaf(
         not_before: now - Duration::from_secs(60),
         not_after: now + Duration::from_secs(30 * 24 * 3600),
         serial_number: serial,
+        attested_node_roles: None,
+        attested_capabilities: None,
     })
     .expect("issue_leaf")
 }

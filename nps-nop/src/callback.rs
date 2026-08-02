@@ -38,7 +38,9 @@ fn decode_base64url(value: &str) -> Option<Vec<u8>> {
     let normalized: String = value.trim().replace('-', "+").replace('_', "/");
     let pad = (4 - normalized.len() % 4) % 4;
     let padded = format!("{normalized}{}", "=".repeat(pad));
-    base64::engine::general_purpose::STANDARD.decode(padded).ok()
+    base64::engine::general_purpose::STANDARD
+        .decode(padded)
+        .ok()
 }
 
 /// Posts `payload` to `callback_url` with exponential backoff (NPS-5 §8.4).

@@ -76,3 +76,31 @@ async fn error_response_throws_typed_exception() {
     let _: NipCaClientError = err;
     guard.join().unwrap();
 }
+
+#[tokio::test]
+async fn certificate_inventory_get_sends_bearer() {
+    let (server, url) = bind_server();
+    let guard = std::thread::spawn(move || {
+        let req = server.recv().unwrap();
+        assert_eq!(req.method().as_str(), "GET");
+        assert_eq!(req.url(), "/nip/v1/certificates");
+        let auth = req
+            .headers()
+            .iter()
+            .find(|header| header.field.equiv("Authorization"))
+            .unwrap();
+        assert_eq!(auth.value.as_str(), "Bearer secret");
+        let body = r#"{"entries":[{"nid":"urn:nps:agent:example.test:a","entity_type":"agent","serial":"0x1","pub_key":"ed25519:a","capabilities":[],"scope":{},"issued_by":"urn:nps:org:example.test","issued_at":"2026-01-01T00:00:00Z","expires_at":"2026-01-02T00:00:00Z"}]}"#;
+        req.respond(
+            Response::from_string(body)
+                .with_header(Header::from_str("Content-Type: application/json").unwrap()),
+        )
+        .unwrap();
+    });
+
+    let client = NipCaClient::with_client(&url, "/nip", reqwest::Client::new());
+    let list = client.get_certificates(Some("secret")).await.unwrap();
+    assert_eq!(list.entries.len(), 1);
+    assert_eq!(list.entries[0].serial, "0x1");
+    guard.join().unwrap();
+}

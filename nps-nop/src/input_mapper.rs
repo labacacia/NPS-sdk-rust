@@ -37,7 +37,10 @@ impl std::fmt::Display for MappingError {
 ///
 /// Returns `Ok(None)` when the path leads to a missing property.
 /// Returns `Err` for malformed paths or depth violations.
-pub fn resolve(path: &str, context: &HashMap<String, Value>) -> Result<Option<Value>, MappingError> {
+pub fn resolve(
+    path: &str,
+    context: &HashMap<String, Value>,
+) -> Result<Option<Value>, MappingError> {
     if path.trim().is_empty() {
         return Err(MappingError::new("Input mapping path must not be empty."));
     }

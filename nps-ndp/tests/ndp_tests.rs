@@ -39,13 +39,16 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     };
     let sig = id.sign(&tmp.unsigned_dict());
     AnnounceFrame {
@@ -58,13 +61,16 @@ fn make_announce(id: &NipIdentity, ttl: u64) -> AnnounceFrame {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     }
 }
 
@@ -443,13 +449,16 @@ fn get_all_returns_active_entries() {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     };
     let tmp2 = AnnounceFrame {
         nid: nid2.into(),
@@ -461,13 +470,16 @@ fn get_all_returns_active_entries() {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     };
     let sig1 = id1.sign(&tmp1.unsigned_dict());
     let sig2 = id2.sign(&tmp2.unsigned_dict());
@@ -482,13 +494,16 @@ fn get_all_returns_active_entries() {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     });
     reg.announce(AnnounceFrame {
         nid: nid2.into(),
@@ -500,13 +515,16 @@ fn get_all_returns_active_entries() {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     });
 
     *elapsed.lock().unwrap() = 2;
@@ -752,13 +770,16 @@ fn rejects_wrong_signature_prefix() {
         node_type: None,
         node_roles: None,
         cluster_anchor: None,
+        cluster_epoch: None,
         spawn_spec_ref: None,
         bridge_protocols: None,
+        bridge_inbound_protocols: None,
         activation_mode: None,
         activation_endpoint: None,
         heartbeat_interval_ms: 60_000,
         health: None,
         last_seen: None,
+        graph_seq: None,
     };
     let r = v.validate(&frame);
     assert!(!r.is_valid);

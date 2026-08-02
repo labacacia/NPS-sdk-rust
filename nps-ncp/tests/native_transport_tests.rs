@@ -11,17 +11,17 @@
 use nps_core::frames::{EncodingTier, FrameHeader, FrameType};
 use nps_ncp::encoding_policy::NcpEncodingPolicy;
 use nps_ncp::transport::read_frame_header;
+use nps_ncp::transport::ConnectError;
 use nps_ncp::{
     patch_format, CapsFrame, ErrorFrame, HelloFrame, NcpNativeClient, NcpServer,
     HANDSHAKE_UNEXPECTED_FRAME,
 };
-use nps_ncp::transport::ConnectError;
 use serde_json::json;
 use std::io::Cursor;
 
 fn client_hello(encodings: &[&str]) -> HelloFrame {
     HelloFrame::new(
-        "1.0",
+        "0.11",
         encodings.iter().map(|s| s.to_string()).collect(),
         vec!["ncp".to_string()],
     )
@@ -42,7 +42,7 @@ async fn handshake_happy_path_json() {
     let srv = tokio::spawn(async move {
         let conn = server.accept_connection().await.unwrap();
         // The client sent a Hello — verify it round-tripped.
-        assert_eq!(conn.client_hello().nps_version, "1.0");
+        assert_eq!(conn.client_hello().nps_version, "0.11");
         assert!(conn
             .client_hello()
             .supported_encodings
@@ -107,10 +107,7 @@ async fn encoding_negotiation_enables_binary_vector_extension() {
     assert!(session.encoding_policy().binary_vector_enabled);
     assert_eq!(
         session.server_caps().enabled_encodings,
-        Some(vec![
-            "msgpack".to_string(),
-            "binary_vector.v1".to_string()
-        ])
+        Some(vec!["msgpack".to_string(), "binary_vector.v1".to_string()])
     );
 }
 
@@ -233,7 +230,10 @@ async fn unknown_first_frame_is_rejected_by_server() {
     stream.flush().await.unwrap();
 
     let result = srv.await.unwrap();
-    assert!(result.is_err(), "server must reject a non-Hello first frame");
+    assert!(
+        result.is_err(),
+        "server must reject a non-Hello first frame"
+    );
 }
 
 #[tokio::test]

@@ -12,20 +12,15 @@ use time::Duration;
 
 /// Enrollment tier governing which RA gate an inbound registration must pass
 /// (NPS-CR-0005 §3).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum EnrollmentTier {
     /// Tier 1 — operator-configured glob allowlist. Default.
+    #[default]
     Allowlist = 1,
     /// Tier 2 — single-use bootstrap token (`nps-bootstrap-` prefix).
     BootstrapToken = 2,
     /// Tier 3 — pending queue with operator approve/reject.
     PendingQueue = 3,
-}
-
-impl Default for EnrollmentTier {
-    fn default() -> Self {
-        EnrollmentTier::Allowlist
-    }
 }
 
 /// Configuration for [`crate::ca::NipCaService`].

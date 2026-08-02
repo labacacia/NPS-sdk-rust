@@ -40,9 +40,24 @@ pub struct AnnounceFrame {
     pub node_type: Option<String>,
     pub node_roles: Option<Vec<String>>,
     pub cluster_anchor: Option<String>,
+    /// NDP v0.10 / NPS-CR-0009 — epoch under which this Anchor owns its
+    /// `cluster_anchor` cluster. Starts at 1 and strictly increases on every
+    /// ownership transfer; it is a fencing token.
+    ///
+    /// **Absent means 1** (single-Anchor); absence is NOT an error. The field is
+    /// part of the SIGNED canonical form, so it is omitted entirely when `None`
+    /// — never emitted as `null` or a normalised `1` — which keeps the canonical
+    /// bytes of a pre-CR-0009 frame bit-identical. Changing it requires
+    /// re-signing the frame (that is what stops replay of an inflated epoch).
+    pub cluster_epoch: Option<u64>,
     /// NDP v0.9 — opaque string reference resolving to a SpawnSpec.
     pub spawn_spec_ref: Option<String>,
     pub bridge_protocols: Option<Vec<String>>,
+    /// NDP v0.11 / NPS-CR-0010 — external protocols this Bridge Node accepts
+    /// INBOUND (foreign client → NPS). Independent of `bridge_protocols`
+    /// (outbound) over the same value domain `{http, grpc, mcp, a2a}`.
+    /// Receivers MUST treat an absent value as `[]`. Signed; omitted when unset.
+    pub bridge_inbound_protocols: Option<Vec<String>>,
     pub activation_mode: Option<String>,
     pub activation_endpoint: Option<serde_json::Map<String, Value>>,
     /// NDP v0.9 — keepalive interval in ms; 0 means disabled.
@@ -51,11 +66,23 @@ pub struct AnnounceFrame {
     /// (last_seen updates every heartbeat → must not require re-signing; §3.2.1).
     pub health: Option<String>, // "healthy" / "degraded" / "draining"
     pub last_seen: Option<String>, // ISO 8601 UTC liveness beat
+    /// NDP v0.12 per-NID monotonic configuration sequence.
+    pub graph_seq: Option<u64>,
 }
 
 impl AnnounceFrame {
+    /// Value used for `cluster_epoch` when the wire field is absent
+    /// (NPS-CR-0009 §1.1 — a single-Anchor cluster).
+    pub const DEFAULT_CLUSTER_EPOCH: u64 = 1;
+
     pub fn frame_type() -> FrameType {
         FrameType::Announce
+    }
+
+    /// `cluster_epoch` coerced for comparison: absent ⇒ 1. The stored field is
+    /// left untouched (`None` stays `None`) so the signed bytes never change.
+    pub fn effective_cluster_epoch(&self) -> u64 {
+        self.cluster_epoch.unwrap_or(Self::DEFAULT_CLUSTER_EPOCH)
     }
 
     /// Dict without signature — for signing / verifying
@@ -79,17 +106,29 @@ impl AnnounceFrame {
         if let Some(v) = &self.cluster_anchor {
             m.insert("cluster_anchor".into(), json!(v));
         }
+        // NPS-CR-0009 — signed. Omitted (not null, not 1) when absent so the
+        // canonical bytes of a pre-CR-0009 frame are unchanged.
+        if let Some(v) = self.cluster_epoch {
+            m.insert("cluster_epoch".into(), json!(v));
+        }
         if let Some(v) = &self.spawn_spec_ref {
             m.insert("spawn_spec_ref".into(), json!(v));
         }
         if let Some(v) = &self.bridge_protocols {
             m.insert("bridge_protocols".into(), json!(v));
         }
+        // NPS-CR-0010 — signed, alongside bridge_protocols. Omitted when unset.
+        if let Some(v) = &self.bridge_inbound_protocols {
+            m.insert("bridge_inbound_protocols".into(), json!(v));
+        }
         if let Some(v) = &self.activation_mode {
             m.insert("activation_mode".into(), json!(v));
         }
         if let Some(v) = &self.activation_endpoint {
             m.insert("activation_endpoint".into(), Value::Object(v.clone()));
+        }
+        if let Some(v) = self.graph_seq {
+            m.insert("graph_seq".into(), json!(v));
         }
         // Sort for canonical representation
         let sorted: BTreeMap<String, Value> = m.into_iter().collect();
@@ -105,11 +144,17 @@ impl AnnounceFrame {
         if let Some(v) = &self.cluster_anchor {
             m.insert("cluster_anchor".into(), json!(v));
         }
+        if let Some(v) = self.cluster_epoch {
+            m.insert("cluster_epoch".into(), json!(v));
+        }
         if let Some(v) = &self.spawn_spec_ref {
             m.insert("spawn_spec_ref".into(), json!(v));
         }
         if let Some(v) = &self.bridge_protocols {
             m.insert("bridge_protocols".into(), json!(v));
+        }
+        if let Some(v) = &self.bridge_inbound_protocols {
+            m.insert("bridge_inbound_protocols".into(), json!(v));
         }
         if let Some(v) = &self.activation_mode {
             m.insert("activation_mode".into(), json!(v));
@@ -162,6 +207,15 @@ impl AnnounceFrame {
                     .map(str::to_string)
                     .collect()
             });
+        let bridge_inbound_protocols = d
+            .get("bridge_inbound_protocols")
+            .and_then(Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_string)
+                    .collect()
+            });
         Ok(AnnounceFrame {
             nid: get_str(d, "nid")?.to_string(),
             addresses,
@@ -172,8 +226,12 @@ impl AnnounceFrame {
             node_type: opt_str(d, "node_type").map(str::to_string),
             node_roles,
             cluster_anchor: opt_str(d, "cluster_anchor").map(str::to_string),
+            // Absent stays None — coerced to 1 at COMPARISON time, never at
+            // storage time (NPS-CR-0009 §3.1).
+            cluster_epoch: opt_u64(d, "cluster_epoch"),
             spawn_spec_ref: opt_str(d, "spawn_spec_ref").map(str::to_string),
             bridge_protocols,
+            bridge_inbound_protocols,
             activation_mode: opt_str(d, "activation_mode").map(str::to_string),
             activation_endpoint: d
                 .get("activation_endpoint")
@@ -182,6 +240,7 @@ impl AnnounceFrame {
             heartbeat_interval_ms: opt_u64(d, "heartbeat_interval_ms").unwrap_or(60_000),
             health: opt_str(d, "health").map(str::to_string),
             last_seen: opt_str(d, "last_seen").map(str::to_string),
+            graph_seq: opt_u64(d, "graph_seq"),
         })
     }
 }

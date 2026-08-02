@@ -349,7 +349,10 @@ impl CaSqlExecutor for InMemoryCaSqlExecutor {
         if sql.starts_with("INSERT INTO nip_certs") {
             // Serial is globally unique.
             let serial = Self::param_text(params, "@Serial").unwrap_or_default();
-            if g.rows.iter().any(|r| cell_text(r, "serial").as_deref() == Some(&serial)) {
+            if g.rows
+                .iter()
+                .any(|r| cell_text(r, "serial").as_deref() == Some(&serial))
+            {
                 return Err(CaSqlError(format!("serial exists: {serial}")));
             }
             let mut row = CaSqlRow::new();
@@ -364,8 +367,12 @@ impl CaSqlExecutor for InMemoryCaSqlExecutor {
         if sql.starts_with("UPDATE nip_certs") {
             // Revoke: latest live record for nid.
             let nid = Self::param_text(params, "@Nid").unwrap_or_default();
-            let revoked_at = Self::param(params, "@RevokedAt").cloned().unwrap_or(CaSqlValue::Null);
-            let reason = Self::param(params, "@Reason").cloned().unwrap_or(CaSqlValue::Null);
+            let revoked_at = Self::param(params, "@RevokedAt")
+                .cloned()
+                .unwrap_or(CaSqlValue::Null);
+            let reason = Self::param(params, "@Reason")
+                .cloned()
+                .unwrap_or(CaSqlValue::Null);
             let idx = g.rows.iter().rposition(|r| {
                 cell_text(r, "nid").as_deref() == Some(&nid)
                     && !matches!(r.get("revoked_at"), Some(CaSqlValue::Text(_)))
@@ -485,8 +492,12 @@ mod tests {
     fn migrate_emits_schema_ddl() {
         let s = store();
         let log = s.executor.sql_log();
-        assert!(log.iter().any(|q| q.contains("CREATE TABLE IF NOT EXISTS nip_certs")));
-        assert!(log.iter().any(|q| q.contains("CREATE TABLE IF NOT EXISTS nip_serial")));
+        assert!(log
+            .iter()
+            .any(|q| q.contains("CREATE TABLE IF NOT EXISTS nip_certs")));
+        assert!(log
+            .iter()
+            .any(|q| q.contains("CREATE TABLE IF NOT EXISTS nip_serial")));
         assert!(log.iter().any(|q| q.contains("idx_nip_certs_parent_nid")));
     }
 
@@ -517,8 +528,12 @@ mod tests {
     fn get_by_nid_multiple_returns_latest() {
         let s = store();
         let now = OffsetDateTime::now_utc();
-        s.save(make_record("urn:nps:agent:test:renewed", "0x1", now - Duration::days(60)))
-            .unwrap();
+        s.save(make_record(
+            "urn:nps:agent:test:renewed",
+            "0x1",
+            now - Duration::days(60),
+        ))
+        .unwrap();
         s.save(make_record("urn:nps:agent:test:renewed", "0x2", now))
             .unwrap();
         let got = s.get_by_nid("urn:nps:agent:test:renewed").unwrap();
@@ -528,8 +543,12 @@ mod tests {
     #[test]
     fn get_by_serial_round_trips() {
         let s = store();
-        s.save(make_record("urn:nps:agent:test:agent-s", "0xABCD", OffsetDateTime::now_utc()))
-            .unwrap();
+        s.save(make_record(
+            "urn:nps:agent:test:agent-s",
+            "0xABCD",
+            OffsetDateTime::now_utc(),
+        ))
+        .unwrap();
         let got = s.get_by_serial("0xABCD").unwrap();
         assert_eq!(got.nid, "urn:nps:agent:test:agent-s");
     }
@@ -543,9 +562,17 @@ mod tests {
     #[test]
     fn revoke_sets_fields() {
         let s = store();
-        s.save(make_record("urn:nps:agent:test:to-revoke", "0x2", OffsetDateTime::now_utc()))
-            .unwrap();
-        let ok = s.revoke("urn:nps:agent:test:to-revoke", "key_compromise", OffsetDateTime::now_utc());
+        s.save(make_record(
+            "urn:nps:agent:test:to-revoke",
+            "0x2",
+            OffsetDateTime::now_utc(),
+        ))
+        .unwrap();
+        let ok = s.revoke(
+            "urn:nps:agent:test:to-revoke",
+            "key_compromise",
+            OffsetDateTime::now_utc(),
+        );
         assert!(ok);
         let got = s.get_by_nid("urn:nps:agent:test:to-revoke").unwrap();
         assert!(got.revoked_at.is_some());
@@ -555,16 +582,32 @@ mod tests {
     #[test]
     fn revoke_not_found_returns_false() {
         let s = store();
-        assert!(!s.revoke("urn:nps:agent:test:ghost", "superseded", OffsetDateTime::now_utc()));
+        assert!(!s.revoke(
+            "urn:nps:agent:test:ghost",
+            "superseded",
+            OffsetDateTime::now_utc()
+        ));
     }
 
     #[test]
     fn revoke_already_revoked_returns_false() {
         let s = store();
-        s.save(make_record("urn:nps:agent:test:already", "0x3", OffsetDateTime::now_utc()))
-            .unwrap();
-        s.revoke("urn:nps:agent:test:already", "superseded", OffsetDateTime::now_utc());
-        assert!(!s.revoke("urn:nps:agent:test:already", "key_compromise", OffsetDateTime::now_utc()));
+        s.save(make_record(
+            "urn:nps:agent:test:already",
+            "0x3",
+            OffsetDateTime::now_utc(),
+        ))
+        .unwrap();
+        s.revoke(
+            "urn:nps:agent:test:already",
+            "superseded",
+            OffsetDateTime::now_utc(),
+        );
+        assert!(!s.revoke(
+            "urn:nps:agent:test:already",
+            "key_compromise",
+            OffsetDateTime::now_utc()
+        ));
     }
 
     #[test]
@@ -579,9 +622,12 @@ mod tests {
     fn get_revoked_returns_only_revoked() {
         let s = store();
         let now = OffsetDateTime::now_utc();
-        s.save(make_record("urn:nps:agent:test:active", "0x10", now)).unwrap();
-        s.save(make_record("urn:nps:agent:test:revoked1", "0x11", now)).unwrap();
-        s.save(make_record("urn:nps:agent:test:revoked2", "0x12", now)).unwrap();
+        s.save(make_record("urn:nps:agent:test:active", "0x10", now))
+            .unwrap();
+        s.save(make_record("urn:nps:agent:test:revoked1", "0x11", now))
+            .unwrap();
+        s.save(make_record("urn:nps:agent:test:revoked2", "0x12", now))
+            .unwrap();
         s.revoke("urn:nps:agent:test:revoked1", "superseded", now);
         s.revoke("urn:nps:agent:test:revoked2", "key_compromise", now);
         let crl = s.get_revoked();
@@ -594,8 +640,10 @@ mod tests {
     fn list_returns_all() {
         let s = store();
         let now = OffsetDateTime::now_utc();
-        s.save(make_record("urn:nps:agent:sqlite.test:a", "0xA1", now)).unwrap();
-        s.save(make_record("urn:nps:agent:sqlite.test:b", "0xA2", now)).unwrap();
+        s.save(make_record("urn:nps:agent:sqlite.test:a", "0xA1", now))
+            .unwrap();
+        s.save(make_record("urn:nps:agent:sqlite.test:b", "0xA2", now))
+            .unwrap();
         let all = s.list();
         assert_eq!(all.len(), 2);
         assert!(all.iter().any(|r| r.serial == "0xA1"));
@@ -610,7 +658,8 @@ mod tests {
         child.parent_nid = Some("urn:nps:group:test:g1".into());
         child.nid_role = Some(super::super::store::ROLE_SESSION.into());
         s.save(child).unwrap();
-        s.save(make_record("urn:nps:agent:test:solo", "0xC2", now)).unwrap();
+        s.save(make_record("urn:nps:agent:test:solo", "0xC2", now))
+            .unwrap();
 
         let sessions = s.get_by_parent_nid("urn:nps:group:test:g1");
         assert_eq!(sessions.len(), 1);
@@ -620,7 +669,8 @@ mod tests {
     #[test]
     fn insert_sql_matches_dotnet_columns() {
         // The generated INSERT lists the nip_certs columns in the .NET order.
-        assert!(INSERT_SQL.contains("(nid, entity_type, serial, pub_key, capabilities_json, scope_json,"));
+        assert!(INSERT_SQL
+            .contains("(nid, entity_type, serial, pub_key, capabilities_json, scope_json,"));
         assert!(INSERT_SQL.contains("nid_role, parent_nid, lineage_json)"));
     }
 }

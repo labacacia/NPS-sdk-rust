@@ -28,8 +28,9 @@ pub const GRAPH_TOO_LARGE: &str = "NDP-GRAPH-TOO-LARGE";
 pub const ISSUER_NOT_ALLOWED: &str = "NDP-ISSUER-NOT-ALLOWED";
 pub const CA_ATTEST_REQUIRED: &str = "NDP-CA-ATTEST-REQUIRED";
 
-// ── Federation ────────────────────────────────────────────────────────────────
+// ── Federation / Cluster ──────────────────────────────────────────────────────
 pub const FEDERATION_LOOP: &str = "NDP-FEDERATION-LOOP";
+pub const CLUSTER_SPLIT: &str = "NDP-CLUSTER-SPLIT";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 pub const REGISTRY_UNAVAILABLE: &str = "NDP-REGISTRY-UNAVAILABLE";
@@ -61,6 +62,7 @@ pub fn to_nps_status(code: &str) -> &'static str {
         CA_ATTEST_REQUIRED => "NPS-AUTH-UNAUTHENTICATED",
 
         FEDERATION_LOOP => "NPS-CLIENT-CONFLICT",
+        CLUSTER_SPLIT => "NPS-CLIENT-CONFLICT",
 
         REGISTRY_UNAVAILABLE => "NPS-SERVER-UNAVAILABLE",
 
@@ -123,6 +125,12 @@ mod tests {
     }
 
     #[test]
+    fn cluster_split() {
+        assert_eq!(CLUSTER_SPLIT, "NDP-CLUSTER-SPLIT");
+        assert_eq!(to_nps_status(CLUSTER_SPLIT), "NPS-CLIENT-CONFLICT");
+    }
+
+    #[test]
     fn unknown_falls_back_to_internal() {
         assert_eq!(to_nps_status("NDP-BOGUS"), "NPS-SERVER-INTERNAL");
     }
@@ -149,6 +157,7 @@ mod tests {
             CA_ATTEST_REQUIRED,
             FEDERATION_LOOP,
             REGISTRY_UNAVAILABLE,
+            CLUSTER_SPLIT,
         ];
         for c in &codes {
             assert!(c.starts_with("NDP-"), "Expected NDP- prefix, got: {c}");

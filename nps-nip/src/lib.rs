@@ -9,7 +9,9 @@ pub mod cert_format;
 pub mod error_codes;
 pub mod frames;
 pub mod identity;
+pub mod phase3;
 pub mod reputation;
+pub mod revocation_policy;
 pub mod trust_validator;
 pub mod verifier;
 pub mod x509;
@@ -25,9 +27,9 @@ pub use ca::{
     PendingStatus, PendingStore, RegisterWithRaError, SqlNipCaStore,
 };
 pub use ca_client::{
-    NipCaClient, NipCaClientError, NipCaCrl, NipCaCrlEntry, NipCaDiscoveryDocument,
-    NipCaIdentFrame, NipCaRegisterRequest, NipCaRegisterX509Request, NipCaRevokeFrame,
-    NipCaVerifyResponse,
+    NipCaCertificateList, NipCaCertificateRecord, NipCaClient, NipCaClientError, NipCaCrl,
+    NipCaCrlEntry, NipCaDiscoveryDocument, NipCaIdentFrame, NipCaRegisterRequest,
+    NipCaRegisterX509Request, NipCaRevokeFrame, NipCaVerifyResponse,
 };
 pub use frames::{IdentFrame, IdentReputationPolicyHint, RevokeFrame, TrustFrame};
 pub use identity::NipIdentity;
@@ -35,9 +37,11 @@ pub use reputation::{
     sign_entry, verify_entry, IncidentType, InclusionProof, ObservationWindow, ReputationLogClient,
     ReputationLogEntry, Severity, SignedTreeHead,
 };
-pub use trust_validator::{
-    validate as validate_trust_frame, TrustFrameValidationContext,
+pub use phase3::{enforce as phase3_enforce, read_utf8_sequence_extension, try_get_ocsp_next_update};
+pub use revocation_policy::{
+    NipRevocationMode, NipRevocationOutcome, NipRevocationPolicy, NipRevocationSource,
 };
+pub use trust_validator::{validate as validate_trust_frame, TrustFrameValidationContext};
 pub use verifier::{
     nwp_path_matches, NipCaStore, NipCertRecord, NipIdentVerifier, NipIdentVerifyResult,
     NipRevocationCheck, NipVerifierOptions, NipVerifyContext, OcspResponse,

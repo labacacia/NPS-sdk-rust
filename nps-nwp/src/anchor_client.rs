@@ -72,6 +72,89 @@ pub struct TopologySnapshot {
     pub cluster_size: u32,
     pub members: Vec<MemberInfo>,
     pub truncated: Option<bool>,
+    /// NPS-CR-0009 — the epoch under which the responding Anchor owns this
+    /// cluster. Wire key `cluster_epoch`; absent ⇒ 1; not signed.
+    ///
+    /// Per NWP §12.2 every `topology.snapshot` / `topology.stream` response and
+    /// every topology-mutating write MUST carry the current `cluster_epoch`.
+    /// The wire key is declared explicitly here on purpose: the .NET reference
+    /// only lands on `cluster_epoch` via a serializer-wide snake_case policy.
+    #[serde(rename = "cluster_epoch", skip_serializing_if = "Option::is_none")]
+    pub cluster_epoch: Option<u64>,
+}
+
+impl TopologySnapshot {
+    /// `cluster_epoch` coerced for comparison: absent ⇒ 1.
+    pub fn effective_cluster_epoch(&self) -> u64 {
+        self.cluster_epoch.unwrap_or(1)
+    }
+}
+
+// ── AnchorState sub-types (NPS-CR-0009 §1.2 / §1.3) ──────────────────────────
+
+/// Sub-type tags and factories for the `anchor_state` topology event.
+///
+/// The tag constants deliberately live here on the event type rather than on a
+/// shared wire-constant bag, mirroring the .NET `AnchorState` placement.
+pub struct AnchorState;
+
+impl AnchorState {
+    /// Pre-existing sub-type (NPS-CR-0002).
+    pub const FIELD_VERSION_REBASED: &'static str = "version_rebased";
+    /// NPS-CR-0009 — ownership of the cluster moved to `successor_nid`.
+    pub const FIELD_ANCHOR_FAILOVER: &'static str = "anchor_failover";
+    /// NPS-CR-0009 — the Anchor lost quorum and is read-only-degraded.
+    pub const FIELD_ANCHOR_QUORUM_LOST: &'static str = "anchor_quorum_lost";
+
+    /// `reason` enum values for `anchor_failover`.
+    pub const REASON_PLANNED: &'static str = "planned";
+    pub const REASON_ACTIVE_LOST: &'static str = "active_lost";
+
+    /// Full-arity `anchor_failover` factory (NPS-CR-0009 §1.2). Not signed.
+    ///
+    /// `details` = `{ successor_nid, cluster_epoch, reason }`, all required.
+    pub fn failover_with(
+        successor_nid: impl Into<String>,
+        cluster_epoch: u64,
+        reason: impl Into<String>,
+        version: u64,
+    ) -> TopologyEvent {
+        TopologyEvent::AnchorState {
+            version,
+            field: Self::FIELD_ANCHOR_FAILOVER.to_string(),
+            details: Some(serde_json::json!({
+                "successor_nid": successor_nid.into(),
+                "cluster_epoch": cluster_epoch,
+                "reason":        reason.into(),
+            })),
+        }
+    }
+
+    /// Convenience over [`failover_with`][Self::failover_with] supplying the
+    /// factory defaults `reason = "planned"`, `version = 0`.
+    pub fn failover(successor_nid: impl Into<String>, cluster_epoch: u64) -> TopologyEvent {
+        Self::failover_with(successor_nid, cluster_epoch, Self::REASON_PLANNED, 0)
+    }
+
+    /// Full-arity `anchor_quorum_lost` factory (NPS-CR-0009 §1.3). Not signed.
+    ///
+    /// `details` = `{ quorum_size, available }`, both required.
+    pub fn quorum_lost_with(quorum_size: u32, available: u32, version: u64) -> TopologyEvent {
+        TopologyEvent::AnchorState {
+            version,
+            field: Self::FIELD_ANCHOR_QUORUM_LOST.to_string(),
+            details: Some(serde_json::json!({
+                "quorum_size": quorum_size,
+                "available":   available,
+            })),
+        }
+    }
+
+    /// Convenience over [`quorum_lost_with`][Self::quorum_lost_with] supplying
+    /// the factory default `version = 0`.
+    pub fn quorum_lost(quorum_size: u32, available: u32) -> TopologyEvent {
+        Self::quorum_lost_with(quorum_size, available, 0)
+    }
 }
 
 /// Subscriber-side filter for [`AnchorNodeClient::subscribe_with`].

@@ -34,6 +34,10 @@ use crate::assurance_level::{AssuranceLevel, ANONYMOUS};
 use crate::cert_format::V2_X509;
 use crate::error_codes;
 use crate::frames::IdentFrame;
+use crate::phase3;
+use crate::revocation_policy::{
+    NipRevocationMode, NipRevocationOutcome, NipRevocationPolicy, NipRevocationSource,
+};
 use crate::x509;
 
 // ── NipVerifyContext (NPS-3 §7 steps 1, 5, 6) ────────────────────────────────
@@ -106,6 +110,8 @@ pub struct NipVerifierOptions {
     pub trusted_x509_roots_der: Vec<Vec<u8>>,
     /// Local CRL: revoked serials checked before any network call (Step 4).
     pub local_revoked_serials: Vec<String>,
+    /// Marks an empty local CRL as a configured, current revocation source.
+    pub local_crl_configured: bool,
     /// Optional live revocation callback (Step 4).
     pub revocation_check: Option<NipRevocationCheck>,
     /// Optional CA store used as a live revocation source (Step 4).
@@ -115,9 +121,15 @@ pub struct NipVerifierOptions {
     /// When true, OCSP transport failures pass through. Secure default is
     /// fail-closed (`NIP-OCSP-UNAVAILABLE`).
     pub ocsp_fail_open: bool,
+    /// Required mode rejects when no revocation source is configured.
+    pub revocation_mode: NipRevocationMode,
     /// Minimum required assurance level (NPS-RFC-0003). Enforced as part of
     /// Step 3 when set.
     pub min_assurance_level: Option<AssuranceLevel>,
+    /// NIP v0.12 §7.5 hardens v2-x509 verification with CA-attested
+    /// node_roles/capabilities and OCSP-staple freshness checks. Defaults false
+    /// so existing v2 deployments remain advisory until explicitly enabled.
+    pub phase3_enforcement: bool,
 }
 
 impl std::fmt::Debug for NipVerifierOptions {
@@ -129,11 +141,14 @@ impl std::fmt::Debug for NipVerifierOptions {
                 &self.trusted_x509_roots_der.len(),
             )
             .field("local_revoked_serials", &self.local_revoked_serials)
+            .field("local_crl_configured", &self.local_crl_configured)
             .field("revocation_check", &self.revocation_check.is_some())
             .field("revocation_store", &self.revocation_store.is_some())
             .field("ocsp_url", &self.ocsp_url)
             .field("ocsp_fail_open", &self.ocsp_fail_open)
+            .field("revocation_mode", &self.revocation_mode)
             .field("min_assurance_level", &self.min_assurance_level)
+            .field("phase3_enforcement", &self.phase3_enforcement)
             .finish()
     }
 }
@@ -158,11 +173,7 @@ pub(crate) fn ok() -> NipIdentVerifyResult {
     }
 }
 
-pub(crate) fn fail(
-    step: u8,
-    code: &'static str,
-    msg: impl Into<String>,
-) -> NipIdentVerifyResult {
+pub(crate) fn fail(step: u8, code: &'static str, msg: impl Into<String>) -> NipIdentVerifyResult {
     NipIdentVerifyResult {
         valid: false,
         step_failed: step,
@@ -223,9 +234,7 @@ impl NipIdentVerifier {
                 return fail(
                     2,
                     error_codes::CERT_UNTRUSTED_ISSUER,
-                    format!(
-                        "Issuer '{declared}' does not match expected issuer '{issuer_nid}'."
-                    ),
+                    format!("Issuer '{declared}' does not match expected issuer '{issuer_nid}'."),
                 );
             }
         }
@@ -278,6 +287,26 @@ impl NipIdentVerifier {
                         .unwrap_or_else(|| "X.509 chain validation failed".into()),
                 );
             }
+            if self.options.phase3_enforcement {
+                let Some(leaf_b64u) = chain.first() else {
+                    return fail(3, error_codes::CERT_FORMAT_INVALID, "cert_chain is empty.");
+                };
+                let leaf_der = match base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(leaf_b64u)
+                {
+                    Ok(bytes) => bytes,
+                    Err(_) => {
+                        return fail(
+                            3,
+                            error_codes::CERT_FORMAT_INVALID,
+                            "cert_chain[0] is not valid base64url DER.",
+                        )
+                    }
+                };
+                let phase3_result = phase3::enforce(frame, &leaf_der, Some(now));
+                if !phase3_result.valid {
+                    return phase3_result;
+                }
+            }
         }
 
         // ── Step 4: Revocation ───────────────────────────────────────────
@@ -317,20 +346,27 @@ impl NipIdentVerifier {
 
     async fn check_revocation(&self, frame: &IdentFrame) -> NipIdentVerifyResult {
         let serial = frame.serial.as_deref().unwrap_or("");
+        let mut policy =
+            NipRevocationPolicy::new(self.options.revocation_mode, self.options.ocsp_fail_open);
 
         // Local CRL first (fast, no network).
-        if !serial.is_empty()
-            && self
-                .options
-                .local_revoked_serials
-                .iter()
-                .any(|s| s == serial)
-        {
-            return fail(
-                4,
-                error_codes::CERT_REVOKED,
-                format!("Certificate serial {serial} is in the local revocation list."),
-            );
+        if self.options.local_crl_configured || !self.options.local_revoked_serials.is_empty() {
+            let revoked = !serial.is_empty()
+                && self
+                    .options
+                    .local_revoked_serials
+                    .iter()
+                    .any(|s| s == serial);
+            if let Some(result) = policy.observe(
+                NipRevocationSource::LocalCrl,
+                if revoked {
+                    NipRevocationOutcome::Revoked
+                } else {
+                    NipRevocationOutcome::Good
+                },
+            ) {
+                return result;
+            }
         }
 
         // Live revocation callback.
@@ -340,31 +376,43 @@ impl NipIdentVerifier {
                     return r;
                 }
             }
+            let _ = policy.observe(NipRevocationSource::Callback, NipRevocationOutcome::Good);
         }
 
         // CA store lookup.
         if let Some(store) = &self.options.revocation_store {
-            if let Some(record) = store.get_by_serial(serial).await {
-                if let Some(revoked_at) = record.revoked_at {
-                    let reason = record.revoke_reason.unwrap_or_default();
-                    return fail(
-                        4,
-                        error_codes::CERT_REVOKED,
-                        format!(
-                            "Certificate serial {serial} was revoked at {revoked_at}: {reason}"
-                        ),
-                    );
-                }
+            let record = store.get_by_serial(serial).await;
+            let revoked = record
+                .as_ref()
+                .is_some_and(|item| item.revoked_at.is_some());
+            if let Some(result) = policy.observe(
+                NipRevocationSource::CaStore,
+                if revoked {
+                    NipRevocationOutcome::Revoked
+                } else {
+                    NipRevocationOutcome::Good
+                },
+            ) {
+                return result;
             }
         }
 
         // OCSP call to the CA server (optional).
         if let Some(ocsp_url) = self.options.ocsp_url.as_deref() {
-            return self.ocsp_check(ocsp_url, &frame.nid).await;
+            let ocsp = self.ocsp_check(ocsp_url, &frame.nid).await;
+            let outcome = if ocsp.valid {
+                NipRevocationOutcome::Good
+            } else if ocsp.error_code == Some(error_codes::CERT_REVOKED) {
+                NipRevocationOutcome::Revoked
+            } else {
+                NipRevocationOutcome::Unavailable
+            };
+            if let Some(result) = policy.observe(NipRevocationSource::Ocsp, outcome) {
+                return result;
+            }
         }
 
-        // Pass-through when revocation is unconfigured.
-        ok()
+        policy.complete()
     }
 
     async fn ocsp_check(&self, ocsp_url: &str, nid: &str) -> NipIdentVerifyResult {
@@ -401,15 +449,11 @@ impl NipIdentVerifier {
     }
 
     fn ocsp_transport_failure(&self, nid: &str, err: &str) -> NipIdentVerifyResult {
-        if self.options.ocsp_fail_open {
-            ok()
-        } else {
-            fail(
-                4,
-                error_codes::OCSP_UNAVAILABLE,
-                format!("OCSP call failed for NID {nid}: {err}"),
-            )
-        }
+        fail(
+            4,
+            error_codes::OCSP_UNAVAILABLE,
+            format!("OCSP call failed for NID {nid}: {err}"),
+        )
     }
 }
 
@@ -417,11 +461,7 @@ impl NipIdentVerifier {
 
 fn verify_signature(frame: &IdentFrame, ca_pub_key_str: &str) -> NipIdentVerifyResult {
     let Some(sig_str) = frame.signature.as_ref() else {
-        return fail(
-            3,
-            error_codes::CERT_SIGNATURE_INVALID,
-            "missing signature",
-        );
+        return fail(3, error_codes::CERT_SIGNATURE_INVALID, "missing signature");
     };
     if !sig_str.starts_with("ed25519:") {
         return fail(
@@ -522,8 +562,7 @@ pub fn nwp_path_matches(pattern: &str, path: &str) -> bool {
         let lower_path = path.to_ascii_lowercase();
         let lower_prefix = prefix.to_ascii_lowercase();
         return lower_path.starts_with(&lower_prefix)
-            && (path.len() == prefix.len()
-                || path.as_bytes().get(prefix.len()) == Some(&b'/'));
+            && (path.len() == prefix.len() || path.as_bytes().get(prefix.len()) == Some(&b'/'));
     }
     pattern.eq_ignore_ascii_case(path)
 }

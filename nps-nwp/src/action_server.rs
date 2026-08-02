@@ -179,16 +179,16 @@ impl ParsedActionFrame {
                 .get("idempotency_key")
                 .and_then(Value::as_str)
                 .map(String::from),
-            timeout_ms: obj
-                .get("timeout_ms")
-                .and_then(Value::as_u64)
-                .unwrap_or(0) as u32,
+            timeout_ms: obj.get("timeout_ms").and_then(Value::as_u64).unwrap_or(0) as u32,
             async_: obj.get("async").and_then(Value::as_bool).unwrap_or(false),
             callback_url: obj
                 .get("callback_url")
                 .and_then(Value::as_str)
                 .map(String::from),
-            priority: obj.get("priority").and_then(Value::as_str).map(String::from),
+            priority: obj
+                .get("priority")
+                .and_then(Value::as_str)
+                .map(String::from),
             request_id: obj
                 .get("request_id")
                 .and_then(Value::as_str)
@@ -420,7 +420,11 @@ pub fn validate_callback_url(callback_url: &str, reject_private: bool) -> Option
     }
     let parsed = match parse_absolute_url(callback_url) {
         Some(p) => p,
-        None => return Some(format!("callback_url '{callback_url}' is not a valid absolute URI.")),
+        None => {
+            return Some(format!(
+                "callback_url '{callback_url}' is not a valid absolute URI."
+            ))
+        }
     };
     if !parsed.scheme.eq_ignore_ascii_case("https") {
         return Some(format!(
@@ -446,7 +450,11 @@ pub(crate) struct ParsedUrl {
 pub(crate) fn parse_absolute_url(url: &str) -> Option<ParsedUrl> {
     let idx = url.find("://")?;
     let scheme = &url[..idx];
-    if scheme.is_empty() || !scheme.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.') {
+    if scheme.is_empty()
+        || !scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+    {
         return None;
     }
     let rest = &url[idx + 3..];
@@ -454,9 +462,7 @@ pub(crate) fn parse_absolute_url(url: &str) -> Option<ParsedUrl> {
         return None;
     }
     // authority ends at first '/', '?' or '#'
-    let auth_end = rest
-        .find(|c| c == '/' || c == '?' || c == '#')
-        .unwrap_or(rest.len());
+    let auth_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
     let authority = &rest[..auth_end];
     if authority.is_empty() {
         return None;
@@ -469,11 +475,7 @@ pub(crate) fn parse_absolute_url(url: &str) -> Option<ParsedUrl> {
         hostport[..=close].to_string()
     } else {
         // strip :port
-        hostport
-            .split(':')
-            .next()
-            .unwrap_or(hostport)
-            .to_string()
+        hostport.split(':').next().unwrap_or(hostport).to_string()
     };
     if host.is_empty() {
         return None;
@@ -757,7 +759,12 @@ impl ActionNodeApp {
                         .unwrap_or_else(|| "pending".into());
                     return self.write_async_response(task_id, &status, &frame.request_id, None);
                 }
-                return self.write_caps(&cached.result, cached.anchor_ref.as_deref(), &frame.request_id, 0);
+                return self.write_caps(
+                    &cached.result,
+                    cached.anchor_ref.as_deref(),
+                    &frame.request_id,
+                    0,
+                );
             }
         }
 
@@ -848,7 +855,10 @@ impl ActionNodeApp {
         };
 
         if let Some(key) = &frame.idempotency_key {
-            let anchor = result.anchor_ref.clone().or_else(|| spec.result_anchor.clone());
+            let anchor = result
+                .anchor_ref
+                .clone()
+                .or_else(|| spec.result_anchor.clone());
             self.idempotency.try_store(
                 &frame.action_id,
                 key,
@@ -863,8 +873,16 @@ impl ActionNodeApp {
             );
         }
 
-        let anchor = result.anchor_ref.clone().or_else(|| spec.result_anchor.clone());
-        self.write_caps(&result.result, anchor.as_deref(), &frame.request_id, result.token_est)
+        let anchor = result
+            .anchor_ref
+            .clone()
+            .or_else(|| spec.result_anchor.clone());
+        self.write_caps(
+            &result.result,
+            anchor.as_deref(),
+            &frame.request_id,
+            result.token_est,
+        )
     }
 
     fn handle_task_status(&self, frame: &ParsedActionFrame) -> NodeResponse {
@@ -900,8 +918,14 @@ impl ActionNodeApp {
         if let Some(p) = rec.progress {
             status.insert("progress".into(), json!(p));
         }
-        status.insert("created_at".into(), Value::String(fmt_rfc3339(&rec.created_at)));
-        status.insert("updated_at".into(), Value::String(fmt_rfc3339(&rec.updated_at)));
+        status.insert(
+            "created_at".into(),
+            Value::String(fmt_rfc3339(&rec.created_at)),
+        );
+        status.insert(
+            "updated_at".into(),
+            Value::String(fmt_rfc3339(&rec.updated_at)),
+        );
         if let Some(rid) = &rec.request_id {
             status.insert("request_id".into(), Value::String(rid.clone()));
         }
@@ -1025,13 +1049,13 @@ impl ActionNodeApp {
             headers.push((http_headers::SCHEMA.to_ascii_lowercase(), a.to_string()));
         }
         if token_est > 0 {
-            headers.push((http_headers::TOKENS.to_ascii_lowercase(), token_est.to_string()));
+            headers.push((
+                http_headers::TOKENS.to_ascii_lowercase(),
+                token_est.to_string(),
+            ));
         }
         if let Some(rid) = request_id {
-            headers.push((
-                http_headers::REQUEST_ID.to_ascii_lowercase(),
-                rid.clone(),
-            ));
+            headers.push((http_headers::REQUEST_ID.to_ascii_lowercase(), rid.clone()));
         }
         NodeResponse {
             status: 200,

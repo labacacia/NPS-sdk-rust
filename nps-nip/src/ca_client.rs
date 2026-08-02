@@ -60,7 +60,7 @@ pub struct NipCaIdentFrame {
     pub ocsp_staple: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NipCaCrlEntry {
     pub nid: String,
     pub serial: String,
@@ -70,12 +70,41 @@ pub struct NipCaCrlEntry {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NipCaCrl {
     pub issued_by: String,
     pub issued_at: String,
     pub entries: Vec<NipCaCrlEntry>,
     pub signature: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct NipCaCertificateRecord {
+    pub nid: String,
+    pub entity_type: String,
+    pub serial: String,
+    pub pub_key: String,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub scope: Value,
+    pub issued_by: String,
+    pub issued_at: String,
+    pub expires_at: String,
+    #[serde(default)]
+    pub revoked_at: Option<String>,
+    #[serde(default)]
+    pub revoke_reason: Option<String>,
+    #[serde(default)]
+    pub nid_role: Option<String>,
+    #[serde(default)]
+    pub parent_nid: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct NipCaCertificateList {
+    #[serde(default)]
+    pub entries: Vec<NipCaCertificateRecord>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -166,6 +195,32 @@ impl NipCaClient {
 
     pub async fn get_crl(&self) -> Result<NipCaCrl, NipCaClientError> {
         self.get_json(&format!("{}/v1/crl", self.prefix)).await
+    }
+
+    pub async fn get_certificates(
+        &self,
+        bearer_token: Option<&str>,
+    ) -> Result<NipCaCertificateList, NipCaClientError> {
+        self.send_json::<(), NipCaCertificateList>(
+            "GET",
+            &format!("{}/v1/certificates", self.prefix),
+            None,
+            bearer_token,
+        )
+        .await
+    }
+
+    /// Verify a signed CRL using the CA's `ed25519:{base64url}` public key.
+    pub fn verify_crl_signature(crl: &NipCaCrl, ca_public_key: &str) -> bool {
+        let Some(key) = crate::ca::signer::decode_public_key(ca_public_key) else {
+            return false;
+        };
+        let body = serde_json::json!({
+            "issued_by": crl.issued_by,
+            "issued_at": crl.issued_at,
+            "entries": crl.entries,
+        });
+        crate::ca::signer::verify(&key, &body, &crl.signature)
     }
 
     pub async fn register_agent(

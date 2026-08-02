@@ -20,6 +20,9 @@ use super::jws::{self, Envelope, Jwk, ProtectedHeader};
 use super::messages::*;
 use super::wire;
 
+type AcmeHeaders = Vec<(String, String)>;
+type AcmeHandlerResult = Result<(u16, String, AcmeHeaders), (u16, String)>;
+
 pub struct AcmeServerOptions {
     pub ca_nid: String,
     pub ca_signing_key: SigningKey,
@@ -140,7 +143,7 @@ fn handle_request(
     let path = req.url().to_string();
     let method = req.method().clone();
 
-    let result: Result<(u16, String, Vec<(String, String)>), (u16, String)> = (|| {
+    let result: AcmeHandlerResult = (|| {
         if method == Method::Get && path == "/directory" {
             return Ok(json_response(
                 200,
@@ -220,7 +223,7 @@ fn handle_new_account(
     req: &mut Request,
     state: &Arc<Mutex<State>>,
     base_url: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env: Envelope = read_envelope(req)?;
     let header = parse_header(&env)?;
     let Some(ref jwk) = header.jwk else {
@@ -274,7 +277,7 @@ fn handle_new_order(
     req: &mut Request,
     state: &Arc<Mutex<State>>,
     base_url: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env: Envelope = read_envelope(req)?;
     let header = parse_header(&env)?;
     if !consume_nonce(state, &header.nonce) {
@@ -383,7 +386,7 @@ fn handle_authz(
     state: &Arc<Mutex<State>>,
     base_url: &str,
     path: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env = read_envelope(req)?;
     let header = parse_header(&env)?;
     if !consume_nonce(state, &header.nonce) {
@@ -451,7 +454,7 @@ fn handle_challenge(
     state: &Arc<Mutex<State>>,
     base_url: &str,
     path: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env = read_envelope(req)?;
     let header = parse_header(&env)?;
     if !consume_nonce(state, &header.nonce) {
@@ -498,7 +501,7 @@ fn handle_challenge(
     }
     let payload: Option<ChallengeRespondPayload> = jws::decode_payload(&env)
         .map_err(|e| problem(400, "urn:ietf:params:acme:error:malformed", &e))?;
-    let agent_sig_b64 = match payload.and_then(|p| Some(p.agent_signature)) {
+    let agent_sig_b64 = match payload.map(|p| p.agent_signature) {
         Some(s) if !s.is_empty() => s,
         _ => {
             mark_challenge_invalid(state, &ch.id);
@@ -570,7 +573,7 @@ fn handle_finalize(
     opts: &Arc<AcmeServerOptions>,
     base_url: &str,
     path: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env = read_envelope(req)?;
     let header = parse_header(&env)?;
     if !consume_nonce(state, &header.nonce) {
@@ -684,6 +687,8 @@ fn handle_finalize(
         not_before: now - Duration::from_secs(60),
         not_after: now + opts.cert_validity,
         serial_number: &random_bytes(20),
+        attested_node_roles: None,
+        attested_capabilities: None,
     })
     .map_err(|e| {
         problem(
@@ -731,7 +736,7 @@ fn handle_cert(
     state: &Arc<Mutex<State>>,
     _base_url: &str,
     path: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env = read_envelope(req)?;
     let header = parse_header(&env)?;
     if !consume_nonce(state, &header.nonce) {
@@ -772,7 +777,7 @@ fn handle_order(
     state: &Arc<Mutex<State>>,
     base_url: &str,
     path: &str,
-) -> Result<(u16, String, Vec<(String, String)>), (u16, String)> {
+) -> AcmeHandlerResult {
     let env = read_envelope(req)?;
     let header = parse_header(&env)?;
     if !consume_nonce(state, &header.nonce) {

@@ -21,7 +21,9 @@ use crate::error_codes;
 use crate::input_mapper;
 use crate::models::{compensation_policy, TaskState};
 use crate::options::NopOrchestratorOptions;
-use crate::orch_models::{AlignStreamFrame, DagEdge, DagNode, DelegateFrame, TaskContext, TaskFrame};
+use crate::orch_models::{
+    AlignStreamFrame, DagEdge, DagNode, DelegateFrame, TaskContext, TaskFrame,
+};
 use crate::result::{NopTaskResult, SagaCompensationResult};
 use crate::store::{NopTaskRecord, NopTaskStore, SubtaskUpdate};
 use crate::validation::{validate_callback_url, validate_dag};
@@ -248,8 +250,7 @@ impl<W: NopWorkerClient, S: NopTaskStore> NopOrchestrator<W, S> {
         let mut node_states: HashMap<String, TaskState> = HashMap::new();
 
         // Identify end nodes (no outgoing edges).
-        let has_outgoing: HashSet<&str> =
-            task.dag.edges.iter().map(|e| e.from.as_str()).collect();
+        let has_outgoing: HashSet<&str> = task.dag.edges.iter().map(|e| e.from.as_str()).collect();
         let end_node_ids: Vec<String> = all_nodes
             .keys()
             .filter(|id| !has_outgoing.contains(id.as_str()))
@@ -275,7 +276,11 @@ impl<W: NopWorkerClient, S: NopTaskStore> NopOrchestrator<W, S> {
             let mut i = 0;
             while i < ready.len() {
                 let n = &ready[i];
-                let has_deps = n.input_from.as_ref().map(|d| !d.is_empty()).unwrap_or(false);
+                let has_deps = n
+                    .input_from
+                    .as_ref()
+                    .map(|d| !d.is_empty())
+                    .unwrap_or(false);
                 if !has_deps {
                     i += 1;
                     continue;
@@ -362,22 +367,21 @@ impl<W: NopWorkerClient, S: NopTaskStore> NopOrchestrator<W, S> {
                 if must_abort {
                     // Drain remaining in-flight nodes (they were already spawned).
                     while in_flight.next().await.is_some() {}
-                    let compensation = if compensation_policy::runs_on_failure(Some(
-                        &task.compensation_policy,
-                    )) {
-                        Some(
-                            self.run_saga_compensation(
-                                task,
-                                &all_nodes,
-                                topo_order,
-                                &node_results,
-                                &node_states,
+                    let compensation =
+                        if compensation_policy::runs_on_failure(Some(&task.compensation_policy)) {
+                            Some(
+                                self.run_saga_compensation(
+                                    task,
+                                    &all_nodes,
+                                    topo_order,
+                                    &node_results,
+                                    &node_states,
+                                )
+                                .await,
                             )
-                            .await,
-                        )
-                    } else {
-                        None
-                    };
+                        } else {
+                            None
+                        };
                     let error_code = compensation_failure_error_code(task, compensation.as_ref())
                         .unwrap_or_else(|| error_codes::SYNC_DEPENDENCY_FAILED.to_string());
                     return NopTaskResult::failure(
@@ -679,14 +683,12 @@ impl<W: NopWorkerClient, S: NopTaskStore> NopOrchestrator<W, S> {
                 let frame: AlignStreamFrame = frame;
 
                 // Sequence gap check.
-                if frame.seq != last_seq && frame.seq != 0 {
-                    if frame.seq != last_seq + 1 {
-                        return NodeOutcome::new(
-                            TaskState::Failed,
-                            None,
-                            Some(error_codes::STREAM_SEQ_GAP.to_string()),
-                        );
-                    }
+                if frame.seq != last_seq && frame.seq != 0 && frame.seq != last_seq + 1 {
+                    return NodeOutcome::new(
+                        TaskState::Failed,
+                        None,
+                        Some(error_codes::STREAM_SEQ_GAP.to_string()),
+                    );
                 }
                 last_seq = frame.seq;
 

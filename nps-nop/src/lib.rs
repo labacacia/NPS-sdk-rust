@@ -9,6 +9,7 @@
 pub mod aggregator;
 pub mod callback;
 pub mod client;
+pub mod cluster_delegation;
 pub mod condition;
 pub mod constants;
 pub mod error_codes;
@@ -18,6 +19,7 @@ pub mod models;
 pub mod options;
 pub mod orch_models;
 pub mod orchestrator;
+pub mod portable_profile;
 pub mod result;
 pub mod store;
 pub mod telemetry;
@@ -29,6 +31,7 @@ pub use telemetry::NopTelemetry;
 
 // ── Client (submit/poll) ──────────────────────────────────────────────────────
 pub use client::NopClient;
+pub use cluster_delegation::{ClusterAnchorInfo, ClusterDelegationResolver};
 
 // ── Wire frames (client-facing) ───────────────────────────────────────────────
 pub use frames::{AlignStreamFrame, DelegateFrame, SyncFrame, TaskFrame};
@@ -45,7 +48,10 @@ pub use orch_models::{
     TaskFrame as OrchTaskFrame,
 };
 pub use orchestrator::NopOrchestrator;
+pub use portable_profile::{compute_dedup_key, evaluate_orchestration, evaluate_runtime};
 pub use result::{NopTaskResult, SagaCompensationResult};
-pub use store::{InMemoryNopTaskStore, NopSubtaskRecord, NopTaskRecord, NopTaskStore, SubtaskUpdate};
+pub use store::{
+    InMemoryNopTaskStore, NopSubtaskRecord, NopTaskRecord, NopTaskStore, SubtaskUpdate,
+};
 pub use validation::{validate_callback_url, validate_dag, DagValidationResult};
 pub use worker::{NopWorkerClient, PreflightResult};

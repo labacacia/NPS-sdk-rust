@@ -26,5 +26,7 @@ pub const BAN_EXPIRES: &str = "X-NWP-Ban-Expires";
 
 // MIME types
 pub const MIME_FRAME: &str = "application/nwp-frame";
+pub const MIME_LEGACY_FRAME: &str = "application/x-nps-frame";
 pub const MIME_CAPSULE: &str = "application/nwp-capsule";
+pub const MIME_ERROR: &str = "application/nwp-error+json";
 pub const MIME_MANIFEST: &str = "application/nwp-manifest+json";

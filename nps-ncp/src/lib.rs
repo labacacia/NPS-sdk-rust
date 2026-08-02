@@ -3,11 +3,17 @@
 
 pub mod encoding_policy;
 pub mod error_codes;
+pub mod failover;
+pub mod handshake_profile;
 pub mod patch_format;
 pub mod preamble;
 pub mod transport;
 
 pub use encoding_policy::NcpEncodingPolicy;
+pub use handshake_profile::{
+    evaluate_hello_header, evaluate_preamble, negotiate_handshake, NcpHandshakeAction,
+    NcpHandshakeDecision, NcpHandshakeProfile,
+};
 pub use transport::{
     read_frame_header, ConnectError, NcpHandshakeError, NcpNativeClient, NcpServer,
     NcpServerConnection, NcpServerOptions, NcpSession, HANDSHAKE_UNEXPECTED_FRAME,
@@ -181,6 +187,16 @@ pub struct CapsFrame {
     /// Handshake — all encodings enabled by the negotiated policy, including
     /// optional extensions. Mirrors .NET `NcpHandshakeCapsFrame.EnabledEncodings`.
     pub enabled_encodings: Option<Vec<String>>,
+    /// Protocol version selected from the client/server version overlap.
+    pub session_version: Option<String>,
+    /// Protocol tokens enabled for the session, in client preference order.
+    pub supported_protocols: Option<Vec<String>>,
+    /// Negotiated ordinary frame payload ceiling.
+    pub max_frame_payload: Option<u64>,
+    /// Whether both peers support extended frame headers.
+    pub ext_support: Option<bool>,
+    /// Negotiated concurrent stream ceiling.
+    pub max_concurrent_streams: Option<u64>,
 }
 
 impl CapsFrame {
@@ -202,6 +218,11 @@ impl CapsFrame {
             payload: None,
             negotiated_encoding: None,
             enabled_encodings: None,
+            session_version: None,
+            supported_protocols: None,
+            max_frame_payload: None,
+            ext_support: None,
+            max_concurrent_streams: None,
         }
     }
 
@@ -244,6 +265,21 @@ impl CapsFrame {
         if let Some(v) = &self.enabled_encodings {
             m.insert("enabled_encodings".into(), json!(v));
         }
+        if let Some(v) = &self.session_version {
+            m.insert("session_version".into(), json!(v));
+        }
+        if let Some(v) = &self.supported_protocols {
+            m.insert("supported_protocols".into(), json!(v));
+        }
+        if let Some(v) = self.max_frame_payload {
+            m.insert("max_frame_payload".into(), json!(v));
+        }
+        if let Some(v) = self.ext_support {
+            m.insert("ext_support".into(), json!(v));
+        }
+        if let Some(v) = self.max_concurrent_streams {
+            m.insert("max_concurrent_streams".into(), json!(v));
+        }
         m
     }
 
@@ -275,12 +311,28 @@ impl CapsFrame {
             tokenizer_used: opt_str(d, "tokenizer_used").map(str::to_string),
             payload: d.get("payload").cloned(),
             negotiated_encoding: opt_str(d, "negotiated_encoding").map(str::to_string),
-            enabled_encodings: d.get("enabled_encodings").and_then(Value::as_array).map(|a| {
-                a.iter()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect()
-            }),
+            enabled_encodings: d
+                .get("enabled_encodings")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                }),
+            session_version: opt_str(d, "session_version").map(str::to_string),
+            supported_protocols: d
+                .get("supported_protocols")
+                .and_then(Value::as_array)
+                .map(|a| {
+                    a.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                }),
+            max_frame_payload: opt_u64(d, "max_frame_payload"),
+            ext_support: d.get("ext_support").and_then(Value::as_bool),
+            max_concurrent_streams: opt_u64(d, "max_concurrent_streams"),
         })
     }
 }

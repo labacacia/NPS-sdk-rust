@@ -196,7 +196,11 @@ impl RecordingExecutor {
 }
 
 impl SqlExecutor for RecordingExecutor {
-    fn query(&self, sql: &str, _params: &SqlParams) -> Result<Vec<MemoryNodeRow>, SqlExecutorError> {
+    fn query(
+        &self,
+        sql: &str,
+        _params: &SqlParams,
+    ) -> Result<Vec<MemoryNodeRow>, SqlExecutorError> {
         self.last_sql.lock().unwrap().push(sql.to_string());
         Ok(self.pages.lock().unwrap().pop_front().unwrap_or_default())
     }

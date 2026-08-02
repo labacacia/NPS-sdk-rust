@@ -15,7 +15,8 @@ use crate::assurance_level::AssuranceLevel;
 
 use super::oids::{
     build_eku_extension_value, EKU_AGENT_IDENTITY_OID, EKU_NODE_IDENTITY_OID,
-    EXTENSION_EXTENDED_KEY_USAGE_OID, NID_ASSURANCE_LEVEL_OID,
+    EXTENSION_EXTENDED_KEY_USAGE_OID, ID_NPS_CAPABILITIES_OID, ID_NPS_NODE_ROLES_OID,
+    NID_ASSURANCE_LEVEL_OID,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,6 +35,16 @@ pub struct IssueLeafOptions<'a> {
     pub not_before: SystemTime,
     pub not_after: SystemTime,
     pub serial_number: &'a [u8],
+    /// NIP v0.12 — CA-attested node roles, emitted as the non-critical
+    /// `id-nps-node-roles` extension (`SEQUENCE OF UTF8String`).
+    ///
+    /// `None` OMITS the extension entirely, which makes the Phase-3 node-roles
+    /// check skip; `Some(&[])` emits a present-but-empty attestation, under
+    /// which any claim fails. The two are NOT interchangeable.
+    pub attested_node_roles: Option<&'a [String]>,
+    /// NIP v0.12 — CA-attested capabilities, emitted as the non-critical
+    /// `id-nps-capabilities` extension. Same `None` / `Some(&[])` distinction.
+    pub attested_capabilities: Option<&'a [String]>,
 }
 
 pub struct IssueRootOptions<'a> {
@@ -137,6 +148,22 @@ pub fn issue_leaf(opts: IssueLeafOptions<'_>) -> Result<Certificate, String> {
     let assurance_der = vec![0x0A, 0x01, opts.assurance_level.rank];
     let assurance_ext = CustomExtension::from_oid_content(NID_ASSURANCE_LEVEL_OID, assurance_der);
     params.custom_extensions.push(assurance_ext);
+
+    // NIP v0.12 attested attributes — non-critical SEQUENCE OF UTF8String.
+    if let Some(roles) = opts.attested_node_roles {
+        let refs: Vec<&str> = roles.iter().map(String::as_str).collect();
+        params.custom_extensions.push(CustomExtension::from_oid_content(
+            ID_NPS_NODE_ROLES_OID,
+            crate::phase3::build_utf8_sequence_extension_value(&refs),
+        ));
+    }
+    if let Some(caps) = opts.attested_capabilities {
+        let refs: Vec<&str> = caps.iter().map(String::as_str).collect();
+        params.custom_extensions.push(CustomExtension::from_oid_content(
+            ID_NPS_CAPABILITIES_OID,
+            crate::phase3::build_utf8_sequence_extension_value(&refs),
+        ));
+    }
 
     params
         .signed_by(&subject_spki, opts.ca_root_cert, &ca_keypair)

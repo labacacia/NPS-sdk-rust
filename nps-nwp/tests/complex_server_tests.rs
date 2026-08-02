@@ -7,7 +7,9 @@
 
 use std::sync::Arc;
 
-use nps_nwp::action_server::{ActionContext, ActionError, ActionExecutionResult, ParsedActionFrame};
+use nps_nwp::action_server::{
+    ActionContext, ActionError, ActionExecutionResult, ParsedActionFrame,
+};
 use nps_nwp::complex_server::*;
 use nps_nwp::memory_server::{
     MemoryNodeError, MemoryNodeQueryResult, MemoryNodeRow, ParsedQueryFrame,
@@ -72,8 +74,10 @@ impl ChildFetcher for StubFetcher {
 
 fn opts_with_child() -> ComplexNodeOptions {
     let mut o = ComplexNodeOptions::new(NID, PREFIX);
-    o.graph
-        .push(ComplexGraphRef::new("orders", "https://child.example.com/node"));
+    o.graph.push(ComplexGraphRef::new(
+        "orders",
+        "https://child.example.com/node",
+    ));
     o.graph_max_depth = 3;
     o
 }
@@ -165,10 +169,7 @@ async fn private_child_url_yields_child_error() {
     let v = resp.json_value().unwrap();
     let child = &v["graph"][0];
     assert!(child.get("data").is_none());
-    assert!(child["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("SSRF"));
+    assert!(child["error"]["message"].as_str().unwrap().contains("SSRF"));
 }
 
 #[tokio::test]
@@ -207,7 +208,10 @@ async fn invoke_async_rejected() {
         .with_json(&json!({ "action_id": "cx.act", "async": true }));
     let resp = app.handle(req).await;
     assert_eq!(resp.status, 400);
-    assert_eq!(resp.json_value().unwrap()["error"], "NWP-ACTION-PARAMS-INVALID");
+    assert_eq!(
+        resp.json_value().unwrap()["error"],
+        "NWP-ACTION-PARAMS-INVALID"
+    );
 }
 
 #[tokio::test]

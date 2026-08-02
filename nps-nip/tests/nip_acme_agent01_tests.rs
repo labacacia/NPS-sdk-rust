@@ -85,7 +85,7 @@ async fn issue_agent_cert_round_trip_returns_valid_pem_chain() {
         cert_chain_b64u_der: &chain_b64u,
         asserted_nid: &fx.agent_nid,
         asserted_assurance_level: Some(nps_nip::ANONYMOUS),
-        trusted_root_certs_der: &[fx.ca_root_der.clone()],
+        trusted_root_certs_der: std::slice::from_ref(&fx.ca_root_der),
     });
     assert!(
         r.valid,

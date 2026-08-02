@@ -41,6 +41,14 @@ pub const COMPENSATION_NOT_SUPPORTED: &str = "NOP-COMPENSATION-NOT-SUPPORTED";
 
 // ── Callback ──────────────────────────────────────────────────────────────────
 pub const CALLBACK_HMAC_MISSING: &str = "NOP-CALLBACK-HMAC-MISSING";
+pub const CALLBACK_INVALID: &str = "NOP-CALLBACK-INVALID";
+pub const CALLBACK_HMAC_INVALID: &str = "NOP-CALLBACK-HMAC-INVALID";
+
+// ── NPS-CR-0007 L3 runtime ────────────────────────────────────────────────────
+pub const CLAIM_CONFLICT: &str = "NOP-CLAIM-CONFLICT";
+pub const SPAWN_SPEC_INVALID: &str = "NOP-SPAWN-SPEC-INVALID";
+pub const RUNTIME_IDLE_TIMEOUT: &str = "NOP-RUNTIME-IDLE-TIMEOUT";
+pub const RUNTIME_MAX_RUNTIME: &str = "NOP-RUNTIME-MAX-RUNTIME";
 
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
@@ -74,9 +82,15 @@ pub fn to_nps_status(code: &str) -> &'static str {
         CONDITION_EVAL_ERROR => "NPS-CLIENT-BAD-PARAM",
         INPUT_MAPPING_ERROR => "NPS-CLIENT-UNPROCESSABLE",
         COMPENSATION_FAILED => "NPS-CLIENT-UNPROCESSABLE",
+        COMPENSATION_PARTIAL_FAILED => "NPS-CLIENT-UNPROCESSABLE",
         COMPENSATION_NOT_SUPPORTED => "NPS-CLIENT-UNPROCESSABLE",
 
         CALLBACK_HMAC_MISSING => "NPS-AUTH-UNAUTHENTICATED",
+        CALLBACK_INVALID => "NPS-CLIENT-BAD-PARAM",
+        CALLBACK_HMAC_INVALID => "NPS-AUTH-UNAUTHENTICATED",
+        CLAIM_CONFLICT => "NPS-CLIENT-CONFLICT",
+        SPAWN_SPEC_INVALID => "NPS-CLIENT-BAD-PARAM",
+        RUNTIME_IDLE_TIMEOUT | RUNTIME_MAX_RUNTIME => "NPS-SERVER-TIMEOUT",
 
         _ => "NPS-SERVER-INTERNAL",
     }
@@ -146,6 +160,10 @@ mod tests {
             "NPS-CLIENT-UNPROCESSABLE"
         );
         assert_eq!(
+            to_nps_status(COMPENSATION_PARTIAL_FAILED),
+            "NPS-CLIENT-UNPROCESSABLE"
+        );
+        assert_eq!(
             to_nps_status(COMPENSATION_NOT_SUPPORTED),
             "NPS-CLIENT-UNPROCESSABLE"
         );
@@ -189,6 +207,7 @@ mod tests {
             CONDITION_EVAL_ERROR,
             INPUT_MAPPING_ERROR,
             COMPENSATION_FAILED,
+            COMPENSATION_PARTIAL_FAILED,
             COMPENSATION_NOT_SUPPORTED,
             CALLBACK_HMAC_MISSING,
         ];

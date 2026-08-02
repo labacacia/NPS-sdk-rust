@@ -36,6 +36,15 @@ pub const PREAMBLE_INVALID: &str = "NCP-PREAMBLE-INVALID";
 pub const KEEPALIVE_TIMEOUT: &str = "NCP-KEEPALIVE-TIMEOUT";
 pub const REKEY_REQUIRED: &str = "NCP-REKEY-REQUIRED";
 
+// ── Native-mode TLS binding (NPS-RFC-0006 §6.3–§6.4) ─────────────────────────
+/// The mTLS client-certificate NID does not match the session `IdentFrame` NID,
+/// or a resumed TLS session's certificate NID differs from the ticket-bound NID.
+///
+/// Reused (not introduced) by NPS-CR-0009 as the native-path failover trigger:
+/// reaching a superseded Anchor produces this, and the failover connector
+/// re-resolves rather than giving up.
+pub const NID_MISMATCH: &str = "NCP-NID-MISMATCH";
+
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
 /// Map a NCP error code to the corresponding NPS status code.
@@ -68,6 +77,8 @@ pub fn to_nps_status(code: &str) -> &'static str {
         PREAMBLE_INVALID => "NPS-PROTO-PREAMBLE-INVALID",
         KEEPALIVE_TIMEOUT => "NPS-SERVER-TIMEOUT",
         REKEY_REQUIRED => "NPS-CLIENT-BAD-FRAME",
+
+        NID_MISMATCH => "NPS-AUTH-UNAUTHENTICATED",
 
         _ => "NPS-SERVER-INTERNAL",
     }
@@ -132,6 +143,12 @@ mod tests {
     }
 
     #[test]
+    fn nid_mismatch() {
+        assert_eq!(NID_MISMATCH, "NCP-NID-MISMATCH");
+        assert_eq!(to_nps_status(NID_MISMATCH), "NPS-AUTH-UNAUTHENTICATED");
+    }
+
+    #[test]
     fn constants_have_correct_prefix() {
         let codes = [
             ANCHOR_NOT_FOUND,
@@ -151,6 +168,9 @@ mod tests {
             ENC_AUTH_FAILED,
             VERSION_INCOMPATIBLE,
             PREAMBLE_INVALID,
+            KEEPALIVE_TIMEOUT,
+            REKEY_REQUIRED,
+            NID_MISMATCH,
         ];
         for c in &codes {
             assert!(c.starts_with("NCP-"), "Expected NCP- prefix, got: {c}");

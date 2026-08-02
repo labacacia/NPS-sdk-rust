@@ -63,6 +63,7 @@ pub struct NpsConformanceValidation {
 }
 
 impl NpsConformanceManifest {
+    #[allow(clippy::too_many_arguments)]
     pub fn create(
         profile: impl Into<String>,
         iut_name: impl Into<String>,
@@ -482,7 +483,7 @@ mod tests {
             "0.1.0",
             "urn:nps:node:example.test:node-1",
             "reference",
-            "1.0.0-alpha.16",
+            "1.0.0-alpha.17",
             results,
             "",
         );

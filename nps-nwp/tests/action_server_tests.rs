@@ -53,7 +53,8 @@ fn base_opts() -> ActionNodeOptions {
             ..Default::default()
         },
     );
-    o.actions.insert("orders.fail".into(), ActionSpec::new(false));
+    o.actions
+        .insert("orders.fail".into(), ActionSpec::new(false));
     o
 }
 
@@ -156,7 +157,10 @@ async fn invalid_priority_is_400() {
     )
     .await;
     assert_eq!(resp.status, 400);
-    assert_eq!(resp.json_value().unwrap()["error"], "NWP-ACTION-PARAMS-INVALID");
+    assert_eq!(
+        resp.json_value().unwrap()["error"],
+        "NWP-ACTION-PARAMS-INVALID"
+    );
 }
 
 // ── Async invoke + reserved task actions ─────────────────────────────────────────
@@ -170,7 +174,7 @@ async fn async_invoke_returns_202_task_handle() {
     .await;
     assert_eq!(resp.status, 202);
     let v = resp.json_value().unwrap();
-    assert!(v["task_id"].as_str().unwrap().len() > 0);
+    assert!(!v["task_id"].as_str().unwrap().is_empty());
     assert_eq!(v["poll_url"], format!("{PREFIX}/invoke"));
     assert_eq!(resp.header("X-NWP-Node-Type").unwrap(), "action");
 }
@@ -183,7 +187,10 @@ async fn async_on_sync_only_action_is_400() {
     )
     .await;
     assert_eq!(resp.status, 400);
-    assert_eq!(resp.json_value().unwrap()["error"], "NWP-ACTION-PARAMS-INVALID");
+    assert_eq!(
+        resp.json_value().unwrap()["error"],
+        "NWP-ACTION-PARAMS-INVALID"
+    );
 }
 
 #[tokio::test]
@@ -307,10 +314,16 @@ async fn idempotent_async_rehit_returns_same_task() {
         "action_id": "orders.async", "async": true, "params": { "x": 1 }, "idempotency_key": "a1"
     });
     let first = run(&app, invoke(body.clone())).await;
-    let first_task = first.json_value().unwrap()["task_id"].as_str().unwrap().to_string();
+    let first_task = first.json_value().unwrap()["task_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
     let second = run(&app, invoke(body)).await;
     assert_eq!(second.status, 202);
-    let second_task = second.json_value().unwrap()["task_id"].as_str().unwrap().to_string();
+    let second_task = second.json_value().unwrap()["task_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
     assert_eq!(first_task, second_task);
 }
 
@@ -360,7 +373,10 @@ async fn callback_private_host_rejected() {
     )
     .await;
     assert_eq!(resp.status, 400);
-    assert_eq!(resp.json_value().unwrap()["error"], "NWP-ACTION-PARAMS-INVALID");
+    assert_eq!(
+        resp.json_value().unwrap()["error"],
+        "NWP-ACTION-PARAMS-INVALID"
+    );
 }
 
 #[tokio::test]
@@ -411,5 +427,8 @@ async fn missing_agent_when_auth_required_is_401() {
         .with_json(&json!({ "action_id": "orders.create" }));
     let resp = app.handle(req).await;
     assert_eq!(resp.status, 401);
-    assert_eq!(resp.json_value().unwrap()["status"], "NPS-CLIENT-UNAUTHORIZED");
+    assert_eq!(
+        resp.json_value().unwrap()["status"],
+        "NPS-CLIENT-UNAUTHORIZED"
+    );
 }

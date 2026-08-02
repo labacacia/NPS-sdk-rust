@@ -139,7 +139,10 @@ impl ParsedQueryFrame {
             .map(|l| l as u32)
             .unwrap_or(default_limit);
         Ok(ParsedQueryFrame {
-            anchor_ref: obj.get("anchor_ref").and_then(Value::as_str).map(String::from),
+            anchor_ref: obj
+                .get("anchor_ref")
+                .and_then(Value::as_str)
+                .map(String::from),
             filter: obj.get("filter").cloned().filter(|v| !v.is_null()),
             fields: obj.get("fields").and_then(Value::as_array).map(|a| {
                 a.iter()
@@ -232,7 +235,7 @@ impl MemoryNodeProvider for InMemoryMemoryNodeProvider {
         let mut out: Vec<MemoryNodeRow> = Vec::new();
         for row in &self.rows {
             let keep = match &frame.filter {
-                Some(f) => match_filter(row, f)? ,
+                Some(f) => match_filter(row, f)?,
                 None => true,
             };
             if keep {
@@ -318,10 +321,18 @@ fn match_field_cond(actual: &Value, cond: &Value) -> Result<bool, MemoryNodeErro
         let ok = match op.as_str() {
             "$eq" => actual == expected,
             "$ne" => actual != expected,
-            "$lt" => cmp_num(actual, expected).map(|o| o.is_lt()).unwrap_or(false),
-            "$lte" => cmp_num(actual, expected).map(|o| o.is_le()).unwrap_or(false),
-            "$gt" => cmp_num(actual, expected).map(|o| o.is_gt()).unwrap_or(false),
-            "$gte" => cmp_num(actual, expected).map(|o| o.is_ge()).unwrap_or(false),
+            "$lt" => cmp_num(actual, expected)
+                .map(|o| o.is_lt())
+                .unwrap_or(false),
+            "$lte" => cmp_num(actual, expected)
+                .map(|o| o.is_le())
+                .unwrap_or(false),
+            "$gt" => cmp_num(actual, expected)
+                .map(|o| o.is_gt())
+                .unwrap_or(false),
+            "$gte" => cmp_num(actual, expected)
+                .map(|o| o.is_ge())
+                .unwrap_or(false),
             "$in" => expected
                 .as_array()
                 .map(|a| a.iter().any(|v| v == actual))
@@ -365,10 +376,7 @@ pub struct MemoryNodeApp {
 }
 
 impl MemoryNodeApp {
-    pub fn new(
-        opt: MemoryNodeOptions,
-        provider: std::sync::Arc<dyn MemoryNodeProvider>,
-    ) -> Self {
+    pub fn new(opt: MemoryNodeOptions, provider: std::sync::Arc<dyn MemoryNodeProvider>) -> Self {
         let prefix = opt.path_prefix.trim_end_matches('/').to_string();
         let schema_json = serde_json::to_vec(&build_frame_schema(&opt.schema)).unwrap_or_default();
         let anchor_id = format!("sha256:{}", hex::encode(Sha256::digest(&schema_json)));
@@ -519,7 +527,10 @@ impl MemoryNodeApp {
                     http_headers::SCHEMA.to_ascii_lowercase(),
                     self.anchor_id.clone(),
                 ),
-                (http_headers::TOKENS.to_ascii_lowercase(), token_est.to_string()),
+                (
+                    http_headers::TOKENS.to_ascii_lowercase(),
+                    token_est.to_string(),
+                ),
                 (
                     http_headers::NODE_TYPE.to_ascii_lowercase(),
                     NODE_TYPE_MEMORY.into(),
@@ -548,7 +559,11 @@ impl MemoryNodeApp {
             }
         };
         let stream_id = gen_hex(16);
-        let data: Vec<Value> = result.rows.iter().map(|r| Value::Object(r.clone())).collect();
+        let data: Vec<Value> = result
+            .rows
+            .iter()
+            .map(|r| Value::Object(r.clone()))
+            .collect();
 
         let mut out = String::new();
         let chunk = json!({
@@ -601,15 +616,17 @@ fn effective_budget(agent_budget: u32, cgn_limit: u32) -> u32 {
 
 fn measure_rows(rows: &[MemoryNodeRow]) -> u32 {
     let arr: Vec<Value> = rows.iter().map(|r| Value::Object(r.clone())).collect();
-    let bytes = serde_json::to_vec(&Value::Array(arr)).map(|v| v.len()).unwrap_or(0);
-    ((bytes + 3) / 4) as u32
+    let bytes = serde_json::to_vec(&Value::Array(arr))
+        .map(|v| v.len())
+        .unwrap_or(0);
+    bytes.div_ceil(4) as u32
 }
 
 fn measure_row(row: &MemoryNodeRow) -> u32 {
     let bytes = serde_json::to_vec(&Value::Object(row.clone()))
         .map(|v| v.len())
         .unwrap_or(0);
-    ((bytes + 3) / 4) as u32
+    bytes.div_ceil(4) as u32
 }
 
 fn trim_to_budget(rows: &[MemoryNodeRow], budget: u32) -> (Vec<MemoryNodeRow>, u32) {
@@ -651,10 +668,7 @@ fn build_manifest(opt: &MemoryNodeOptions, prefix: &str, anchor_id: &str) -> Val
     }
     m.insert("wire_formats".into(), json!(["ncp-capsule", "json"]));
     m.insert("preferred_format".into(), Value::String("json".into()));
-    m.insert(
-        "schema_anchors".into(),
-        json!({ "default": anchor_id }),
-    );
+    m.insert("schema_anchors".into(), json!({ "default": anchor_id }));
     m.insert(
         "capabilities".into(),
         json!({ "query": true, "stream": true, "token_budget_hint": true }),

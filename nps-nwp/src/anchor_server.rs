@@ -235,6 +235,9 @@ pub struct InMemoryAnchorTopologyService {
     pub members: Vec<MemberInfo>,
     pub version: u64,
     pub events: Vec<TopologyEvent>,
+    /// NPS-CR-0009 — stamped onto every snapshot (NWP §12.2). `None` means a
+    /// single-Anchor cluster, which is read as epoch 1 and emits nothing.
+    pub cluster_epoch: Option<u64>,
 }
 
 impl AnchorTopologyService for InMemoryAnchorTopologyService {
@@ -254,6 +257,7 @@ impl AnchorTopologyService for InMemoryAnchorTopologyService {
             cluster_size: self.members.len() as u32,
             members,
             truncated: None,
+            cluster_epoch: self.cluster_epoch,
         }
     }
 

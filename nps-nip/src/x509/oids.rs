@@ -13,8 +13,12 @@ pub const EKU_CA_INTERMEDIATE_AGENT_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 1, 
 
 // Custom extensions.
 pub const NID_ASSURANCE_LEVEL_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 1];
-// Reserved per NPS-CR-0004; no consumer wired in yet.
+/// `id-nps-node-roles` — DER `SEQUENCE OF UTF8String` of CA-attested node roles.
+/// Consumed by NIP v0.12 Phase-3 enforcement.
 pub const ID_NPS_NODE_ROLES_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 2];
+/// `id-nps-capabilities` — DER `SEQUENCE OF UTF8String` of CA-attested
+/// capabilities. Consumed by NIP v0.12 Phase-3 enforcement.
+pub const ID_NPS_CAPABILITIES_OID: &[u64] = &[1, 3, 6, 1, 4, 1, 65715, 2, 3];
 
 // Standard X.509 OID for ExtendedKeyUsage extension (id-ce-extKeyUsage).
 pub const EXTENSION_EXTENDED_KEY_USAGE_OID: &[u64] = &[2, 5, 29, 37];

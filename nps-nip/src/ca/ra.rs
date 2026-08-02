@@ -433,18 +433,16 @@ pub fn create_enrollment_policy<'a>(
         ))),
         EnrollmentTier::BootstrapToken => match bootstrap_token_store {
             Some(s) => Ok(Box::new(BootstrapTokenPolicy::new(s))),
-            None => Err(
-                "EnrollmentTier::BootstrapToken requires a BootstrapTokenStore.".to_string(),
-            ),
+            None => {
+                Err("EnrollmentTier::BootstrapToken requires a BootstrapTokenStore.".to_string())
+            }
         },
         EnrollmentTier::PendingQueue => match pending_store {
             Some(s) => Ok(Box::new(PendingQueuePolicy::new(
                 s,
                 opts.pending_queue_max_size,
             ))),
-            None => {
-                Err("EnrollmentTier::PendingQueue requires a PendingStore.".to_string())
-            }
+            None => Err("EnrollmentTier::PendingQueue requires a PendingStore.".to_string()),
         },
     }
 }

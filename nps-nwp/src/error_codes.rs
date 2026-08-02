@@ -70,6 +70,7 @@ pub const HTTP_CONTENT_TYPE_UNSUPPORTED: &str = "NWP-HTTP-CONTENT-TYPE-UNSUPPORT
 pub const HTTP_ACCEPT_UNSATISFIABLE: &str = "NWP-HTTP-ACCEPT-UNSATISFIABLE";
 pub const HTTP_REQUEST_ID_MISMATCH: &str = "NWP-HTTP-REQUEST-ID-MISMATCH";
 pub const HTTP_FRAME_BODY_MALFORMED: &str = "NWP-HTTP-FRAME-BODY-MALFORMED";
+pub const HTTP_BODY_TOO_LARGE: &str = "NWP-HTTP-BODY-TOO-LARGE";
 pub const CAPABILITY_ADVERTISED_UNIMPLEMENTED: &str = "NWP-CAPABILITY-ADVERTISED-UNIMPLEMENTED";
 
 // ── Topology (NPS-CR-0002) ────────────────────────────────────────────────────
@@ -77,6 +78,35 @@ pub const TOPOLOGY_UNAUTHORIZED: &str = "NWP-TOPOLOGY-UNAUTHORIZED";
 pub const TOPOLOGY_UNSUPPORTED_SCOPE: &str = "NWP-TOPOLOGY-UNSUPPORTED-SCOPE";
 pub const TOPOLOGY_DEPTH_UNSUPPORTED: &str = "NWP-TOPOLOGY-DEPTH-UNSUPPORTED";
 pub const TOPOLOGY_FILTER_UNSUPPORTED: &str = "NWP-TOPOLOGY-FILTER-UNSUPPORTED";
+
+// ── Multi-Anchor HA (NPS-CR-0009) ─────────────────────────────────────────────
+/// A topology WRITE reached a standby, or the active owner while
+/// read-only-degraded (quorum lost).
+pub const ANCHOR_NOT_LEADER: &str = "NWP-ANCHOR-NOT-LEADER";
+/// An inbound frame carried a `cluster_epoch` STRICTLY GREATER than the
+/// receiver's own — the receiver is a superseded leader and self-fences.
+/// `<=` the receiver's own epoch is deliberately NOT an error.
+pub const ANCHOR_EPOCH_FENCED: &str = "NWP-ANCHOR-EPOCH-FENCED";
+
+// ── Bridge (NPS-CR-0010) ──────────────────────────────────────────────────────
+/// Both directions. The request targets a protocol/direction pair this Bridge
+/// Node did not declare.
+pub const BRIDGE_DIRECTION_UNSUPPORTED: &str = "NWP-BRIDGE-DIRECTION-UNSUPPORTED";
+/// Outbound. No valid `bridge_target` object, or it fails schema validation.
+pub const BRIDGE_TARGET_INVALID: &str = "NWP-BRIDGE-TARGET-INVALID";
+/// Outbound. `bridge_target.protocol` is well-formed but has no dispatcher.
+pub const BRIDGE_PROTOCOL_UNSUPPORTED: &str = "NWP-BRIDGE-PROTOCOL-UNSUPPORTED";
+/// Outbound. `bridge_target.endpoint` is not a valid URL or is SSRF-blocked.
+pub const BRIDGE_ENDPOINT_INVALID: &str = "NWP-BRIDGE-ENDPOINT-INVALID";
+/// Outbound. The external call failed at the transport layer or timed out.
+pub const BRIDGE_UPSTREAM_FAILED: &str = "NWP-BRIDGE-UPSTREAM-FAILED";
+/// Inbound. The foreign client named a tool / action / resource not exposed.
+pub const BRIDGE_SERVER_TOOL_NOT_FOUND: &str = "NWP-BRIDGE-SERVER-TOOL-NOT-FOUND";
+/// Inbound. The Bridge was started without a backend for the node it fronts —
+/// a deployment fault, not a client fault.
+pub const BRIDGE_SERVER_DISPATCHER_MISSING: &str = "NWP-BRIDGE-SERVER-DISPATCHER-MISSING";
+/// Inbound. Dispatch to the fronted NPS node failed unexpectedly.
+pub const BRIDGE_SERVER_DISPATCH_FAILED: &str = "NWP-BRIDGE-SERVER-DISPATCH-FAILED";
 
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
@@ -137,12 +167,25 @@ pub fn to_nps_status(code: &str) -> &'static str {
         HTTP_ACCEPT_UNSATISFIABLE => "NPS-CLIENT-BAD-PARAM",
         HTTP_REQUEST_ID_MISMATCH => "NPS-CLIENT-BAD-PARAM",
         HTTP_FRAME_BODY_MALFORMED => "NPS-CLIENT-BAD-FRAME",
+        HTTP_BODY_TOO_LARGE => "NPS-LIMIT-PAYLOAD",
         CAPABILITY_ADVERTISED_UNIMPLEMENTED => "NPS-SERVER-UNSUPPORTED",
 
         TOPOLOGY_UNAUTHORIZED => "NPS-AUTH-FORBIDDEN",
         TOPOLOGY_UNSUPPORTED_SCOPE => "NPS-CLIENT-BAD-PARAM",
         TOPOLOGY_DEPTH_UNSUPPORTED => "NPS-CLIENT-BAD-PARAM",
         TOPOLOGY_FILTER_UNSUPPORTED => "NPS-CLIENT-BAD-PARAM",
+
+        ANCHOR_NOT_LEADER => "NPS-CLIENT-CONFLICT",
+        ANCHOR_EPOCH_FENCED => "NPS-CLIENT-CONFLICT",
+
+        BRIDGE_DIRECTION_UNSUPPORTED => "NPS-SERVER-UNSUPPORTED",
+        BRIDGE_TARGET_INVALID => "NPS-CLIENT-UNPROCESSABLE",
+        BRIDGE_PROTOCOL_UNSUPPORTED => "NPS-SERVER-UNSUPPORTED",
+        BRIDGE_ENDPOINT_INVALID => "NPS-CLIENT-UNPROCESSABLE",
+        BRIDGE_UPSTREAM_FAILED => "NPS-DOWNSTREAM-UNAVAILABLE",
+        BRIDGE_SERVER_TOOL_NOT_FOUND => "NPS-CLIENT-NOT-FOUND",
+        BRIDGE_SERVER_DISPATCHER_MISSING => "NPS-SERVER-INTERNAL",
+        BRIDGE_SERVER_DISPATCH_FAILED => "NPS-SERVER-INTERNAL",
 
         _ => "NPS-SERVER-INTERNAL",
     }
@@ -296,6 +339,75 @@ mod tests {
     }
 
     #[test]
+    fn multi_anchor_ha_errors() {
+        assert_eq!(ANCHOR_NOT_LEADER, "NWP-ANCHOR-NOT-LEADER");
+        assert_eq!(ANCHOR_EPOCH_FENCED, "NWP-ANCHOR-EPOCH-FENCED");
+        assert_eq!(to_nps_status(ANCHOR_NOT_LEADER), "NPS-CLIENT-CONFLICT");
+        assert_eq!(to_nps_status(ANCHOR_EPOCH_FENCED), "NPS-CLIENT-CONFLICT");
+    }
+
+    #[test]
+    fn bridge_errors() {
+        assert_eq!(
+            to_nps_status(BRIDGE_DIRECTION_UNSUPPORTED),
+            "NPS-SERVER-UNSUPPORTED"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_TARGET_INVALID),
+            "NPS-CLIENT-UNPROCESSABLE"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_PROTOCOL_UNSUPPORTED),
+            "NPS-SERVER-UNSUPPORTED"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_ENDPOINT_INVALID),
+            "NPS-CLIENT-UNPROCESSABLE"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_UPSTREAM_FAILED),
+            "NPS-DOWNSTREAM-UNAVAILABLE"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_SERVER_TOOL_NOT_FOUND),
+            "NPS-CLIENT-NOT-FOUND"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_SERVER_DISPATCHER_MISSING),
+            "NPS-SERVER-INTERNAL"
+        );
+        assert_eq!(
+            to_nps_status(BRIDGE_SERVER_DISPATCH_FAILED),
+            "NPS-SERVER-INTERNAL"
+        );
+    }
+
+    /// Statuses invented by the pre-CR-0010 implementations and removed by it.
+    /// A port MUST NOT reintroduce them.
+    #[test]
+    fn removed_invented_statuses_are_never_produced() {
+        let banned = [
+            "NPS-SERVER-NOT-IMPLEMENTED",
+            "NPS-SERVER-ERROR",
+            "NPS-CLIENT-UNAUTHORIZED",
+            "NPS-CLIENT-BAD-REQUEST",
+            "NPS-SERVER-UPSTREAM-FAILED",
+        ];
+        for code in [
+            BRIDGE_DIRECTION_UNSUPPORTED,
+            BRIDGE_TARGET_INVALID,
+            BRIDGE_PROTOCOL_UNSUPPORTED,
+            BRIDGE_ENDPOINT_INVALID,
+            BRIDGE_UPSTREAM_FAILED,
+            BRIDGE_SERVER_TOOL_NOT_FOUND,
+            BRIDGE_SERVER_DISPATCHER_MISSING,
+            BRIDGE_SERVER_DISPATCH_FAILED,
+        ] {
+            assert!(!banned.contains(&to_nps_status(code)), "{code}");
+        }
+    }
+
+    #[test]
     fn unknown_falls_back_to_internal() {
         assert_eq!(to_nps_status("NWP-BOGUS"), "NPS-SERVER-INTERNAL");
     }
@@ -353,6 +465,16 @@ mod tests {
             TOPOLOGY_UNSUPPORTED_SCOPE,
             TOPOLOGY_DEPTH_UNSUPPORTED,
             TOPOLOGY_FILTER_UNSUPPORTED,
+            ANCHOR_NOT_LEADER,
+            ANCHOR_EPOCH_FENCED,
+            BRIDGE_DIRECTION_UNSUPPORTED,
+            BRIDGE_TARGET_INVALID,
+            BRIDGE_PROTOCOL_UNSUPPORTED,
+            BRIDGE_ENDPOINT_INVALID,
+            BRIDGE_UPSTREAM_FAILED,
+            BRIDGE_SERVER_TOOL_NOT_FOUND,
+            BRIDGE_SERVER_DISPATCHER_MISSING,
+            BRIDGE_SERVER_DISPATCH_FAILED,
         ];
         for c in &codes {
             assert!(c.starts_with("NWP-"), "Expected NWP- prefix, got: {c}");

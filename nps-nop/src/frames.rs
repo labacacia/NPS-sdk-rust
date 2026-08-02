@@ -109,10 +109,10 @@ impl DelegateFrame {
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("parent_task_id".into(), json!(self.task_id));
+        m.insert("task_id".into(), json!(self.task_id));
         m.insert("subtask_id".into(), json!(self.subtask_id));
         m.insert("action".into(), json!(self.action));
-        m.insert("target_agent_nid".into(), json!(self.target_nid));
+        m.insert("target_nid".into(), json!(self.target_nid));
         if let Some(v) = &self.inputs {
             m.insert("inputs".into(), v.clone());
         }
@@ -130,10 +130,10 @@ impl DelegateFrame {
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
         Ok(DelegateFrame {
-            task_id: get_str(d, "parent_task_id")?.to_string(),
+            task_id: get_str(d, "task_id")?.to_string(),
             subtask_id: get_str(d, "subtask_id")?.to_string(),
             action: get_str(d, "action")?.to_string(),
-            target_nid: get_str(d, "target_agent_nid")?.to_string(),
+            target_nid: get_str(d, "target_nid")?.to_string(),
             inputs: d.get("inputs").cloned(),
             config: d.get("config").cloned(),
             idempotency_key: opt_str(d, "idempotency_key").map(str::to_string),
@@ -163,7 +163,7 @@ impl SyncFrame {
         let mut m = serde_json::Map::new();
         m.insert("task_id".into(), json!(self.task_id));
         m.insert("sync_id".into(), json!(self.sync_id));
-        m.insert("wait_for".into(), json!(self.subtask_ids));
+        m.insert("subtask_ids".into(), json!(self.subtask_ids));
         m.insert("min_required".into(), json!(self.min_required));
         m.insert("aggregate".into(), json!(self.aggregate));
         if let Some(v) = self.timeout_ms {
@@ -174,7 +174,7 @@ impl SyncFrame {
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
         let subtask_ids = d
-            .get("wait_for")
+            .get("subtask_ids")
             .and_then(Value::as_array)
             .map(|a| {
                 a.iter()
@@ -232,13 +232,13 @@ impl AlignStreamFrame {
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("stream_id".into(), json!(self.sync_id));
+        m.insert("sync_id".into(), json!(self.sync_id));
         m.insert("task_id".into(), json!(self.task_id));
         m.insert("subtask_id".into(), json!(self.subtask_id));
         m.insert("seq".into(), json!(self.seq));
         m.insert("is_final".into(), json!(self.is_final));
         if let Some(v) = &self.source_nid {
-            m.insert("sender_nid".into(), json!(v));
+            m.insert("source_nid".into(), json!(v));
         }
         if let Some(v) = &self.result {
             m.insert("result".into(), v.clone());
@@ -260,12 +260,12 @@ impl AlignStreamFrame {
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
         Ok(AlignStreamFrame {
-            sync_id: get_str(d, "stream_id")?.to_string(),
+            sync_id: get_str(d, "sync_id")?.to_string(),
             task_id: get_str(d, "task_id")?.to_string(),
             subtask_id: get_str(d, "subtask_id")?.to_string(),
             seq: opt_u64(d, "seq").unwrap_or(0),
             is_final: d.get("is_final").and_then(Value::as_bool).unwrap_or(false),
-            source_nid: opt_str(d, "sender_nid").map(str::to_string),
+            source_nid: opt_str(d, "source_nid").map(str::to_string),
             result: d.get("result").cloned(),
             error: d.get("error").cloned(),
             window_size: opt_u64(d, "window_size"),

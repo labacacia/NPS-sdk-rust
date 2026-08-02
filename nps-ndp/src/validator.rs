@@ -3,6 +3,7 @@
 
 use crate::error_codes::{ANNOUNCE_NID_MISMATCH, ANNOUNCE_SIGNATURE_INVALID};
 use crate::frames::AnnounceFrame;
+use crate::registry_profile::verify_announce_signature;
 use nps_nip::identity::NipIdentity;
 use std::collections::HashMap;
 
@@ -73,7 +74,10 @@ impl NdpAnnounceValidator {
         }
 
         let unsigned = frame.unsigned_dict();
-        if NipIdentity::verify_with_pub_key_str(&unsigned, pub_key, &frame.signature) {
+        let wire = serde_json::Value::Object(frame.to_dict());
+        if verify_announce_signature(&wire, pub_key, &frame.signature)
+            || NipIdentity::verify_with_pub_key_str(&unsigned, pub_key, &frame.signature)
+        {
             NdpAnnounceResult::ok()
         } else {
             NdpAnnounceResult::fail(ANNOUNCE_SIGNATURE_INVALID, "signature verification failed")

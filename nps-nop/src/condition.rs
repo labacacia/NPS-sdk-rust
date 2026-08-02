@@ -126,7 +126,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, ConditionError> {
                 i += 1;
             }
             i += 1; // closing quote
-            // content between quotes
+                    // content between quotes
             let content: String = chars[(start + 1)..(i - 1)].iter().collect();
             push(&mut tokens, TokenKind::Str, &content);
             continue;

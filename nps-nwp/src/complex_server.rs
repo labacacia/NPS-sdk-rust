@@ -27,7 +27,9 @@ use crate::action_server::{
     is_private_host, parse_absolute_url, ActionContext, ActionError, ActionExecutionResult,
     ActionSpec, ParsedActionFrame, SYSTEM_TASK_CANCEL, SYSTEM_TASK_STATUS,
 };
-use crate::memory_server::{MemoryNodeError, MemoryNodeQueryResult, MemoryNodeSchema, ParsedQueryFrame};
+use crate::memory_server::{
+    MemoryNodeError, MemoryNodeQueryResult, MemoryNodeSchema, ParsedQueryFrame,
+};
 use crate::node_http::{empty, error_resp, NodeRequest, NodeResponse};
 use crate::{error_codes, http_headers};
 
@@ -191,16 +193,18 @@ pub fn validate_child_url(
     };
     let is_https = parsed.scheme.eq_ignore_ascii_case("https");
     let is_http = parsed.scheme.eq_ignore_ascii_case("http");
-    if !is_https && !(allow_http && is_http) {
+    if !(is_https || allow_http && is_http) {
         return Some(format!(
             "child node URL MUST use the https:// scheme (got '{}://').",
             parsed.scheme
         ));
     }
     if !allowed_prefixes.is_empty() {
-        let matched = allowed_prefixes
-            .iter()
-            .any(|p| child_url.to_ascii_lowercase().starts_with(&p.to_ascii_lowercase()));
+        let matched = allowed_prefixes.iter().any(|p| {
+            child_url
+                .to_ascii_lowercase()
+                .starts_with(&p.to_ascii_lowercase())
+        });
         if !matched {
             return Some(format!(
                 "child node URL '{child_url}' is not in the allowed prefix list."
@@ -309,7 +313,8 @@ impl ComplexNodeApp {
                 body: self.nwm_json.clone(),
             },
             "/.schema" | "/.schema/" => {
-                let mut headers = vec![("content-type".to_string(), "application/json".to_string())];
+                let mut headers =
+                    vec![("content-type".to_string(), "application/json".to_string())];
                 if !self.anchor_id.is_empty() {
                     headers.push((
                         http_headers::SCHEMA.to_ascii_lowercase(),
@@ -460,7 +465,10 @@ impl ComplexNodeApp {
         }
 
         let mut headers = vec![
-            ("content-type".to_string(), http_headers::MIME_CAPSULE.to_string()),
+            (
+                "content-type".to_string(),
+                http_headers::MIME_CAPSULE.to_string(),
+            ),
             (
                 http_headers::NODE_TYPE.to_ascii_lowercase(),
                 NODE_TYPE_COMPLEX.into(),
@@ -639,7 +647,10 @@ impl ComplexNodeApp {
         }
 
         let mut headers = vec![
-            ("content-type".to_string(), http_headers::MIME_CAPSULE.to_string()),
+            (
+                "content-type".to_string(),
+                http_headers::MIME_CAPSULE.to_string(),
+            ),
             (
                 http_headers::NODE_TYPE.to_ascii_lowercase(),
                 NODE_TYPE_COMPLEX.into(),
@@ -690,12 +701,7 @@ impl ComplexNodeApp {
 
 // ── Free helpers ───────────────────────────────────────────────────────────────
 
-fn child_result(
-    rel: &str,
-    node: &str,
-    data: Option<Value>,
-    error: Option<(&str, &str)>,
-) -> Value {
+fn child_result(rel: &str, node: &str, data: Option<Value>, error: Option<(&str, &str)>) -> Value {
     let mut m = Map::new();
     m.insert("rel".into(), Value::String(rel.into()));
     m.insert("node".into(), Value::String(node.into()));
@@ -703,10 +709,7 @@ fn child_result(
         m.insert("data".into(), d);
     }
     if let Some((code, message)) = error {
-        m.insert(
-            "error".into(),
-            json!({ "code": code, "message": message }),
-        );
+        m.insert("error".into(), json!({ "code": code, "message": message }));
     }
     Value::Object(m)
 }

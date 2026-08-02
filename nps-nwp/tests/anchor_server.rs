@@ -137,6 +137,7 @@ async fn snapshot_wire_compat() {
         members: members(),
         version: 7,
         events: vec![],
+        cluster_epoch: None,
     });
     let mut o = base_opts();
     o.require_auth = false;
@@ -173,6 +174,7 @@ async fn stream_ndjson() {
         members: members(),
         version: 1,
         events,
+        cluster_epoch: None,
     });
     let mut o = base_opts();
     o.require_auth = false;
@@ -198,6 +200,7 @@ async fn topology_errors() {
         members: members(),
         version: 1,
         events: vec![],
+        cluster_epoch: None,
     });
     let app = AnchorNodeApp::new(base_opts(), None, Some(topo), None);
 
@@ -240,6 +243,7 @@ async fn capability_gate() {
         members: members(),
         version: 1,
         events: vec![],
+        cluster_epoch: None,
     });
     let mut o = base_opts();
     o.require_topology_capability = true;

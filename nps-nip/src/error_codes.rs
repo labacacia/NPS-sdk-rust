@@ -17,6 +17,10 @@ pub const CA_NID_ALREADY_EXISTS: &str = "NIP-CA-NID-ALREADY-EXISTS";
 pub const CA_SERIAL_DUPLICATE: &str = "NIP-CA-SERIAL-DUPLICATE";
 pub const CA_RENEWAL_TOO_EARLY: &str = "NIP-CA-RENEWAL-TOO-EARLY";
 pub const CA_SCOPE_EXPANSION_DENIED: &str = "NIP-CA-SCOPE-EXPANSION-DENIED";
+pub const RA_TOKEN_INVALID: &str = "NIP-RA-TOKEN-INVALID";
+pub const RA_TOKEN_EXPIRED: &str = "NIP-RA-TOKEN-EXPIRED";
+pub const RA_NID_NOT_ALLOWED: &str = "NIP-RA-NID-NOT-ALLOWED";
+pub const RA_PENDING_REJECTED: &str = "NIP-RA-PENDING-REJECTED";
 
 pub const OCSP_UNAVAILABLE: &str = "NIP-OCSP-UNAVAILABLE";
 pub const TRUST_FRAME_INVALID: &str = "NIP-TRUST-FRAME-INVALID";
@@ -66,11 +70,13 @@ pub const OCSP_STAPLE_EXPIRED: &str = "NIP-OCSP-STAPLE-EXPIRED";
 // ── NIP v0.10 — node_roles ────────────────────────────────────────────────────
 pub const CERT_NODE_ROLES_MISMATCH: &str = "NIP-CERT-NODE-ROLES-MISMATCH";
 
-// ── RA enrollment (NPS-CR-0005) ──────────────────────────────────────────────
-pub const RA_TOKEN_INVALID: &str = "NIP-RA-TOKEN-INVALID";
-pub const RA_TOKEN_EXPIRED: &str = "NIP-RA-TOKEN-EXPIRED";
-pub const RA_NID_NOT_ALLOWED: &str = "NIP-RA-NID-NOT-ALLOWED";
-pub const RA_PENDING_REJECTED: &str = "NIP-RA-PENDING-REJECTED";
+// ── NIP v0.12 — Phase-3 enforcement ──────────────────────────────────────────
+/// `IdentFrame.capabilities` claims a capability absent from the CA-attested
+/// `id-nps-capabilities` extension.
+///
+/// Note the asymmetry with its sibling `NIP-CERT-NODE-ROLES-MISMATCH`: this one
+/// maps to `NPS-AUTH-FORBIDDEN`, not `NPS-CLIENT-BAD-FRAME`.
+pub const CERT_CAPABILITIES_EXCEEDED: &str = "NIP-CERT-CAPABILITIES-EXCEEDED";
 
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
@@ -91,6 +97,10 @@ pub fn to_nps_status(code: &str) -> &'static str {
         CA_SERIAL_DUPLICATE => "NPS-CLIENT-CONFLICT",
         CA_RENEWAL_TOO_EARLY => "NPS-CLIENT-BAD-PARAM",
         CA_SCOPE_EXPANSION_DENIED => "NPS-AUTH-FORBIDDEN",
+        RA_TOKEN_INVALID => "NPS-AUTH-UNAUTHENTICATED",
+        RA_TOKEN_EXPIRED => "NPS-AUTH-UNAUTHENTICATED",
+        RA_NID_NOT_ALLOWED => "NPS-AUTH-FORBIDDEN",
+        RA_PENDING_REJECTED => "NPS-AUTH-FORBIDDEN",
 
         OCSP_UNAVAILABLE => "NPS-SERVER-UNAVAILABLE",
         OCSP_STAPLE_EXPIRED => "NPS-AUTH-UNAUTHENTICATED",
@@ -134,11 +144,8 @@ pub fn to_nps_status(code: &str) -> &'static str {
         // NIP v0.10 (node_roles)
         CERT_NODE_ROLES_MISMATCH => "NPS-AUTH-FORBIDDEN",
 
-        // NPS-CR-0005 (RA enrollment)
-        RA_TOKEN_INVALID => "NPS-AUTH-UNAUTHENTICATED",
-        RA_TOKEN_EXPIRED => "NPS-AUTH-UNAUTHENTICATED",
-        RA_NID_NOT_ALLOWED => "NPS-AUTH-FORBIDDEN",
-        RA_PENDING_REJECTED => "NPS-AUTH-FORBIDDEN",
+        // NIP v0.12 (Phase-3 enforcement)
+        CERT_CAPABILITIES_EXCEEDED => "NPS-AUTH-FORBIDDEN",
 
         _ => "NPS-SERVER-INTERNAL",
     }
@@ -271,6 +278,23 @@ mod tests {
     }
 
     #[test]
+    fn phase3_errors() {
+        assert_eq!(
+            CERT_CAPABILITIES_EXCEEDED,
+            "NIP-CERT-CAPABILITIES-EXCEEDED"
+        );
+        // Deliberately asymmetric with its node_roles sibling.
+        assert_eq!(
+            to_nps_status(CERT_CAPABILITIES_EXCEEDED),
+            "NPS-AUTH-FORBIDDEN"
+        );
+        assert_eq!(
+            to_nps_status(CERT_NODE_ROLES_MISMATCH),
+            "NPS-AUTH-FORBIDDEN"
+        );
+    }
+
+    #[test]
     fn unknown_falls_back_to_internal() {
         assert_eq!(to_nps_status("NIP-BOGUS"), "NPS-SERVER-INTERNAL");
     }
@@ -318,6 +342,7 @@ mod tests {
             CA_JWS_EXPIRED,
             CERT_PARENT_REVOKED,
             CERT_NODE_ROLES_MISMATCH,
+            CERT_CAPABILITIES_EXCEEDED,
         ];
         for c in &codes {
             assert!(c.starts_with("NIP-"), "Expected NIP- prefix, got: {c}");
