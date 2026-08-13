@@ -152,17 +152,21 @@ pub fn issue_leaf(opts: IssueLeafOptions<'_>) -> Result<Certificate, String> {
     // NIP v0.12 attested attributes — non-critical SEQUENCE OF UTF8String.
     if let Some(roles) = opts.attested_node_roles {
         let refs: Vec<&str> = roles.iter().map(String::as_str).collect();
-        params.custom_extensions.push(CustomExtension::from_oid_content(
-            ID_NPS_NODE_ROLES_OID,
-            crate::phase3::build_utf8_sequence_extension_value(&refs),
-        ));
+        params
+            .custom_extensions
+            .push(CustomExtension::from_oid_content(
+                ID_NPS_NODE_ROLES_OID,
+                crate::phase3::build_utf8_sequence_extension_value(&refs),
+            ));
     }
     if let Some(caps) = opts.attested_capabilities {
         let refs: Vec<&str> = caps.iter().map(String::as_str).collect();
-        params.custom_extensions.push(CustomExtension::from_oid_content(
-            ID_NPS_CAPABILITIES_OID,
-            crate::phase3::build_utf8_sequence_extension_value(&refs),
-        ));
+        params
+            .custom_extensions
+            .push(CustomExtension::from_oid_content(
+                ID_NPS_CAPABILITIES_OID,
+                crate::phase3::build_utf8_sequence_extension_value(&refs),
+            ));
     }
 
     params

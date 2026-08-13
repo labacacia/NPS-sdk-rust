@@ -79,7 +79,9 @@ impl McpInboundServer {
                 }),
             ),
             "ping" => BridgeJsonRpcResponse::ok(id, json!({})),
-            "tools/list" => BridgeJsonRpcResponse::ok(id, json!({ "tools": self.list_tools().await })),
+            "tools/list" => {
+                BridgeJsonRpcResponse::ok(id, json!({ "tools": self.list_tools().await }))
+            }
             "tools/call" => self.tools_call(id, req.params.as_ref()).await,
             "resources/list" => {
                 BridgeJsonRpcResponse::ok(id, json!({ "resources": self.list_resources().await }))
@@ -391,7 +393,11 @@ impl McpInboundServer {
                     None,
                 ),
             };
-            writeln!(output, "{}", serde_json::to_string(&resp).unwrap_or_default())?;
+            writeln!(
+                output,
+                "{}",
+                serde_json::to_string(&resp).unwrap_or_default()
+            )?;
             output.flush()?;
         }
         Ok(())

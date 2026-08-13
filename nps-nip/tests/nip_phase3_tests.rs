@@ -85,7 +85,11 @@ fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
     } else if content.len() < 0x100 {
         v.extend([0x81, content.len() as u8]);
     } else {
-        v.extend([0x82, (content.len() >> 8) as u8, (content.len() & 0xFF) as u8]);
+        v.extend([
+            0x82,
+            (content.len() >> 8) as u8,
+            (content.len() & 0xFF) as u8,
+        ]);
     }
     v.extend_from_slice(content);
     v
@@ -150,7 +154,11 @@ fn subset_claims_with_fresh_staple_pass() {
     f.ocsp_staple = Some(fresh_staple());
 
     let r = phase3::enforce(&f, &der, Some(NOW));
-    assert!(r.valid, "expected valid, got {:?} {:?}", r.error_code, r.message);
+    assert!(
+        r.valid,
+        "expected valid, got {:?} {:?}",
+        r.error_code, r.message
+    );
 }
 
 #[test]
@@ -349,7 +357,10 @@ fn v2_frame(
 ) -> IdentFrame {
     let mut f = IdentFrame::new(
         NID.to_string(),
-        format!("ed25519:{}", hex::encode(subject_sk.verifying_key().as_bytes())),
+        format!(
+            "ed25519:{}",
+            hex::encode(subject_sk.verifying_key().as_bytes())
+        ),
     );
     f.capabilities = caps.unwrap_or_default();
     f.ocsp_staple = staple;
@@ -428,7 +439,10 @@ async fn flag_off_means_a_failing_frame_still_verifies_advisory_only() {
     let v = NipIdentVerifier::new(NipVerifierOptions {
         trusted_ca_public_keys: map(&[(
             "urn:nps:org:example.com",
-            &format!("ed25519:{}", hex::encode(c.ca_sk.verifying_key().as_bytes())),
+            &format!(
+                "ed25519:{}",
+                hex::encode(c.ca_sk.verifying_key().as_bytes())
+            ),
         )]),
         trusted_x509_roots_der: vec![c.root.clone()],
         phase3_enforcement: false,
@@ -454,7 +468,10 @@ async fn flag_on_makes_the_same_frame_a_hard_failure() {
     let v = NipIdentVerifier::new(NipVerifierOptions {
         trusted_ca_public_keys: map(&[(
             "urn:nps:org:example.com",
-            &format!("ed25519:{}", hex::encode(c.ca_sk.verifying_key().as_bytes())),
+            &format!(
+                "ed25519:{}",
+                hex::encode(c.ca_sk.verifying_key().as_bytes())
+            ),
         )]),
         trusted_x509_roots_der: vec![c.root.clone()],
         phase3_enforcement: true,
@@ -484,7 +501,10 @@ async fn non_v2_frame_with_the_flag_on_never_reaches_the_enforcer() {
     let v = NipIdentVerifier::new(NipVerifierOptions {
         trusted_ca_public_keys: map(&[(
             "urn:nps:org:example.com",
-            &format!("ed25519:{}", hex::encode(c.ca_sk.verifying_key().as_bytes())),
+            &format!(
+                "ed25519:{}",
+                hex::encode(c.ca_sk.verifying_key().as_bytes())
+            ),
         )]),
         trusted_x509_roots_der: vec![c.root.clone()],
         phase3_enforcement: true,
@@ -512,7 +532,10 @@ async fn v1_only_verifier_ignores_cert_chain_even_with_the_flag_on() {
     let v = NipIdentVerifier::new(NipVerifierOptions {
         trusted_ca_public_keys: map(&[(
             "urn:nps:org:example.com",
-            &format!("ed25519:{}", hex::encode(c.ca_sk.verifying_key().as_bytes())),
+            &format!(
+                "ed25519:{}",
+                hex::encode(c.ca_sk.verifying_key().as_bytes())
+            ),
         )]),
         trusted_x509_roots_der: vec![],
         phase3_enforcement: true,
@@ -538,7 +561,10 @@ fn capabilities_is_wire_only_and_not_in_the_signed_body() {
 
     // It IS on the wire.
     let d = f.to_dict();
-    assert_eq!(d.get("capabilities"), Some(&serde_json::json!(["nwp:query"])));
+    assert_eq!(
+        d.get("capabilities"),
+        Some(&serde_json::json!(["nwp:query"]))
+    );
     let back = IdentFrame::from_dict(&d).unwrap();
     assert_eq!(back.capabilities, strings(&["nwp:query"]));
 }

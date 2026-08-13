@@ -59,7 +59,10 @@ mod tests {
         assert_eq!(sanitize("__x__"), "x");
         assert_eq!(sanitize("///"), "node");
         assert_eq!(sanitize(""), "node");
-        assert_eq!(sanitize("keep.dots-and_underscores"), "keep.dots-and_underscores");
+        assert_eq!(
+            sanitize("keep.dots-and_underscores"),
+            "keep.dots-and_underscores"
+        );
     }
 
     #[test]

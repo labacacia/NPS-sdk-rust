@@ -144,7 +144,11 @@ impl GrpcInboundService {
             return Ok(self.options.backends[0].clone());
         }
         for b in &self.options.backends {
-            if b.descriptor().await.name.eq_ignore_ascii_case(ctx.upstream.trim()) {
+            if b.descriptor()
+                .await
+                .name
+                .eq_ignore_ascii_case(ctx.upstream.trim())
+            {
                 return Ok(b.clone());
             }
         }

@@ -4,7 +4,9 @@
 //! Action Node server — handler-direct request→response tests, mirroring the .NET
 //! `ActionNodeMiddleware` wire contract (NPS-2 §3.2, §7).
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use nps_nwp::action_server::*;
 use nps_nwp::node_http::{NodeRequest, NodeResponse};
@@ -70,6 +72,25 @@ fn invoke(body: Value) -> NodeRequest {
 
 async fn run(app: &ActionNodeApp, req: NodeRequest) -> NodeResponse {
     app.handle(req).await
+}
+
+async fn wait_for_task(app: &ActionNodeApp, task_id: &str, terminal: &str) -> NodeResponse {
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        let response = run(
+            app,
+            invoke(json!({
+                "action_id": SYSTEM_TASK_STATUS,
+                "params": { "task_id": task_id }
+            })),
+        )
+        .await;
+        if response.json_value().unwrap()["data"][0]["status"] == terminal {
+            return response;
+        }
+        assert!(Instant::now() < deadline, "task did not reach {terminal}");
+        std::thread::sleep(Duration::from_millis(5));
+    }
 }
 
 // ── Manifest / schema routes ────────────────────────────────────────────────────
@@ -196,7 +217,6 @@ async fn async_on_sync_only_action_is_400() {
 #[tokio::test]
 async fn task_status_returns_terminal_state() {
     let app = app();
-    // Kick off the async task (reference impl runs it inline → completed).
     let started = run(
         &app,
         invoke(json!({ "action_id": "orders.async", "async": true })),
@@ -207,14 +227,7 @@ async fn task_status_returns_terminal_state() {
         .unwrap()
         .to_string();
 
-    let resp = run(
-        &app,
-        invoke(json!({
-            "action_id": "system.task.status",
-            "params": { "task_id": task_id }
-        })),
-    )
-    .await;
+    let resp = wait_for_task(&app, &task_id, "completed").await;
     assert_eq!(resp.status, 200);
     let v = resp.json_value().unwrap();
     let status = &v["data"][0];
@@ -246,7 +259,7 @@ async fn task_cancel_on_terminal_is_409() {
         .unwrap()
         .to_string();
 
-    // Task already completed (inline execution) → cancel must be 409 conflict.
+    wait_for_task(&app, &task_id, "completed").await;
     let resp = run(
         &app,
         invoke(json!({ "action_id": "system.task.cancel", "params": { "task_id": task_id } })),
@@ -256,6 +269,79 @@ async fn task_cancel_on_terminal_is_409() {
     let v = resp.json_value().unwrap();
     assert_eq!(v["status"], "NPS-CLIENT-CONFLICT");
     assert_eq!(v["error"], "NWP-TASK-ALREADY-CANCELLED");
+}
+
+#[tokio::test]
+async fn async_ack_is_immediate_and_task_cancel_is_owner_scoped() {
+    struct BlockingProvider {
+        started: AtomicBool,
+        cancelled: AtomicBool,
+    }
+    impl ActionNodeProvider for BlockingProvider {
+        fn execute(
+            &self,
+            _frame: &ParsedActionFrame,
+            context: &ActionContext,
+        ) -> Result<ActionExecutionResult, ActionError> {
+            self.started.store(true, Ordering::Release);
+            while !context.cancellation.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            self.cancelled.store(true, Ordering::Release);
+            Err(ActionError::internal("cancelled"))
+        }
+    }
+
+    let mut options = base_opts();
+    options.require_auth = true;
+    let provider = Arc::new(BlockingProvider {
+        started: AtomicBool::new(false),
+        cancelled: AtomicBool::new(false),
+    });
+    let app = ActionNodeApp::with_in_memory(options, provider.clone());
+    let before = Instant::now();
+    let accepted = run(
+        &app,
+        invoke(json!({ "action_id": "orders.async", "async": true })),
+    )
+    .await;
+    assert_eq!(accepted.status, 202);
+    assert!(before.elapsed() < Duration::from_millis(100));
+    let task_id = accepted.json_value().unwrap()["task_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !provider.started.load(Ordering::Acquire) {
+        assert!(Instant::now() < deadline, "provider did not start");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let bob_status = NodeRequest::new("POST", format!("{PREFIX}/invoke"))
+        .with_header("X-NWP-Agent", "urn:nps:agent:bob")
+        .with_json(&json!({
+            "action_id": SYSTEM_TASK_STATUS,
+            "params": { "task_id": task_id }
+        }));
+    assert_eq!(run(&app, bob_status).await.status, 403);
+
+    let cancelled = run(
+        &app,
+        invoke(json!({
+            "action_id": SYSTEM_TASK_CANCEL,
+            "params": { "task_id": task_id }
+        })),
+    )
+    .await;
+    assert_eq!(cancelled.status, 200);
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !provider.cancelled.load(Ordering::Acquire) {
+        assert!(
+            Instant::now() < deadline,
+            "provider did not observe cancellation"
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
 }
 
 #[tokio::test]

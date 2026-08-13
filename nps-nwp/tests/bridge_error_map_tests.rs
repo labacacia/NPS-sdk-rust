@@ -146,7 +146,10 @@ fn must_be_protocol_error_covers_exactly_the_infrastructure_classes() {
         "NPS-CLIENT-UNPROCESSABLE",
         "NPS-OK",
     ] {
-        assert!(!must_be_protocol_error(s), "{s} must NOT be a protocol error");
+        assert!(
+            !must_be_protocol_error(s),
+            "{s} must NOT be a protocol error"
+        );
     }
 }
 
@@ -211,7 +214,10 @@ fn from_grpc_status_matches_the_normative_table() {
     assert_eq!(from_grpc_status(NotFound), "NPS-CLIENT-NOT-FOUND");
     assert_eq!(from_grpc_status(AlreadyExists), "NPS-CLIENT-CONFLICT");
     assert_eq!(from_grpc_status(Aborted), "NPS-CLIENT-CONFLICT");
-    assert_eq!(from_grpc_status(Unauthenticated), "NPS-AUTH-UNAUTHENTICATED");
+    assert_eq!(
+        from_grpc_status(Unauthenticated),
+        "NPS-AUTH-UNAUTHENTICATED"
+    );
     assert_eq!(from_grpc_status(PermissionDenied), "NPS-AUTH-FORBIDDEN");
     assert_eq!(from_grpc_status(ResourceExhausted), "NPS-LIMIT-RATE");
     assert_eq!(from_grpc_status(Unimplemented), "NPS-SERVER-UNSUPPORTED");

@@ -33,11 +33,13 @@ pub use ca_client::{
 };
 pub use frames::{IdentFrame, IdentReputationPolicyHint, RevokeFrame, TrustFrame};
 pub use identity::NipIdentity;
+pub use phase3::{
+    enforce as phase3_enforce, read_utf8_sequence_extension, try_get_ocsp_next_update,
+};
 pub use reputation::{
     sign_entry, verify_entry, IncidentType, InclusionProof, ObservationWindow, ReputationLogClient,
     ReputationLogEntry, Severity, SignedTreeHead,
 };
-pub use phase3::{enforce as phase3_enforce, read_utf8_sequence_extension, try_get_ocsp_next_update};
 pub use revocation_policy::{
     NipRevocationMode, NipRevocationOutcome, NipRevocationPolicy, NipRevocationSource,
 };

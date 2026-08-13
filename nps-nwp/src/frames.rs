@@ -224,6 +224,9 @@ pub struct ActionFrame {
     pub params: Option<Value>,
     pub anchor_ref: Option<String>,
     pub async_: bool,
+    pub idempotency_key: Option<String>,
+    pub timeout_ms: Option<u32>,
+    pub request_id: Option<String>,
 }
 
 impl ActionFrame {
@@ -242,6 +245,15 @@ impl ActionFrame {
         if let Some(v) = &self.anchor_ref {
             m.insert("anchor_ref".into(), json!(v));
         }
+        if let Some(v) = &self.request_id {
+            m.insert("request_id".into(), json!(v));
+        }
+        if let Some(v) = &self.idempotency_key {
+            m.insert("idempotency_key".into(), json!(v));
+        }
+        if let Some(v) = self.timeout_ms {
+            m.insert("timeout_ms".into(), json!(v));
+        }
         m
     }
 
@@ -256,6 +268,9 @@ impl ActionFrame {
             params: d.get("params").cloned(),
             anchor_ref: opt_str(d, "anchor_ref").map(str::to_string),
             async_: d.get("async").and_then(Value::as_bool).unwrap_or(false),
+            idempotency_key: opt_str(d, "idempotency_key").map(str::to_string),
+            timeout_ms: opt_u64(d, "timeout_ms").map(|value| value as u32),
+            request_id: opt_str(d, "request_id").map(str::to_string),
         })
     }
 }

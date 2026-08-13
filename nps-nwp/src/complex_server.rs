@@ -24,8 +24,8 @@ use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 
 use crate::action_server::{
-    is_private_host, parse_absolute_url, ActionContext, ActionError, ActionExecutionResult,
-    ActionSpec, ParsedActionFrame, SYSTEM_TASK_CANCEL, SYSTEM_TASK_STATUS,
+    is_private_host, parse_absolute_url, ActionCancellation, ActionContext, ActionError,
+    ActionExecutionResult, ActionSpec, ParsedActionFrame, SYSTEM_TASK_CANCEL, SYSTEM_TASK_STATUS,
 };
 use crate::memory_server::{
     MemoryNodeError, MemoryNodeQueryResult, MemoryNodeSchema, ParsedQueryFrame,
@@ -613,6 +613,7 @@ impl ComplexNodeApp {
             spec: spec.clone(),
             timeout_ms,
             priority: frame.priority.clone().unwrap_or_else(|| "normal".into()),
+            cancellation: ActionCancellation::new(),
         };
 
         let result = match self.provider.execute(&frame, &ctx) {

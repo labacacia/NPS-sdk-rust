@@ -343,7 +343,8 @@ mod tests {
     #[test]
     fn equal_or_lower_inbound_epoch_is_not_fenced() {
         let mut own = AnchorOwnership::new("urn:nps:node:api.test:anchor-a");
-        own.on_take_ownership(5, AnchorState::REASON_PLANNED).unwrap();
+        own.on_take_ownership(5, AnchorState::REASON_PLANNED)
+            .unwrap();
         own.take_pending_events();
 
         assert!(own.on_inbound_frame(Some(5), None, true).is_ok());
@@ -364,7 +365,8 @@ mod tests {
     #[test]
     fn every_snapshot_response_carries_cluster_epoch() {
         let mut own = AnchorOwnership::new("urn:nps:node:api.test:anchor-a");
-        own.on_take_ownership(4, AnchorState::REASON_PLANNED).unwrap();
+        own.on_take_ownership(4, AnchorState::REASON_PLANNED)
+            .unwrap();
         let mut snap = snapshot();
         own.stamp_response(&mut snap);
         assert_eq!(snap.cluster_epoch, Some(4));
@@ -383,11 +385,18 @@ mod tests {
     #[test]
     fn take_ownership_requires_a_strictly_greater_epoch() {
         let mut own = AnchorOwnership::new("urn:nps:node:api.test:anchor-a");
-        own.on_take_ownership(3, AnchorState::REASON_PLANNED).unwrap();
+        own.on_take_ownership(3, AnchorState::REASON_PLANNED)
+            .unwrap();
 
-        assert!(own.on_take_ownership(3, AnchorState::REASON_PLANNED).is_err());
-        assert!(own.on_take_ownership(2, AnchorState::REASON_PLANNED).is_err());
-        assert!(own.on_take_ownership(4, AnchorState::REASON_PLANNED).is_ok());
+        assert!(own
+            .on_take_ownership(3, AnchorState::REASON_PLANNED)
+            .is_err());
+        assert!(own
+            .on_take_ownership(2, AnchorState::REASON_PLANNED)
+            .is_err());
+        assert!(own
+            .on_take_ownership(4, AnchorState::REASON_PLANNED)
+            .is_ok());
     }
 
     #[test]
@@ -397,7 +406,9 @@ mod tests {
         own.take_pending_events();
 
         // Epoch 9 was observed, so re-taking ownership at 9 is not allowed.
-        assert!(own.on_take_ownership(9, AnchorState::REASON_PLANNED).is_err());
+        assert!(own
+            .on_take_ownership(9, AnchorState::REASON_PLANNED)
+            .is_err());
         let ev = own
             .on_take_ownership(10, AnchorState::REASON_ACTIVE_LOST)
             .unwrap();

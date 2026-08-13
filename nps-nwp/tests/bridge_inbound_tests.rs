@@ -132,7 +132,10 @@ async fn bridge_in_01_mcp_serves_the_full_required_method_set() {
         .iter()
         .map(|t| t["name"].as_str().unwrap())
         .collect();
-    assert!(names.contains(&"bridge-inbound-test__orders_lookup"), "{names:?}");
+    assert!(
+        names.contains(&"bridge-inbound-test__orders_lookup"),
+        "{names:?}"
+    );
     assert!(names.contains(&"mem-node__orders_lookup"), "{names:?}");
 }
 
@@ -168,7 +171,10 @@ async fn mcp_serves_resources_over_a_queryable_node() {
     assert!(res["description"].as_str().unwrap().contains("complex"));
 
     let r = s
-        .dispatch(&req("resources/read", json!({ "uri": "nwp://bridge-inbound-test/" })))
+        .dispatch(&req(
+            "resources/read",
+            json!({ "uri": "nwp://bridge-inbound-test/" }),
+        ))
         .await;
     let c = &result_of(&r)["contents"][0];
     assert_eq!(c["uri"], "nwp://bridge-inbound-test/");
@@ -198,10 +204,7 @@ async fn mcp_resources_read_rejects_a_bad_or_unknown_uri() {
         .await;
     let e = r.error.unwrap();
     assert_eq!(e.code, -32602);
-    assert_eq!(
-        e.data.unwrap()["error"],
-        "NWP-BRIDGE-SERVER-TOOL-NOT-FOUND"
-    );
+    assert_eq!(e.data.unwrap()["error"], "NWP-BRIDGE-SERVER-TOOL-NOT-FOUND");
 }
 
 #[tokio::test]
@@ -261,10 +264,7 @@ async fn mcp_unknown_tool_is_method_not_found_never_the_retired_code() {
     assert_eq!(e.code, -32601);
     assert_ne!(e.code, -32002, "-32002 is retired");
     assert!(e.message.contains("is not exposed by this Bridge Node"));
-    assert_eq!(
-        e.data.unwrap()["error"],
-        "NWP-BRIDGE-SERVER-TOOL-NOT-FOUND"
-    );
+    assert_eq!(e.data.unwrap()["error"], "NWP-BRIDGE-SERVER-TOOL-NOT-FOUND");
 }
 
 #[tokio::test]
@@ -273,10 +273,7 @@ async fn mcp_unknown_method_is_method_not_found() {
     let r = s.dispatch(&req("prompts/list", json!({}))).await;
     let e = r.error.unwrap();
     assert_eq!(e.code, -32601);
-    assert_eq!(
-        e.data.unwrap()["error"],
-        "NWP-BRIDGE-DIRECTION-UNSUPPORTED"
-    );
+    assert_eq!(e.data.unwrap()["error"], "NWP-BRIDGE-DIRECTION-UNSUPPORTED");
 }
 
 // ── TC-N2-BridgeIn-04: bare id resolves, ambiguity is rejected ───────────────
@@ -328,14 +325,20 @@ async fn bridge_in_04_bare_id_resolves_and_ambiguity_is_rejected() {
 #[tokio::test]
 async fn bridge_in_05_auth_failure_is_a_protocol_error_not_an_is_error_result() {
     let s = mcp(
-        vec![failing_backend("NPS-AUTH-FORBIDDEN", "NWP-AUTH-NID-SCOPE-VIOLATION")],
+        vec![failing_backend(
+            "NPS-AUTH-FORBIDDEN",
+            "NWP-AUTH-NID-SCOPE-VIOLATION",
+        )],
         &["mcp"],
     );
     let r = s
         .dispatch(&req("tools/call", json!({ "name": "orders.lookup" })))
         .await;
     assert_eq!(r.error_code(), Some(-32003));
-    assert!(r.result.is_none(), "result MUST be absent for an auth failure");
+    assert!(
+        r.result.is_none(),
+        "result MUST be absent for an auth failure"
+    );
 }
 
 #[tokio::test]
@@ -349,7 +352,10 @@ async fn bridge_in_05_unknown_action_and_timeout_map_to_distinct_codes() {
 
     // Upstream timeout ⇒ -32603.
     let s = mcp(
-        vec![failing_backend("NPS-SERVER-TIMEOUT", "NWP-BRIDGE-UPSTREAM-FAILED")],
+        vec![failing_backend(
+            "NPS-SERVER-TIMEOUT",
+            "NWP-BRIDGE-UPSTREAM-FAILED",
+        )],
         &["mcp"],
     );
     let r = s
@@ -361,7 +367,10 @@ async fn bridge_in_05_unknown_action_and_timeout_map_to_distinct_codes() {
 #[tokio::test]
 async fn domain_failures_stay_is_error_content() {
     let s = mcp(
-        vec![failing_backend("NPS-CLIENT-NOT-FOUND", "NWP-ACTION-NOT-FOUND")],
+        vec![failing_backend(
+            "NPS-CLIENT-NOT-FOUND",
+            "NWP-ACTION-NOT-FOUND",
+        )],
         &["mcp"],
     );
     let r = s
@@ -392,7 +401,10 @@ async fn missing_dispatcher_fails_loudly_with_a_registered_code() {
     let e = r.error.unwrap();
     assert_eq!(e.code, -32603);
     let data = serde_json::to_string(&e.data).unwrap();
-    assert!(data.contains("NWP-BRIDGE-SERVER-DISPATCHER-MISSING"), "{data}");
+    assert!(
+        data.contains("NWP-BRIDGE-SERVER-DISPATCHER-MISSING"),
+        "{data}"
+    );
     assert!(
         !data.contains("NPS-SERVER-NOT-IMPLEMENTED"),
         "the invented status must not be reintroduced"
@@ -442,7 +454,10 @@ async fn bridge_in_03_agent_card_lists_qualified_skills() {
     let card = s.build_agent_card("https://bridge.test/a2a").await;
 
     assert_eq!(card["url"], "https://bridge.test/a2a");
-    assert_eq!(card["provider"]["organization"], "LabAcacia / INNO LOTUS PTY LTD");
+    assert_eq!(
+        card["provider"]["organization"],
+        "LabAcacia / INNO LOTUS PTY LTD"
+    );
     assert_eq!(card["capabilities"]["streaming"], false);
     assert_eq!(card["capabilities"]["pushNotifications"], false);
     assert_eq!(card["capabilities"]["stateTransitionHistory"], false);
@@ -548,7 +563,10 @@ async fn a2a_rejects_an_unnamed_skill_when_several_are_exposed() {
 #[tokio::test]
 async fn a2a_accepts_every_skill_metadata_key_and_the_raw_action_id() {
     for key in ["action_id", "actionId", "skill_id", "skillId", "skill"] {
-        let s = a2a(vec![action_backend(NODE, &["a", "orders.lookup"])], &["a2a"]);
+        let s = a2a(
+            vec![action_backend(NODE, &["a", "orders.lookup"])],
+            &["a2a"],
+        );
         let r = s
             .dispatch(&req(
                 "tasks/send",
@@ -628,7 +646,10 @@ async fn a2a_extracts_arguments_in_the_documented_order() {
 async fn a2a_domain_failure_is_a_failed_task_but_infra_failure_is_a_protocol_error() {
     // NPS-CLIENT-* ⇒ a failed task carrying the code verbatim.
     let s = a2a(
-        vec![failing_backend("NPS-CLIENT-NOT-FOUND", "NWP-ACTION-NOT-FOUND")],
+        vec![failing_backend(
+            "NPS-CLIENT-NOT-FOUND",
+            "NWP-ACTION-NOT-FOUND",
+        )],
         &["a2a"],
     );
     let r = s
@@ -648,7 +669,10 @@ async fn a2a_domain_failure_is_a_failed_task_but_infra_failure_is_a_protocol_err
 
     // Infrastructure class ⇒ a JSON-RPC error, NOT a task object.
     let s = a2a(
-        vec![failing_backend("NPS-AUTH-FORBIDDEN", "NWP-AUTH-NID-SCOPE-VIOLATION")],
+        vec![failing_backend(
+            "NPS-AUTH-FORBIDDEN",
+            "NWP-AUTH-NID-SCOPE-VIOLATION",
+        )],
         &["a2a"],
     );
     let r = s
@@ -748,7 +772,10 @@ async fn grpc_manifest_query_and_list_actions() {
 #[tokio::test]
 async fn grpc_refuses_when_grpc_is_undeclared() {
     // gRPC is deliberately NOT in the default inbound set.
-    let s = grpc(vec![action_backend(NODE, &["orders.lookup"])], &["mcp", "a2a"]);
+    let s = grpc(
+        vec![action_backend(NODE, &["orders.lookup"])],
+        &["mcp", "a2a"],
+    );
     let e = s
         .invoke(&UpstreamContext::default(), "orders.lookup", b"{}")
         .await
@@ -798,7 +825,10 @@ async fn grpc_requires_an_action_id_and_resolves_backends_by_name() {
 #[tokio::test]
 async fn grpc_surfaces_the_exact_nps_fault_in_the_detail_string() {
     let s = grpc(
-        vec![failing_backend("NPS-AUTH-FORBIDDEN", "NWP-AUTH-NID-SCOPE-VIOLATION")],
+        vec![failing_backend(
+            "NPS-AUTH-FORBIDDEN",
+            "NWP-AUTH-NID-SCOPE-VIOLATION",
+        )],
         &["grpc"],
     );
     let e = s
@@ -893,14 +923,18 @@ async fn a_dispatcher_that_blows_up_maps_to_dispatch_failed() {
 // ── hosting layer (security defaults) ────────────────────────────────────────
 
 fn app(host: BridgeServerOptions) -> BridgeInboundApp {
-    let mut o = BridgeInboundOptions::new().with_inbound_protocols(vec!["mcp".into(), "a2a".into()]);
+    let mut o =
+        BridgeInboundOptions::new().with_inbound_protocols(vec!["mcp".into(), "a2a".into()]);
     o.backends = vec![action_backend(NODE, &["orders.lookup"])];
     BridgeInboundApp::new(o, host)
 }
 
 fn post(path: &str, body: &Value) -> AnchorRequest {
     AnchorRequest::new("POST", path)
-        .with_header(nps_nwp::http_headers::AGENT, "urn:nps:agent:test.example:a1")
+        .with_header(
+            nps_nwp::http_headers::AGENT,
+            "urn:nps:agent:test.example:a1",
+        )
         .with_json(body)
 }
 
@@ -912,7 +946,10 @@ fn body_json(r: &AnchorResponse) -> Value {
 async fn auth_is_required_by_default_and_fails_closed_without_a_verifier() {
     let a = app(BridgeServerOptions::default());
     let r = a
-        .handle(post("/mcp", &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" })))
+        .handle(post(
+            "/mcp",
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+        ))
         .await;
     // A valid NID but no verifier configured ⇒ still denied.
     assert_eq!(r.status, 401);
@@ -966,7 +1003,10 @@ async fn a_rejecting_verifier_is_401_and_an_accepting_one_dispatches() {
         ..Default::default()
     });
     let r = a
-        .handle(post("/mcp", &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" })))
+        .handle(post(
+            "/mcp",
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+        ))
         .await;
     assert_eq!(r.status, 401);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
@@ -976,7 +1016,10 @@ async fn a_rejecting_verifier_is_401_and_an_accepting_one_dispatches() {
         ..Default::default()
     });
     let r = a
-        .handle(post("/mcp", &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" })))
+        .handle(post(
+            "/mcp",
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+        ))
         .await;
     assert_eq!(r.status, 200);
     assert_eq!(body_json(&r)["result"], json!({}));
@@ -1017,8 +1060,11 @@ async fn a_lying_content_length_cannot_bypass_the_cap() {
     });
     let r = a
         .handle(
-            post("/mcp", &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }))
-                .with_header("content-length", "999999"),
+            post(
+                "/mcp",
+                &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+            )
+            .with_header("content-length", "999999"),
         )
         .await;
     assert_eq!(r.status, 413);
@@ -1034,18 +1080,20 @@ async fn method_gating_and_agent_card_exposure() {
     // Non-POST on /mcp and /a2a ⇒ 405.
     for p in ["/mcp", "/a2a"] {
         let r = a
-            .handle(
-                AnchorRequest::new("GET", p)
-                    .with_header(nps_nwp::http_headers::AGENT, "urn:nps:agent:test.example:a1"),
-            )
+            .handle(AnchorRequest::new("GET", p).with_header(
+                nps_nwp::http_headers::AGENT,
+                "urn:nps:agent:test.example:a1",
+            ))
             .await;
         assert_eq!(r.status, 405, "{p}");
     }
     // Non-GET on the AgentCard path ⇒ 405.
     let r = a
         .handle(
-            AnchorRequest::new("POST", "/.well-known/agent.json")
-                .with_header(nps_nwp::http_headers::AGENT, "urn:nps:agent:test.example:a1"),
+            AnchorRequest::new("POST", "/.well-known/agent.json").with_header(
+                nps_nwp::http_headers::AGENT,
+                "urn:nps:agent:test.example:a1",
+            ),
         )
         .await;
     assert_eq!(r.status, 405);
@@ -1053,8 +1101,10 @@ async fn method_gating_and_agent_card_exposure() {
     // GET ⇒ the AgentCard.
     let r = a
         .handle(
-            AnchorRequest::new("GET", "/.well-known/agent.json")
-                .with_header(nps_nwp::http_headers::AGENT, "urn:nps:agent:test.example:a1"),
+            AnchorRequest::new("GET", "/.well-known/agent.json").with_header(
+                nps_nwp::http_headers::AGENT,
+                "urn:nps:agent:test.example:a1",
+            ),
         )
         .await;
     assert_eq!(r.status, 200);
@@ -1075,7 +1125,10 @@ async fn the_sse_path_is_served_by_the_mcp_server() {
         ..Default::default()
     });
     let r = a
-        .handle(post("/mcp/sse", &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" })))
+        .handle(post(
+            "/mcp/sse",
+            &json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" }),
+        ))
         .await;
     assert_eq!(r.status, 200);
     assert_eq!(body_json(&r)["result"], json!({}));
@@ -1109,13 +1162,22 @@ impl NwpBackend for SlowBackend {
     fn descriptor(&self) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, NwpNodeDescriptor> {
         Box::pin(async { NwpNodeDescriptor::new(NODE, NwpNodeRole::Action) })
     }
-    fn manifest(&self) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, nps_nwp::bridge_inbound::NwpResult> {
+    fn manifest(
+        &self,
+    ) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, nps_nwp::bridge_inbound::NwpResult>
+    {
         Box::pin(async { nps_nwp::bridge_inbound::NwpResult::success(json!({})) })
     }
-    fn actions(&self) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, Vec<NwpActionDescriptor>> {
+    fn actions(
+        &self,
+    ) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, Vec<NwpActionDescriptor>> {
         Box::pin(async { vec![NwpActionDescriptor::new("slow")] })
     }
-    fn query(&self, _q: Value) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, nps_nwp::bridge_inbound::NwpResult> {
+    fn query(
+        &self,
+        _q: Value,
+    ) -> nps_nwp::bridge_inbound::backend::BackendFuture<'_, nps_nwp::bridge_inbound::NwpResult>
+    {
         Box::pin(async { nps_nwp::bridge_inbound::NwpResult::success(json!({})) })
     }
     fn invoke<'a>(
@@ -1123,7 +1185,8 @@ impl NwpBackend for SlowBackend {
         _action_id: &'a str,
         _arguments: Option<Value>,
         _is_async: bool,
-    ) -> nps_nwp::bridge_inbound::backend::BackendFuture<'a, nps_nwp::bridge_inbound::NwpResult> {
+    ) -> nps_nwp::bridge_inbound::backend::BackendFuture<'a, nps_nwp::bridge_inbound::NwpResult>
+    {
         Box::pin(async {
             tokio::time::sleep(std::time::Duration::from_secs(30)).await;
             nps_nwp::bridge_inbound::NwpResult::success(json!({}))
@@ -1162,8 +1225,10 @@ async fn malformed_json_body_is_a_json_rpc_invalid_params_error() {
         verifier: Some(Arc::new(|_, _| true)),
         ..Default::default()
     });
-    let mut req = AnchorRequest::new("POST", "/mcp")
-        .with_header(nps_nwp::http_headers::AGENT, "urn:nps:agent:test.example:a1");
+    let mut req = AnchorRequest::new("POST", "/mcp").with_header(
+        nps_nwp::http_headers::AGENT,
+        "urn:nps:agent:test.example:a1",
+    );
     req.body = b"{not json".to_vec();
     let r = a.handle(req).await;
     assert_eq!(r.status, 200);

@@ -109,10 +109,11 @@ impl DelegateFrame {
 
     pub fn to_dict(&self) -> FrameDict {
         let mut m = serde_json::Map::new();
-        m.insert("task_id".into(), json!(self.task_id));
+        // NPS-5 §3.2 names these fields `parent_task_id` and `target_agent_nid`.
+        m.insert("parent_task_id".into(), json!(self.task_id));
         m.insert("subtask_id".into(), json!(self.subtask_id));
         m.insert("action".into(), json!(self.action));
-        m.insert("target_nid".into(), json!(self.target_nid));
+        m.insert("target_agent_nid".into(), json!(self.target_nid));
         if let Some(v) = &self.inputs {
             m.insert("inputs".into(), v.clone());
         }
@@ -129,11 +130,21 @@ impl DelegateFrame {
     }
 
     pub fn from_dict(d: &FrameDict) -> NpsResult<Self> {
+        // Read the spec keys, falling back to the pre-fix keys this SDK emitted
+        // through v1.0.0-alpha.17 so peers on the old wire format still decode.
+        let task_id = match opt_str(d, "parent_task_id") {
+            Some(v) => v,
+            None => get_str(d, "task_id")?,
+        };
+        let target_nid = match opt_str(d, "target_agent_nid") {
+            Some(v) => v,
+            None => get_str(d, "target_nid")?,
+        };
         Ok(DelegateFrame {
-            task_id: get_str(d, "task_id")?.to_string(),
+            task_id: task_id.to_string(),
             subtask_id: get_str(d, "subtask_id")?.to_string(),
             action: get_str(d, "action")?.to_string(),
-            target_nid: get_str(d, "target_nid")?.to_string(),
+            target_nid: target_nid.to_string(),
             inputs: d.get("inputs").cloned(),
             config: d.get("config").cloned(),
             idempotency_key: opt_str(d, "idempotency_key").map(str::to_string),

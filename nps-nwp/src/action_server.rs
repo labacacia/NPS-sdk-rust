@@ -14,9 +14,9 @@
 //! `/invoke` is delegated to an [`ActionNodeProvider`].
 
 use std::collections::BTreeMap;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Map, Value};
 use time::format_description::well_known::Rfc3339;
@@ -63,6 +63,8 @@ pub struct ActionNodeOptions {
     pub node_id: String,
     pub display_name: Option<String>,
     pub actions: BTreeMap<String, ActionSpec>,
+    /// Optional NWM profile descriptors keyed by profile name.
+    pub profiles: BTreeMap<String, Value>,
     pub path_prefix: String,
     pub require_auth: bool,
     pub default_timeout_ms: u32,
@@ -82,6 +84,7 @@ impl ActionNodeOptions {
             node_id: node_id.into(),
             display_name: None,
             actions: BTreeMap::new(),
+            profiles: BTreeMap::new(),
             path_prefix: path_prefix.into(),
             require_auth: false,
             default_timeout_ms: 5_000,
@@ -116,6 +119,67 @@ pub struct ActionContext {
     pub spec: ActionSpec,
     pub timeout_ms: u32,
     pub priority: String,
+    pub cancellation: ActionCancellation,
+}
+
+type CancellationListener = Box<dyn FnOnce() + Send + 'static>;
+
+#[derive(Default)]
+struct CancellationState {
+    cancelled: AtomicBool,
+    listeners: Mutex<Vec<CancellationListener>>,
+}
+
+/// Cooperative cancellation shared by task hosting and provider coordinators.
+#[derive(Clone, Default)]
+pub struct ActionCancellation {
+    state: Arc<CancellationState>,
+}
+
+impl std::fmt::Debug for ActionCancellation {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ActionCancellation")
+            .field("cancelled", &self.is_cancelled())
+            .finish()
+    }
+}
+
+impl ActionCancellation {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.state.cancelled.load(Ordering::Acquire)
+    }
+
+    pub fn on_cancel(&self, listener: impl FnOnce() + Send + 'static) {
+        if self.is_cancelled() {
+            listener();
+            return;
+        }
+        let mut listeners = self.state.listeners.lock().expect("cancellation listeners");
+        if self.is_cancelled() {
+            drop(listeners);
+            listener();
+        } else {
+            listeners.push(Box::new(listener));
+        }
+    }
+
+    pub fn cancel(&self) {
+        if self.state.cancelled.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let listeners = {
+            let mut listeners = self.state.listeners.lock().expect("cancellation listeners");
+            std::mem::take(&mut *listeners)
+        };
+        for listener in listeners {
+            listener();
+        }
+    }
 }
 
 /// Error envelope a provider may return to shape the HTTP error response.
@@ -141,6 +205,15 @@ impl ActionError {
 
 /// Implement this to expose a set of actions on an Action Node. Port of .NET `IActionNodeProvider`.
 pub trait ActionNodeProvider: Send + Sync {
+    /// Admission check executed before idempotency-cache replay.
+    fn authorize(
+        &self,
+        _frame: &ParsedActionFrame,
+        _context: &ActionContext,
+    ) -> Result<(), ActionError> {
+        Ok(())
+    }
+
     fn execute(
         &self,
         frame: &ParsedActionFrame,
@@ -548,6 +621,7 @@ pub struct ActionNodeApp {
     provider: Arc<dyn ActionNodeProvider>,
     task_store: Arc<dyn ActionTaskStore>,
     idempotency: Arc<dyn IdempotencyCache>,
+    task_cancellations: Arc<Mutex<BTreeMap<String, ActionCancellation>>>,
     nwm_json: Vec<u8>,
     actions_json: Vec<u8>,
 }
@@ -579,6 +653,7 @@ impl ActionNodeApp {
             provider,
             task_store,
             idempotency,
+            task_cancellations: Arc::new(Mutex::new(BTreeMap::new())),
             nwm_json,
             actions_json,
         }
@@ -670,12 +745,14 @@ impl ActionNodeApp {
             }
         };
 
+        let agent_nid = req.header(http_headers::AGENT).map(String::from);
+
         // Reserved actions handled by the server itself.
         if frame.action_id == SYSTEM_TASK_STATUS {
-            return self.handle_task_status(&frame);
+            return self.handle_task_status(&frame, agent_nid.as_deref());
         }
         if frame.action_id == SYSTEM_TASK_CANCEL {
-            return self.handle_task_cancel(&frame);
+            return self.handle_task_cancel(&frame, agent_nid.as_deref());
         }
 
         let spec = match self.opt.actions.get(&frame.action_id) {
@@ -737,10 +814,33 @@ impl ActionNodeApp {
             }
         }
 
-        // Idempotency check (sync + async). §7.1
+        let priority = frame.priority.clone().unwrap_or_else(|| "normal".into());
+        let admission_context = ActionContext {
+            agent_nid: agent_nid.clone(),
+            request_id: frame.request_id.clone(),
+            task_id: None,
+            spec: spec.clone(),
+            timeout_ms: effective_timeout,
+            priority: priority.clone(),
+            cancellation: ActionCancellation::new(),
+        };
+        if let Err(error) = self.provider.authorize(&frame, &admission_context) {
+            return error_resp(
+                error.http_status,
+                &error.nps_status,
+                &error.error_code,
+                &error.message,
+                None,
+                &[],
+            );
+        }
+
+        // Idempotency check (sync + async). §7.1. Cache entries are caller-scoped
+        // so a key chosen by one authenticated principal cannot replay to another.
         let params_hash = hash_params(&frame.params);
+        let cache_scope = idempotency_cache_scope(&frame.action_id, agent_nid.as_deref());
         if let Some(key) = &frame.idempotency_key {
-            if let Some(cached) = self.idempotency.get(&frame.action_id, key) {
+            if let Some(cached) = self.idempotency.get(&cache_scope, key) {
                 if cached.params_hash != params_hash {
                     return error_resp(
                         409,
@@ -768,9 +868,6 @@ impl ActionNodeApp {
             }
         }
 
-        let agent_nid = req.header(http_headers::AGENT).map(String::from);
-        let priority = frame.priority.clone().unwrap_or_else(|| "normal".into());
-
         if frame.async_ {
             let task_id = gen_hex(16);
             self.task_store.create(
@@ -782,7 +879,7 @@ impl ActionNodeApp {
 
             if let Some(key) = &frame.idempotency_key {
                 self.idempotency.try_store(
-                    &frame.action_id,
+                    &cache_scope,
                     key,
                     IdempotentEntry {
                         action_id: frame.action_id.clone(),
@@ -796,31 +893,14 @@ impl ActionNodeApp {
             }
 
             let ctx = ActionContext {
-                agent_nid: agent_nid.clone(),
-                request_id: frame.request_id.clone(),
                 task_id: Some(task_id.clone()),
-                spec: spec.clone(),
-                timeout_ms: effective_timeout,
-                priority: priority.clone(),
+                ..admission_context.clone()
             };
-
-            // The framework-agnostic handler cannot truly detach a background task, so the
-            // reference impl runs the provider inline and records the terminal state on the
-            // task store (a host with a runtime may spawn instead). The 202 response and
-            // task-status polling semantics remain identical to .NET.
-            self.task_store
-                .try_transition(&task_id, "pending", "running");
-            match self.provider.execute(&frame, &ctx) {
-                Ok(res) => {
-                    self.task_store.complete(&task_id, res.result);
-                }
-                Err(e) => {
-                    self.task_store.fail(
-                        &task_id,
-                        json!({ "code": e.error_code, "message": e.message }),
-                    );
-                }
-            }
+            self.task_cancellations
+                .lock()
+                .expect("task cancellations")
+                .insert(task_id.clone(), ctx.cancellation.clone());
+            self.spawn_async_task(task_id.clone(), frame.clone(), ctx, effective_timeout);
 
             return self.write_async_response(
                 &task_id,
@@ -830,27 +910,50 @@ impl ActionNodeApp {
             );
         }
 
-        // Synchronous path.
-        let ctx = ActionContext {
-            agent_nid,
-            request_id: frame.request_id.clone(),
-            task_id: None,
-            spec: spec.clone(),
-            timeout_ms: effective_timeout,
-            priority,
-        };
-
-        let result = match self.provider.execute(&frame, &ctx) {
-            Ok(r) => r,
-            Err(e) => {
+        // Synchronous path. Provider work runs off-thread so the deadline remains enforceable
+        // even when a synchronous provider blocks or suppresses cooperative cancellation.
+        let ctx = admission_context;
+        let provider = self.provider.clone();
+        let worker_frame = frame.clone();
+        let worker_context = ctx.clone();
+        let (send, receive) = mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            let _ = send.send(provider.execute(&worker_frame, &worker_context));
+        });
+        let result = match receive.recv_timeout(Duration::from_millis(u64::from(effective_timeout)))
+        {
+            Ok(Ok(result)) => result,
+            Ok(Err(error)) => {
                 return error_resp(
-                    e.http_status,
-                    &e.nps_status,
-                    &e.error_code,
-                    &e.message,
+                    error.http_status,
+                    &error.nps_status,
+                    &error.error_code,
+                    &error.message,
                     None,
                     &[],
                 )
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                ctx.cancellation.cancel();
+                return error_resp(
+                    504,
+                    "NPS-SERVER-TIMEOUT",
+                    error_codes::NODE_UNAVAILABLE,
+                    "action execution timed out.",
+                    None,
+                    &[],
+                );
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                ctx.cancellation.cancel();
+                return error_resp(
+                    500,
+                    "NPS-SERVER-INTERNAL",
+                    error_codes::NODE_UNAVAILABLE,
+                    "action execution worker disconnected.",
+                    None,
+                    &[],
+                );
             }
         };
 
@@ -860,7 +963,7 @@ impl ActionNodeApp {
                 .clone()
                 .or_else(|| spec.result_anchor.clone());
             self.idempotency.try_store(
-                &frame.action_id,
+                &cache_scope,
                 key,
                 IdempotentEntry {
                     action_id: frame.action_id.clone(),
@@ -885,7 +988,85 @@ impl ActionNodeApp {
         )
     }
 
-    fn handle_task_status(&self, frame: &ParsedActionFrame) -> NodeResponse {
+    fn spawn_async_task(
+        &self,
+        task_id: String,
+        frame: ParsedActionFrame,
+        context: ActionContext,
+        timeout_ms: u32,
+    ) {
+        let provider = self.provider.clone();
+        let task_store = self.task_store.clone();
+        let cancellations = self.task_cancellations.clone();
+        std::thread::spawn(move || {
+            if !task_store.try_transition(&task_id, "pending", "running") {
+                cancellations
+                    .lock()
+                    .expect("task cancellations")
+                    .remove(&task_id);
+                return;
+            }
+            let worker_provider = provider.clone();
+            let worker_frame = frame.clone();
+            let worker_context = context.clone();
+            let (send, receive) = mpsc::sync_channel(1);
+            std::thread::spawn(move || {
+                let _ = send.send(worker_provider.execute(&worker_frame, &worker_context));
+            });
+
+            let deadline = Instant::now() + Duration::from_millis(u64::from(timeout_ms));
+            loop {
+                if context.cancellation.is_cancelled() {
+                    break;
+                }
+                let now = Instant::now();
+                if now >= deadline {
+                    context.cancellation.cancel();
+                    task_store.fail(
+                        &task_id,
+                        json!({ "code": error_codes::NODE_UNAVAILABLE, "message": "task timed out" }),
+                    );
+                    break;
+                }
+                let wait = (deadline - now).min(Duration::from_millis(10));
+                match receive.recv_timeout(wait) {
+                    Ok(Ok(result)) => {
+                        if !context.cancellation.is_cancelled() {
+                            task_store.complete(&task_id, result.result);
+                        }
+                        break;
+                    }
+                    Ok(Err(error)) => {
+                        if !context.cancellation.is_cancelled() {
+                            task_store.fail(
+                                &task_id,
+                                json!({ "code": error.error_code, "message": error.message }),
+                            );
+                        }
+                        break;
+                    }
+                    Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        task_store.fail(
+                            &task_id,
+                            json!({ "code": error_codes::NODE_UNAVAILABLE, "message": "task worker disconnected" }),
+                        );
+                        break;
+                    }
+                }
+            }
+            cancellations
+                .lock()
+                .expect("task cancellations")
+                .remove(&task_id);
+        });
+    }
+
+    fn handle_task_status(
+        &self,
+        frame: &ParsedActionFrame,
+        agent_nid: Option<&str>,
+    ) -> NodeResponse {
         let task_id = match read_string_param(&frame.params, "task_id") {
             Some(t) if !t.is_empty() => t,
             _ => {
@@ -912,6 +1093,16 @@ impl ActionNodeApp {
                 )
             }
         };
+        if rec.agent_nid.as_deref() != agent_nid {
+            return error_resp(
+                403,
+                "NPS-AUTH-FORBIDDEN",
+                error_codes::AUTH_NID_SCOPE_VIOLATION,
+                "the caller does not own this task.",
+                None,
+                &[],
+            );
+        }
         let mut status = Map::new();
         status.insert("task_id".into(), Value::String(rec.task_id.clone()));
         status.insert("status".into(), Value::String(rec.status.clone()));
@@ -938,7 +1129,11 @@ impl ActionNodeApp {
         self.write_caps(&Some(Value::Object(status)), None, &frame.request_id, 0)
     }
 
-    fn handle_task_cancel(&self, frame: &ParsedActionFrame) -> NodeResponse {
+    fn handle_task_cancel(
+        &self,
+        frame: &ParsedActionFrame,
+        agent_nid: Option<&str>,
+    ) -> NodeResponse {
         let task_id = match read_string_param(&frame.params, "task_id") {
             Some(t) if !t.is_empty() => t,
             _ => {
@@ -965,6 +1160,16 @@ impl ActionNodeApp {
                 )
             }
         };
+        if rec.agent_nid.as_deref() != agent_nid {
+            return error_resp(
+                403,
+                "NPS-AUTH-FORBIDDEN",
+                error_codes::AUTH_NID_SCOPE_VIOLATION,
+                "the caller does not own this task.",
+                None,
+                &[],
+            );
+        }
         if is_terminal(&rec.status) {
             return error_resp(
                 409,
@@ -979,6 +1184,15 @@ impl ActionNodeApp {
             );
         }
         self.task_store.cancel(&task_id);
+        if let Some(cancellation) = self
+            .task_cancellations
+            .lock()
+            .expect("task cancellations")
+            .get(&task_id)
+            .cloned()
+        {
+            cancellation.cancel();
+        }
         let payload = json!({ "task_id": task_id, "status": "cancelled" });
         self.write_caps(&Some(payload), None, &frame.request_id, 0)
     }
@@ -1085,6 +1299,10 @@ fn hash_params(params: &Option<Value>) -> String {
     fnv1a_hex(json.as_bytes())
 }
 
+fn idempotency_cache_scope(action_id: &str, agent_nid: Option<&str>) -> String {
+    format!("{action_id}\u{1f}{}", agent_nid.unwrap_or(""))
+}
+
 /// Deterministic content hash for params comparison. The exact algorithm is a
 /// local detail (never crosses the wire); only equality vs a prior request matters.
 fn fnv1a_hex(bytes: &[u8]) -> String {
@@ -1161,6 +1379,10 @@ fn build_manifest(opt: &ActionNodeOptions, prefix: &str) -> Value {
         "endpoints".into(),
         json!({ "invoke": format!("{prefix}/invoke"), "schema": format!("{prefix}/.schema") }),
     );
+    m.insert("actions".into(), json!(actions_map(opt)));
+    if !opt.profiles.is_empty() {
+        m.insert("profiles".into(), json!(opt.profiles));
+    }
     Value::Object(m)
 }
 

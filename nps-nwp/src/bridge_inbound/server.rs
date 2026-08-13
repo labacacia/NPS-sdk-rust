@@ -17,8 +17,7 @@ use crate::http_headers;
 
 use super::a2a::A2aInboundServer;
 use super::error_map::{
-    JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_INVALID_REQUEST,
-    JSONRPC_UPSTREAM_ERROR,
+    JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_INVALID_REQUEST, JSONRPC_UPSTREAM_ERROR,
 };
 use super::jsonrpc::{BridgeJsonRpcRequest, BridgeJsonRpcResponse};
 use super::mcp::McpInboundServer;

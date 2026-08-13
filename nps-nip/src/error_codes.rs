@@ -279,10 +279,7 @@ mod tests {
 
     #[test]
     fn phase3_errors() {
-        assert_eq!(
-            CERT_CAPABILITIES_EXCEEDED,
-            "NIP-CERT-CAPABILITIES-EXCEEDED"
-        );
+        assert_eq!(CERT_CAPABILITIES_EXCEEDED, "NIP-CERT-CAPABILITIES-EXCEEDED");
         // Deliberately asymmetric with its node_roles sibling.
         assert_eq!(
             to_nps_status(CERT_CAPABILITIES_EXCEEDED),

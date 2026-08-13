@@ -180,6 +180,7 @@ pub struct CapsFrame {
     pub token_est: Option<u64>,
     pub cached: Option<bool>,
     pub tokenizer_used: Option<String>,
+    pub request_id: Option<String>,
     pub payload: Option<Value>,
     /// Handshake — stable default encoding selected for ordinary session frames.
     /// Mirrors .NET `NcpHandshakeCapsFrame.NegotiatedEncoding`.
@@ -215,6 +216,7 @@ impl CapsFrame {
             token_est: None,
             cached: None,
             tokenizer_used: None,
+            request_id: None,
             payload: None,
             negotiated_encoding: None,
             enabled_encodings: None,
@@ -255,6 +257,9 @@ impl CapsFrame {
         }
         if let Some(v) = &self.tokenizer_used {
             m.insert("tokenizer_used".into(), json!(v));
+        }
+        if let Some(v) = &self.request_id {
+            m.insert("request_id".into(), json!(v));
         }
         if let Some(v) = &self.payload {
             m.insert("payload".into(), v.clone());
@@ -309,6 +314,7 @@ impl CapsFrame {
             token_est: opt_u64(d, "token_est"),
             cached: d.get("cached").and_then(Value::as_bool),
             tokenizer_used: opt_str(d, "tokenizer_used").map(str::to_string),
+            request_id: opt_str(d, "request_id").map(str::to_string),
             payload: d.get("payload").cloned(),
             negotiated_encoding: opt_str(d, "negotiated_encoding").map(str::to_string),
             enabled_encodings: d

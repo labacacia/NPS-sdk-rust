@@ -150,7 +150,12 @@ impl NwpNativeNodeServer {
             ));
         };
         let frame = QueryFrame::from_dict(&dict)?;
-        Ok((FrameType::Caps, handler(frame)?.to_dict()))
+        let request_id = frame.request_id.clone();
+        let mut caps = handler(frame)?;
+        if request_id.is_some() {
+            caps.request_id = request_id;
+        }
+        Ok((FrameType::Caps, caps.to_dict()))
     }
 
     fn dispatch_action(&self, dict: FrameDict) -> NpsResult<(FrameType, FrameDict)> {
@@ -159,7 +164,9 @@ impl NwpNativeNodeServer {
                 "No native NWP action handler configured.".into(),
             ));
         };
-        let value = handler(ActionFrame::from_dict(&dict)?)?;
+        let frame = ActionFrame::from_dict(&dict)?;
+        let request_id = frame.request_id.clone();
+        let value = handler(frame)?;
         let mut caps = CapsFrame::new(
             self.anchor_ref.clone(),
             if value.is_null() {
@@ -169,6 +176,7 @@ impl NwpNativeNodeServer {
             },
         );
         caps.tokenizer_used = Some("native-estimate".to_string());
+        caps.request_id = request_id;
         Ok((FrameType::Caps, caps.to_dict()))
     }
 }

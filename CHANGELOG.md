@@ -8,6 +8,35 @@ Until NPS reaches v1.0 stable, every repository in the suite is synchronized to 
 
 ---
 
+## [1.0.0-alpha.18] — Unreleased
+
+### Added
+
+- Added official stateful LLM context DTOs, a mutex-protected process store, and an Action Server coordinator with owner scoping, CAS reservations, lifecycle actions, true asynchronous execution, cancellation, and all 19 shared conformance vectors.
+
+### Changed
+
+- Aligned unary request correlation, LLM usage accounting, strict stateful request validation, task ownership, provider authorization, timeout handling, and late-result rejection across SDK families.
+
+## [1.0.0-alpha.17] — 2026-08-02
+
+### Added
+
+- Port the reference server surface into the Rust SDK: NCP native transport, NWP action/complex/memory nodes and bidirectional bridges, NIP CA services and full verification, and NOP orchestration.
+- Implement the shared NCP 0.11, NWP 0.20, NIP 0.13, NDP 0.12, and NOP 0.9
+  portable profiles and language-neutral conformance fixtures.
+
+### Changed
+
+- Enforce clean `cargo fmt` and strict Clippy checks across the workspace.
+- Upgrade `quinn-proto` and `rustls-webpki` to resolve the current RustSec vulnerabilities.
+
+## [1.0.0-alpha.16] — 2026-07-23
+
+### Changed
+
+- Suite-wide alpha.16 source synchronization and protocol compatibility update.
+
 ## [1.0.0-alpha.15] — 2026-06-28
 
 ### Changed

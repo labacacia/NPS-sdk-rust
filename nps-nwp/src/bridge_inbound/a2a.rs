@@ -174,10 +174,7 @@ impl A2aInboundServer {
             }
         }
 
-        BridgeJsonRpcResponse::ok(
-            id,
-            Self::to_task(&task_id, &session_id, &message, &result),
-        )
+        BridgeJsonRpcResponse::ok(id, Self::to_task(&task_id, &session_id, &message, &result))
     }
 
     // ── skill resolution ─────────────────────────────────────────────────────

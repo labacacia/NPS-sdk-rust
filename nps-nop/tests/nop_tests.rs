@@ -238,6 +238,38 @@ fn delegate_frame_roundtrip() {
 }
 
 #[test]
+fn delegate_frame_emits_spec_wire_keys() {
+    let frame = DelegateFrame {
+        task_id: "t1".into(),
+        subtask_id: "sub1".into(),
+        action: "classify".into(),
+        target_nid: "urn:nps:node:a:1".into(),
+        inputs: None,
+        config: None,
+        idempotency_key: None,
+        target_cluster_anchor: None,
+    };
+    let d = frame.to_dict();
+    assert_eq!(d.get("parent_task_id").unwrap(), "t1");
+    assert_eq!(d.get("target_agent_nid").unwrap(), "urn:nps:node:a:1");
+    assert!(d.get("task_id").is_none());
+    assert!(d.get("target_nid").is_none());
+}
+
+#[test]
+fn delegate_frame_decodes_legacy_wire_keys() {
+    // Peers running <= v1.0.0-alpha.17 of this SDK emit task_id / target_nid.
+    let mut m = serde_json::Map::new();
+    m.insert("task_id".into(), json!("t1"));
+    m.insert("subtask_id".into(), json!("sub1"));
+    m.insert("action".into(), json!("classify"));
+    m.insert("target_nid".into(), json!("urn:nps:node:a:1"));
+    let back = DelegateFrame::from_dict(&m).unwrap();
+    assert_eq!(back.task_id, "t1");
+    assert_eq!(back.target_nid, "urn:nps:node:a:1");
+}
+
+#[test]
 fn delegate_frame_optional_fields_null() {
     let codec = full_codec();
     let frame = DelegateFrame {

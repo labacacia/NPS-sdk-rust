@@ -15,7 +15,8 @@ fn dispatch_wire_returns_caps_for_query() {
     let codec = NpsFrameCodec::new(FrameRegistry::create_full());
     let server = NwpNativeNodeServer::new()
         .with_query_handler(|_| Ok(CapsFrame::new("native:test", vec![json!({ "id": 42 })])));
-    let query = QueryFrame::new("sha256:a");
+    let mut query = QueryFrame::new("sha256:a");
+    query.request_id = Some("req-query-1".into());
     let wire = codec
         .encode(
             FrameType::Query,
@@ -32,6 +33,7 @@ fn dispatch_wire_returns_caps_for_query() {
     assert_eq!(ft, FrameType::Caps);
     assert_eq!(caps.count, Some(1));
     assert_eq!(caps.data[0]["id"], 42);
+    assert_eq!(caps.request_id.as_deref(), Some("req-query-1"));
 }
 
 #[test]
@@ -44,6 +46,9 @@ fn dispatch_wire_accepts_action_id_shape() {
         params: None,
         anchor_ref: None,
         async_: false,
+        idempotency_key: None,
+        timeout_ms: None,
+        request_id: Some("req-action-1".into()),
     }
     .to_dict();
     action.remove("action");
@@ -56,6 +61,7 @@ fn dispatch_wire_accepts_action_id_shape() {
     let caps = CapsFrame::from_dict(&dict).unwrap();
 
     assert_eq!(caps.data[0]["action"], "ping");
+    assert_eq!(caps.request_id.as_deref(), Some("req-action-1"));
 }
 
 #[test]

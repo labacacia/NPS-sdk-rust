@@ -291,17 +291,17 @@ impl NipIdentVerifier {
                 let Some(leaf_b64u) = chain.first() else {
                     return fail(3, error_codes::CERT_FORMAT_INVALID, "cert_chain is empty.");
                 };
-                let leaf_der = match base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(leaf_b64u)
-                {
-                    Ok(bytes) => bytes,
-                    Err(_) => {
-                        return fail(
-                            3,
-                            error_codes::CERT_FORMAT_INVALID,
-                            "cert_chain[0] is not valid base64url DER.",
-                        )
-                    }
-                };
+                let leaf_der =
+                    match base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(leaf_b64u) {
+                        Ok(bytes) => bytes,
+                        Err(_) => {
+                            return fail(
+                                3,
+                                error_codes::CERT_FORMAT_INVALID,
+                                "cert_chain[0] is not valid base64url DER.",
+                            )
+                        }
+                    };
                 let phase3_result = phase3::enforce(frame, &leaf_der, Some(now));
                 if !phase3_result.valid {
                     return phase3_result;

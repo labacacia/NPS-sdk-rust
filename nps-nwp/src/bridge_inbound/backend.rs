@@ -125,9 +125,7 @@ impl NwpActionDescriptor {
     /// The schema advertised for this action: its own, or the open object
     /// schema when it declares none.
     pub fn effective_input_schema(&self) -> Value {
-        self.input_schema
-            .clone()
-            .unwrap_or_else(open_object_schema)
+        self.input_schema.clone().unwrap_or_else(open_object_schema)
     }
 }
 
@@ -395,6 +393,9 @@ impl NwpBackend for InProcessNwpBackend {
                 params: arguments,
                 anchor_ref: None,
                 async_: is_async,
+                idempotency_key: None,
+                timeout_ms: None,
+                request_id: None,
             };
             match d(&frame) {
                 Ok(v) => NwpResult::success(v),
@@ -556,10 +557,7 @@ impl NwpBackend for HttpNwpBackend {
                         .and_then(Value::as_str)
                         .map(str::to_string),
                     input_schema: spec.get("params_schema").cloned(),
-                    is_async: spec
-                        .get("async")
-                        .and_then(Value::as_bool)
-                        .unwrap_or(false),
+                    is_async: spec.get("async").and_then(Value::as_bool).unwrap_or(false),
                     tags: None,
                 })
                 .collect()

@@ -97,14 +97,19 @@ fn split_brain_at_the_top_epoch_throws() {
     assert_eq!(err.cluster_anchor, CLUSTER);
     assert_eq!(
         err.to_string(),
-        format!("NDP-CLUSTER-SPLIT: cluster '{CLUSTER}' has multiple live active Anchors at epoch 2.")
+        format!(
+            "NDP-CLUSTER-SPLIT: cluster '{CLUSTER}' has multiple live active Anchors at epoch 2."
+        )
     );
 }
 
 #[test]
 fn no_live_members_resolves_to_none() {
     let reg = InMemoryNdpRegistry::new();
-    assert!(reg.resolve_cluster(CLUSTER).expect("must not split").is_none());
+    assert!(reg
+        .resolve_cluster(CLUSTER)
+        .expect("must not split")
+        .is_none());
 }
 
 // ── §5.1 "ports SHOULD add" ──────────────────────────────────────────────────
@@ -292,7 +297,10 @@ fn canonical_keys_are_sorted_ordinal_ascending() {
     let keys: Vec<&str> = dict.keys().map(String::as_str).collect();
     let mut sorted = keys.clone();
     sorted.sort_unstable();
-    assert_eq!(keys, sorted, "canonical form must sort keys ordinal-ascending");
+    assert_eq!(
+        keys, sorted,
+        "canonical form must sort keys ordinal-ascending"
+    );
     assert!(c.starts_with(r#"{"addresses":"#));
 }
 

@@ -178,9 +178,9 @@ where
                 Err(e) => return Err(FailoverError::Exhausted(e)),
             }
         }
-        Err(FailoverError::Exhausted(
-            last.expect("max_attempts >= 1 guarantees at least one captured failure"),
-        ))
+        Err(FailoverError::Exhausted(last.expect(
+            "max_attempts >= 1 guarantees at least one captured failure",
+        )))
     }
 }
 
@@ -230,11 +230,7 @@ mod tests {
         fn next(&self) -> Result<(String, u16), TestError> {
             *self.calls.borrow_mut() += 1;
             let mut h = self.hosts.borrow_mut();
-            let host = if h.len() > 1 {
-                h.remove(0)
-            } else {
-                h[0]
-            };
+            let host = if h.len() > 1 { h.remove(0) } else { h[0] };
             Ok((host.to_string(), 17433))
         }
         fn calls(&self) -> u32 {

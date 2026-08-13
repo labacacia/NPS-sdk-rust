@@ -26,6 +26,7 @@ pub const NPS_AUTH_FORBIDDEN: &str = "NPS-AUTH-FORBIDDEN";
 pub const NPS_LIMIT_RATE: &str = "NPS-LIMIT-RATE";
 pub const NPS_LIMIT_BUDGET: &str = "NPS-LIMIT-BUDGET";
 pub const NPS_LIMIT_PAYLOAD: &str = "NPS-LIMIT-PAYLOAD";
+pub const NPS_LIMIT_RESOURCE: &str = "NPS-LIMIT-RESOURCE";
 
 // ── Server Errors ─────────────────────────────────────────────────────────────
 pub const NPS_SERVER_INTERNAL: &str = "NPS-SERVER-INTERNAL";
@@ -79,6 +80,7 @@ pub fn to_http_status(code: &str) -> Option<u16> {
         NPS_LIMIT_RATE => Some(429),
         NPS_LIMIT_BUDGET => Some(429),
         NPS_LIMIT_PAYLOAD => Some(413),
+        NPS_LIMIT_RESOURCE => Some(429),
         NPS_LIMIT_EXCEEDED => Some(429),
 
         NPS_SERVER_INTERNAL => Some(500),
@@ -139,6 +141,7 @@ mod tests {
         assert_eq!(to_http_status(NPS_LIMIT_RATE), Some(429));
         assert_eq!(to_http_status(NPS_LIMIT_BUDGET), Some(429));
         assert_eq!(to_http_status(NPS_LIMIT_PAYLOAD), Some(413));
+        assert_eq!(to_http_status(NPS_LIMIT_RESOURCE), Some(429));
     }
 
     #[test]
@@ -165,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn all_25_core_codes_have_http_mapping() {
+    fn all_26_core_codes_have_http_mapping() {
         let core_codes = [
             NPS_OK,
             NPS_OK_ACCEPTED,
@@ -181,6 +184,7 @@ mod tests {
             NPS_LIMIT_RATE,
             NPS_LIMIT_BUDGET,
             NPS_LIMIT_PAYLOAD,
+            NPS_LIMIT_RESOURCE,
             NPS_SERVER_INTERNAL,
             NPS_SERVER_UNSUPPORTED,
             NPS_SERVER_UNAVAILABLE,

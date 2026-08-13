@@ -169,7 +169,10 @@ mod tests {
         let r = ClusterDelegationResolver::new(|_: &str| -> Option<ClusterAnchorInfo> {
             panic!("NDP lookup must not be invoked")
         });
-        assert_eq!(r.resolve_delegate_target(&frame(None)).as_deref(), Some(AGENT));
+        assert_eq!(
+            r.resolve_delegate_target(&frame(None)).as_deref(),
+            Some(AGENT)
+        );
         assert_eq!(
             r.resolve_delegate_target(&frame(Some(""))).as_deref(),
             Some(AGENT)
@@ -187,7 +190,11 @@ mod tests {
         let f = frame(Some(CLUSTER));
         assert_eq!(r.resolve_delegate_target(&f).as_deref(), Some(ANCHOR_A));
         assert_eq!(r.resolve_delegate_target(&f).as_deref(), Some(ANCHOR_A));
-        assert_eq!(calls.load(Ordering::SeqCst), 1, "cache hit must not look up");
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "cache hit must not look up"
+        );
     }
 
     #[test]

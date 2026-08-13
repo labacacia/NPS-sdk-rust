@@ -8,6 +8,35 @@
 
 ---
 
+## [1.0.0-alpha.18] —— 未发布
+
+### 新增
+
+- 新增官方有状态 LLM context DTO、mutex 保护的进程内 store 与 Action Server coordinator，覆盖 owner 隔离、CAS reservation、生命周期 action、真异步执行、取消和 19 个共享一致性向量。
+
+### 变更
+
+- 跨 SDK 统一 unary request correlation、LLM usage 记账、严格有状态请求校验、任务所有权、provider 授权、超时处理与晚到结果拒绝。
+
+## [1.0.0-alpha.17] —— 2026-08-02
+
+### 新增
+
+- 将参考服务端能力移植到 Rust SDK：NCP 原生传输、NWP action/complex/memory 节点与双向 bridge、NIP CA 服务与完整校验，以及 NOP 编排。
+- 实现共享的 NCP 0.11、NWP 0.20、NIP 0.13、NDP 0.12 与 NOP 0.9
+  可移植 Profile，并执行语言无关一致性 fixture。
+
+### 变更
+
+- 在整个 workspace 启用干净的 `cargo fmt` 与严格 Clippy 检查。
+- 升级 `quinn-proto` 和 `rustls-webpki`，修复当前 RustSec 漏洞。
+
+## [1.0.0-alpha.16] —— 2026-07-23
+
+### 变更
+
+- 套件级 alpha.16 源码同步与协议兼容性更新。
+
 ## [1.0.0-alpha.15] —— 2026-06-28
 
 ### 变更

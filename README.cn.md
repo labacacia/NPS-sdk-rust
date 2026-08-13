@@ -2,12 +2,12 @@
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.16-orange.svg)](../../CHANGELOG.cn.md)
-[![NCP](https://img.shields.io/badge/NCP-v0.9-5b8cff.svg)]()
-[![NWP](https://img.shields.io/badge/NWP-v0.14-4af0b0.svg)]()
-[![NIP](https://img.shields.io/badge/NIP-v0.10-7b61ff.svg)]()
-[![NDP](https://img.shields.io/badge/NDP-v0.9-f0a050.svg)]()
-[![NOP](https://img.shields.io/badge/NOP-v0.7-ff8c42.svg)]()
+[![Candidate](https://img.shields.io/badge/candidate-v1.0.0--alpha.17-blue.svg)](../../CHANGELOG.cn.md)
+[![NCP](https://img.shields.io/badge/NCP-v0.11-5b8cff.svg)]()
+[![NWP](https://img.shields.io/badge/NWP-v0.20-4af0b0.svg)]()
+[![NIP](https://img.shields.io/badge/NIP-v0.13-7b61ff.svg)]()
+[![NDP](https://img.shields.io/badge/NDP-v0.12-f0a050.svg)]()
+[![NOP](https://img.shields.io/badge/NOP-v0.9-ff8c42.svg)]()
 
 面向 **Neural Protocol Suite (NPS)** 的 Rust 客户端库 —— 为 AI Agent 与模型设计的完整互联网协议栈。
 
@@ -15,29 +15,29 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.16 — RFC-0002 跨 SDK 端口波（第五棒，收官）**
+**v1.0.0-alpha.18 候选版 —— 可移植协议一致性**
 
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
-测试：workspace 共 99 个，全绿。
+完整 workspace 测试与 Alpha.17 共享一致性 fixture 均通过。
 
 Alpha.14 候选新增：远程 NIP CA 类型化客户端（`nps_nip::ca_client::NipCaClient`）、native-mode NWP 服务端 helper（`nps_nwp::NwpNativeNodeServer`）和 TC-N1/TC-N2 一致性 manifest helper（`nps_conformance`，并由 `nps-sdk` re-export）。
+
+## Alpha.17 可移植 Profile
+
+- NCP 0.11 有界原生服务握手与确定性 Caps 协商。
+- NWP 0.20 可移植 Node/Bridge serving 与 Bridge 生命周期。
+- NIP 0.13 可移植 CA、实时吊销、签名 CRL 与验证策略。
+- NDP 0.12 签名 Announce 准入及 registry 冲突/liveness 策略。
+- NOP 0.9 确定性编排、callback 安全、委派、租约与 CR-0007 runtime 决策。
+
+五个 Profile 均消费 [`spec/conformance`](../../spec/conformance/) 下的语言无关 fixture。
 
 ### 早期新增（nps-nip）
 
 - `nps_nip::x509` —— `issue_leaf` / `issue_root` / `verify`（基于 `rcgen` + `x509-parser` + `ed25519-dalek`）。
 - `nps_nip::acme` —— `AcmeClient`（reqwest 异步） + 进程内 `AcmeServer`（tiny_http） + JWS / messages helpers（RFC 8555 + RFC 8037 EdDSA）。
 - `IdentFrame` 扩展非破坏性可选字段 `assurance_level` / `cert_format` / `cert_chain`；v1 verifier 忽略新字段。
-
-## main 分支未发布内容
-
-`main` 分支额外携带 **alpha.16 周期的服务端面 parity 移植**（尚未进入任何已发布包；随下一个套件版本发布）：
-
-- **NOP 编排引擎** —— DAG 校验器、条件求值器、输入映射、结果聚合、任务存储、Worker 客户端、回调校验、instrumentation
-- **NCP 原生模式传输** —— server、session、client、帧 IO、握手 caps、编码策略、patch 格式
-- **NIP CA 服务** —— CA router + RA 准入模型、SQL CA store、TrustFrame 校验器、完整六步 §7 `VerifyFull` 验证器
-- **NWP 服务端面**扩展（memory/complex node 服务）
-- **Daemon observability**（health / metrics / logging / shutdown）与 **telemetry**
 
 ## 环境要求
 
@@ -203,10 +203,10 @@ let results = catalog_for_profile(NODE_L1)?
 let manifest = NpsConformanceManifest::create(
     NODE_L1,
     "my-node",
-    "1.0.0-alpha.16",
+    "1.0.0-alpha.18",
     "urn:nps:node:example.com:my-node",
     "labacacia-fixture",
-    "1.0.0-alpha.16",
+    "1.0.0-alpha.18",
     results,
     "ci",
 );
