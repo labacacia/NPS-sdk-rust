@@ -2,10 +2,10 @@
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Candidate](https://img.shields.io/badge/candidate-v1.0.0--alpha.17-blue.svg)](../../CHANGELOG.cn.md)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.18-orange.svg)](../../CHANGELOG.cn.md)
 [![NCP](https://img.shields.io/badge/NCP-v0.11-5b8cff.svg)]()
-[![NWP](https://img.shields.io/badge/NWP-v0.20-4af0b0.svg)]()
-[![NIP](https://img.shields.io/badge/NIP-v0.13-7b61ff.svg)]()
+[![NWP](https://img.shields.io/badge/NWP-v0.21-4af0b0.svg)]()
+[![NIP](https://img.shields.io/badge/NIP-v0.14-7b61ff.svg)]()
 [![NDP](https://img.shields.io/badge/NDP-v0.12-f0a050.svg)]()
 [![NOP](https://img.shields.io/badge/NOP-v0.9-ff8c42.svg)]()
 
@@ -15,19 +15,19 @@ Crate 命名空间：`com.labacacia.nps` | Rust edition 2021 | Cargo workspace
 
 ## 状态
 
-**v1.0.0-alpha.18 候选版 —— 可移植协议一致性**
+**v1.0.0-alpha.18 发布版 —— 可移植协议一致性**
 
 覆盖 NCP + NWP + NIP + NDP + NOP 全部五个协议，外加完整的 **NPS-RFC-0002 X.509 + ACME `agent-01` NID 证书原语**（`nps_nip::x509` + `nps_nip::acme`）。
 
-完整 workspace 测试与 Alpha.17 共享一致性 fixture 均通过。
+完整 workspace 测试与 Alpha.18 共享一致性 fixture 均通过。
 
 Alpha.14 候选新增：远程 NIP CA 类型化客户端（`nps_nip::ca_client::NipCaClient`）、native-mode NWP 服务端 helper（`nps_nwp::NwpNativeNodeServer`）和 TC-N1/TC-N2 一致性 manifest helper（`nps_conformance`，并由 `nps-sdk` re-export）。
 
-## Alpha.17 可移植 Profile
+## Alpha.18 可移植 Profile
 
 - NCP 0.11 有界原生服务握手与确定性 Caps 协商。
-- NWP 0.20 可移植 Node/Bridge serving 与 Bridge 生命周期。
-- NIP 0.13 可移植 CA、实时吊销、签名 CRL 与验证策略。
+- NWP 0.21 可移植 Node/Bridge serving 与 Bridge 生命周期。
+- NIP 0.14 可移植 CA、实时吊销、签名 CRL 与验证策略。
 - NDP 0.12 签名 Announce 准入及 registry 冲突/liveness 策略。
 - NOP 0.9 确定性编排、callback 安全、委派、租约与 CR-0007 runtime 决策。
 

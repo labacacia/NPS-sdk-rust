@@ -2,10 +2,10 @@ English | [中文版](./README.cn.md)
 
 # NPS Rust SDK (`nps-rs`)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](../../LICENSE)
-[![Candidate](https://img.shields.io/badge/candidate-v1.0.0--alpha.17-blue.svg)](../../CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v1.0.0--alpha.18-orange.svg)](../../CHANGELOG.md)
 [![NCP](https://img.shields.io/badge/NCP-v0.11-5b8cff.svg)]()
-[![NWP](https://img.shields.io/badge/NWP-v0.20-4af0b0.svg)]()
-[![NIP](https://img.shields.io/badge/NIP-v0.13-7b61ff.svg)]()
+[![NWP](https://img.shields.io/badge/NWP-v0.21-4af0b0.svg)]()
+[![NIP](https://img.shields.io/badge/NIP-v0.14-7b61ff.svg)]()
 [![NDP](https://img.shields.io/badge/NDP-v0.12-f0a050.svg)]()
 [![NOP](https://img.shields.io/badge/NOP-v0.9-ff8c42.svg)]()
 
@@ -15,19 +15,19 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.18 candidate — portable protocol conformance**
+**v1.0.0-alpha.18 release — portable protocol conformance**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
-The full workspace suite and the shared Alpha.17 conformance fixtures pass.
+The full workspace suite and the shared Alpha.18 conformance fixtures pass.
 
 Alpha.15 additions: typed remote NIP CA client (`nps_nip::ca_client::NipCaClient`), native-mode NWP serving helper (`nps_nwp::NwpNativeNodeServer`), and TC-N1/TC-N2 conformance manifest helpers (`nps_conformance`, re-exported by `nps-sdk`).
 
-## Alpha.17 portable profiles
+## Alpha.18 portable profiles
 
 - NCP 0.11 bounded native-server handshake and deterministic Caps negotiation.
-- NWP 0.20 portable Node/Bridge serving and bridge lifecycle.
-- NIP 0.13 portable CA, live revocation, signed CRL, and verification policy.
+- NWP 0.21 portable Node/Bridge serving and bridge lifecycle.
+- NIP 0.14 portable CA, live revocation, signed CRL, and verification policy.
 - NDP 0.12 signed Announce admission and registry conflict/liveness policy.
 - NOP 0.9 deterministic orchestration, callback security, delegation, leases,
   and CR-0007 runtime decisions.
