@@ -37,9 +37,10 @@ pub use telemetry::NwpTelemetry;
 
 pub use action_server::{
     validate_callback_url, ActionCancellation, ActionContext, ActionError, ActionExecutionResult,
-    ActionNodeApp, ActionNodeOptions, ActionNodeProvider, ActionSpec, ActionTaskRecord,
-    ActionTaskStore, IdempotencyCache, IdempotentEntry, InMemoryActionTaskStore,
-    InMemoryIdempotencyCache, ParsedActionFrame, SYSTEM_TASK_CANCEL, SYSTEM_TASK_STATUS,
+    ActionNodeApp, ActionNodeOptions, ActionNodeProvider, ActionSpec, ActionStream,
+    ActionStreamFrame, ActionTaskRecord, ActionTaskStore, IdempotencyCache, IdempotentEntry,
+    InMemoryActionTaskStore, InMemoryIdempotencyCache, ParsedActionFrame, SYSTEM_TASK_CANCEL,
+    SYSTEM_TASK_STATUS,
 };
 pub use complex_server::{
     validate_child_url, ChildFetcher, ChildOutcome, ComplexGraphRef, ComplexNodeApp,

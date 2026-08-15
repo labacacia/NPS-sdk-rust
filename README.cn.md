@@ -325,19 +325,11 @@ let delay_ms = BackoffStrategy::Exponential.compute_delay_ms(1000, 30_000, 2);
 
 ## 测试
 
-五个协议 crate 共 88 个测试：
+完整 workspace 共 755 个测试：
 
 ```bash
 cargo test --workspace
 ```
-
-| Crate | 测试数 |
-|-------|--------|
-| `nps-core` | 27 |
-| `nps-ndp`  | 25 |
-| `nps-nip`  | 16 |
-| `nps-nop`  | 20 |
-| **总计**   | **88** |
 
 ## 许可证
 

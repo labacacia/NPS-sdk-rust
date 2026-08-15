@@ -614,6 +614,7 @@ impl ComplexNodeApp {
             timeout_ms,
             priority: frame.priority.clone().unwrap_or_else(|| "normal".into()),
             cancellation: ActionCancellation::new(),
+            wire_input_bytes: req.body.len() as u64,
         };
 
         let result = match self.provider.execute(&frame, &ctx) {

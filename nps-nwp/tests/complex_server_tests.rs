@@ -44,6 +44,7 @@ impl ComplexNodeProvider for LocalProvider {
     ) -> Result<ActionExecutionResult, ActionError> {
         Ok(ActionExecutionResult {
             result: Some(json!({ "did": frame.action_id })),
+            stream: None,
             anchor_ref: None,
             token_est: 0,
         })

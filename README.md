@@ -327,19 +327,11 @@ All operations return `NpsResult<T>` = `Result<T, NpsError>`.
 
 ## Testing
 
-88 tests across all protocol crates:
+755 tests across the full workspace:
 
 ```bash
 cargo test --workspace
 ```
-
-| Crate | Tests |
-|-------|-------|
-| `nps-core` | 27 |
-| `nps-ndp`  | 25 |
-| `nps-nip`  | 16 |
-| `nps-nop`  | 20 |
-| **Total**  | **88** |
 
 ## License
 

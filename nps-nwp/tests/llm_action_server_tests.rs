@@ -23,6 +23,8 @@ enum ProviderMode {
     Success,
     Failure,
     ModelError,
+    StreamSuccess,
+    StreamAbnormal,
     BlockIgnoringCancellation,
 }
 
@@ -52,11 +54,12 @@ impl ActionNodeProvider for TestLlmProvider {
     fn execute(
         &self,
         frame: &ParsedActionFrame,
-        _context: &ActionContext,
+        context: &ActionContext,
     ) -> Result<ActionExecutionResult, ActionError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         assert_eq!(frame.action_id, LLM_COMPLETE);
-        match *self.mode.lock().expect("provider mode") {
+        let mode = *self.mode.lock().expect("provider mode");
+        match mode {
             ProviderMode::Failure => Err(ActionError::internal("provider failed")),
             ProviderMode::ModelError => Ok(ActionExecutionResult {
                 result: Some(json!({
@@ -69,6 +72,7 @@ impl ActionNodeProvider for TestLlmProvider {
                         "state": "active"
                     }
                 })),
+                stream: None,
                 anchor_ref: None,
                 token_est: 0,
             }),
@@ -82,8 +86,46 @@ impl ActionNodeProvider for TestLlmProvider {
                         "stop_reason": "end_turn",
                         "content": "too late"
                     })),
+                    stream: None,
                     anchor_ref: None,
                     token_est: 0,
+                })
+            }
+            ProviderMode::StreamSuccess | ProviderMode::StreamAbnormal => {
+                let abnormal = matches!(mode, ProviderMode::StreamAbnormal);
+                let stream =
+                    Arc::new(
+                        move |_cancellation: &ActionCancellation,
+                              emit: &mut dyn FnMut(
+                            ActionStreamFrame,
+                        )
+                            -> Result<(), ActionError>| {
+                            emit(ActionStreamFrame {
+                                seq: 0,
+                                data: vec![json!({ "content_delta": "Fir" })],
+                                ..Default::default()
+                            })?;
+                            if abnormal {
+                                return Ok(());
+                            }
+                            emit(ActionStreamFrame {
+                                seq: 1,
+                                is_last: true,
+                                anchor_ref: Some(LLM_COMPLETE_STREAM_ANCHOR.into()),
+                                data: vec![json!({
+                                    "content_delta": "st",
+                                    "stop_reason": "end_turn",
+                                    "usage": { "output_tokens": 1 }
+                                })],
+                                ..Default::default()
+                            })
+                        },
+                    );
+                Ok(ActionExecutionResult {
+                    result: None,
+                    stream: Some(stream),
+                    anchor_ref: Some(LLM_COMPLETE_STREAM_ANCHOR.into()),
+                    token_est: 1,
                 })
             }
             ProviderMode::Success => Ok(ActionExecutionResult {
@@ -93,9 +135,10 @@ impl ActionNodeProvider for TestLlmProvider {
                     "usage": {
                         "input_tokens": 2,
                         "output_tokens": 1,
-                        "wire_input_bytes": 128
+                        "wire_input_bytes": context.wire_input_bytes
                     }
                 })),
+                stream: None,
                 anchor_ref: None,
                 token_est: 1,
             }),
@@ -121,6 +164,7 @@ fn test_app(
     let mut llm_options = StatefulLlmActionOptions::new("workspace-a", "runtime-1");
     llm_options.provider_name = Some("willow".into());
     llm_options.default_model = Some("willow-small".into());
+    llm_options.authorizer = Some(Arc::new(|_, _, _, _, _| Ok(())));
     configure_llm(&mut llm_options);
     let coordinator = Arc::new(StatefulLlmActionProvider::new(
         provider.clone(),
@@ -184,7 +228,7 @@ async fn nwm_advertises_exact_actions_and_process_limits() {
                 LlmContextOperation::Release,
             ]));
         },
-        |_| {},
+        |options| options.supports_stream = true,
     );
     let response = run(&test.app, NodeRequest::new("GET", format!("{PREFIX}/.nwm"))).await;
     assert_eq!(response.status, 200);
@@ -200,7 +244,8 @@ async fn nwm_advertises_exact_actions_and_process_limits() {
     let profile = &manifest["profiles"]["llm"];
     assert_eq!(profile["profile_version"], "0.2");
     assert_eq!(profile["provider"], "willow");
-    assert_eq!(profile["supports_stream"], false);
+    assert_eq!(profile["supports_stream"], true);
+    assert_eq!(manifest["capabilities"]["stream"], true);
     assert_eq!(profile["context"]["persistence"], "process");
     assert_eq!(profile["context"]["max_contexts_per_principal"], 7);
     assert_eq!(profile["context"]["max_ttl_seconds"], 900);
@@ -209,6 +254,94 @@ async fn nwm_advertises_exact_actions_and_process_limits() {
         profile["context"]["operations"],
         json!(["create", "append", "reset", "release"])
     );
+}
+
+#[tokio::test]
+async fn stateful_stream_commits_at_terminal_and_replays_under_a_fresh_id() {
+    let test = test_app(
+        ProviderMode::StreamSuccess,
+        |_| {},
+        |options| options.supports_stream = true,
+    );
+    let mut params = create_params();
+    params["stream"] = json!(true);
+    let first = run(
+        &test.app,
+        invoke(
+            Some(ALICE),
+            LLM_COMPLETE,
+            params.clone(),
+            Some("stream-success"),
+        ),
+    )
+    .await;
+    assert_eq!(first.status, 200);
+    assert_eq!(first.header("content-type"), Some("application/x-ndjson"));
+    let first_frames = first.ndjson_lines();
+    assert_eq!(first_frames.len(), 2);
+    assert_eq!(first_frames[0]["seq"], 0);
+    assert_eq!(first_frames[1]["seq"], 1);
+    assert_eq!(first_frames[1]["is_last"], true);
+    assert_eq!(first_frames[0]["stream_id"], first_frames[1]["stream_id"]);
+    assert!(first_frames[0]["data"][0].get("context").is_none());
+    let receipt = first_frames[1]["data"][0]["context"].clone();
+    assert_eq!(receipt["version"], 1);
+
+    let replay = run(
+        &test.app,
+        invoke(Some(ALICE), LLM_COMPLETE, params, Some("stream-success")),
+    )
+    .await;
+    let replay_frames = replay.ndjson_lines();
+    assert_eq!(replay_frames.len(), 2);
+    assert_ne!(first_frames[0]["stream_id"], replay_frames[0]["stream_id"]);
+    assert_eq!(replay_frames[1]["data"][0]["context"], receipt);
+    assert_eq!(test.provider.calls(), 1);
+
+    let context_id = receipt["context_id"].as_str().unwrap();
+    let status = run(
+        &test.app,
+        invoke(
+            Some(ALICE),
+            LLM_CONTEXT_STATUS,
+            json!({ "context_id": context_id }),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(data(&status)["state"], "active");
+    assert_eq!(data(&status)["version"], 1);
+}
+
+#[tokio::test]
+async fn stateful_stream_without_terminal_aborts_and_is_not_cached() {
+    let test = test_app(
+        ProviderMode::StreamAbnormal,
+        |_| {},
+        |options| options.supports_stream = true,
+    );
+    let mut params = create_params();
+    params["stream"] = json!(true);
+    let response = run(
+        &test.app,
+        invoke(Some(ALICE), LLM_COMPLETE, params, Some("stream-abnormal")),
+    )
+    .await;
+    let frames = response.ndjson_lines();
+    assert_eq!(frames.len(), 2);
+    assert_eq!(frames[1]["is_last"], true);
+    assert_eq!(frames[1]["error_code"], error_codes::NODE_UNAVAILABLE);
+    let status = run(
+        &test.app,
+        invoke(
+            Some(ALICE),
+            LLM_CONTEXT_STATUS,
+            json!({ "idempotency_key": "stream-abnormal" }),
+            None,
+        ),
+    )
+    .await;
+    assert_eq!(data(&status)["state"], "failed");
 }
 
 #[tokio::test]
@@ -229,7 +362,7 @@ async fn synchronous_create_commits_and_status_recovers_it() {
     assert_eq!(receipt["version"], 1);
     assert_eq!(receipt["operation"], "create");
     assert_eq!(receipt["state"], "active");
-    assert_eq!(completion["usage"]["wire_input_bytes"], 128);
+    assert!(completion["usage"]["wire_input_bytes"].as_u64().unwrap() > 0);
 
     let context_id = receipt["context_id"].as_str().unwrap();
     let status = run(
@@ -250,6 +383,113 @@ async fn synchronous_create_commits_and_status_recovers_it() {
     assert_eq!(data(&status)["state"], "active");
     assert_eq!(data(&status)["version"], 1);
     assert_eq!(test.provider.calls(), 1);
+}
+
+#[tokio::test]
+async fn reconnect_concurrent_append_and_process_restart_follow_contract() {
+    let test = test_app(ProviderMode::Success, |_| {}, |_| {});
+    let provider = test.provider.clone();
+    let app = Arc::new(test.app);
+
+    // Treat the create response as lost and recover it by idempotency key.
+    assert_eq!(
+        run(
+            app.as_ref(),
+            invoke(
+                Some(ALICE),
+                LLM_COMPLETE,
+                create_params(),
+                Some("lost-create")
+            ),
+        )
+        .await
+        .status,
+        200
+    );
+    let recovered = data(
+        &run(
+            app.as_ref(),
+            invoke(
+                Some(ALICE),
+                LLM_CONTEXT_STATUS,
+                json!({ "idempotency_key": "lost-create" }),
+                None,
+            ),
+        )
+        .await,
+    );
+    assert_eq!(recovered["state"], "active");
+    assert_eq!(recovered["version"], 1);
+    let context_id = recovered["context_id"].as_str().unwrap().to_owned();
+    let append = json!({
+        "kind": "llm.complete",
+        "model": "willow-small",
+        "messages": [{ "role": "user", "content": "Two" }],
+        "context": {
+            "operation": "append",
+            "context_id": context_id,
+            "base_version": 1
+        }
+    });
+    *provider.mode.lock().unwrap() = ProviderMode::BlockIgnoringCancellation;
+    provider.started.store(false, Ordering::Release);
+    provider.release.store(false, Ordering::Release);
+    let winner_app = app.clone();
+    let winner_request = invoke(
+        Some(ALICE),
+        LLM_COMPLETE,
+        append.clone(),
+        Some("append-winner"),
+    );
+    let winner = std::thread::spawn(move || {
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(run(winner_app.as_ref(), winner_request))
+    });
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !provider.started.load(Ordering::Acquire) {
+        assert!(Instant::now() < deadline, "winner did not enter provider");
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let loser = run(
+        app.as_ref(),
+        invoke(
+            Some(ALICE),
+            LLM_COMPLETE,
+            append.clone(),
+            Some("append-loser"),
+        ),
+    )
+    .await;
+    assert_eq!(loser.status, 409);
+    assert_eq!(
+        loser.json_value().unwrap()["error"],
+        error_codes::LLM_CONTEXT_VERSION_CONFLICT
+    );
+    provider.release.store(true, Ordering::Release);
+    let winner = winner.join().unwrap();
+    assert_eq!(data(&winner)["context"]["version"], 2);
+    assert_eq!(provider.calls(), 2);
+
+    let restarted = test_app(ProviderMode::Success, |_| {}, |_| {});
+    let mut after_restart = append;
+    after_restart["context"]["base_version"] = json!(2);
+    let missing = run(
+        &restarted.app,
+        invoke(
+            Some(ALICE),
+            LLM_COMPLETE,
+            after_restart,
+            Some("append-after-restart"),
+        ),
+    )
+    .await;
+    assert_eq!(missing.status, 404);
+    assert_eq!(
+        missing.json_value().unwrap()["error"],
+        error_codes::LLM_CONTEXT_NOT_FOUND
+    );
+    assert_eq!(restarted.provider.calls(), 0);
 }
 
 #[tokio::test]
@@ -343,7 +583,7 @@ async fn commit_reauthorization_failure_aborts_and_surfaces_auth_error() {
         ProviderMode::Success,
         |_| {},
         |options| {
-            options.authorizer = Some(Arc::new(|_, _, stage, _| {
+            options.authorizer = Some(Arc::new(|_, _, stage, _, _| {
                 if stage == LlmAuthorizationStage::Commit {
                     Err(ActionError {
                         http_status: 401,
@@ -551,7 +791,7 @@ async fn cached_replay_rechecks_authorization_before_returning_result() {
         ProviderMode::Success,
         |_| {},
         move |options| {
-            options.authorizer = Some(Arc::new(move |_, _, stage, _| {
+            options.authorizer = Some(Arc::new(move |_, _, stage, _, _| {
                 if stage == LlmAuthorizationStage::Admission && !check.load(Ordering::SeqCst) {
                     Err(ActionError {
                         http_status: 401,
@@ -583,6 +823,103 @@ async fn cached_replay_rechecks_authorization_before_returning_result() {
         error_codes::AUTH_NID_REVOKED
     );
     assert_eq!(test.provider.calls(), 1);
+}
+
+#[tokio::test]
+async fn authorization_receives_exact_capabilities_and_fails_closed_when_missing() {
+    let checks = Arc::new(Mutex::new(Vec::<Vec<String>>::new()));
+    let capture = Arc::clone(&checks);
+    let test = test_app(
+        ProviderMode::Success,
+        |_| {},
+        move |options| {
+            options.authorizer = Some(Arc::new(move |_, _, _, required, _| {
+                capture.lock().unwrap().push(required.to_vec());
+                Ok(())
+            }));
+        },
+    );
+    assert_eq!(
+        run(
+            &test.app,
+            invoke(
+                Some(ALICE),
+                LLM_COMPLETE,
+                create_params(),
+                Some("capabilities")
+            ),
+        )
+        .await
+        .status,
+        200
+    );
+    assert_eq!(
+        run(
+            &test.app,
+            invoke(
+                Some(ALICE),
+                LLM_CONTEXT_STATUS,
+                json!({"idempotency_key": "capabilities"}),
+                None,
+            ),
+        )
+        .await
+        .status,
+        200
+    );
+    let mut extended = create_params();
+    extended["stream"] = json!(true);
+    extended["tools"] = json!([{"name": "lookup"}]);
+    assert_eq!(
+        run(
+            &test.app,
+            invoke(
+                Some(ALICE),
+                LLM_COMPLETE,
+                extended,
+                Some("extended-capabilities"),
+            ),
+        )
+        .await
+        .status,
+        422
+    );
+    assert_eq!(
+        *checks.lock().unwrap(),
+        vec![
+            vec![String::from("llm:complete"), String::from("llm:context")],
+            vec![String::from("llm:complete"), String::from("llm:context")],
+            vec![String::from("llm:context")],
+            vec![
+                String::from("llm:complete"),
+                String::from("llm:context"),
+                String::from("llm:stream"),
+                String::from("llm:tool_call"),
+            ],
+        ]
+    );
+
+    let denied = test_app(
+        ProviderMode::Success,
+        |_| {},
+        |options| options.authorizer = None,
+    );
+    let response = run(
+        &denied.app,
+        invoke(
+            Some(ALICE),
+            LLM_COMPLETE,
+            create_params(),
+            Some("no-authorizer"),
+        ),
+    )
+    .await;
+    assert_eq!(response.status, 403);
+    assert_eq!(
+        response.json_value().unwrap()["error"],
+        error_codes::LLM_CONTEXT_FORBIDDEN
+    );
+    assert_eq!(denied.provider.calls(), 0);
 }
 
 #[tokio::test]

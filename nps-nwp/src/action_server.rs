@@ -18,6 +18,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
@@ -100,14 +101,73 @@ impl ActionNodeOptions {
 // ── Provider ───────────────────────────────────────────────────────────────────
 
 /// Result of a single action execution. Port of .NET `ActionExecutionResult`.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ActionExecutionResult {
     /// Action output (single CapsFrame data element). `None` = no payload.
     pub result: Option<Value>,
+    /// Streaming output. The Action Server emits NDJSON under a fresh stream id.
+    pub stream: Option<Arc<dyn ActionStream>>,
     /// Optional anchor_id overriding [`ActionSpec::result_anchor`].
     pub anchor_ref: Option<String>,
     /// Approximate token count of the serialised result. 0 when unknown.
     pub token_est: u32,
+}
+
+impl std::fmt::Debug for ActionExecutionResult {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ActionExecutionResult")
+            .field("result", &self.result)
+            .field("stream", &self.stream.as_ref().map(|_| "ActionStream"))
+            .field("anchor_ref", &self.anchor_ref)
+            .field("token_est", &self.token_est)
+            .finish()
+    }
+}
+
+/// Canonical NWP streaming response shape used by Action Nodes.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ActionStreamFrame {
+    #[serde(default)]
+    pub stream_id: String,
+    pub seq: u64,
+    pub is_last: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anchor_ref: Option<String>,
+    #[serde(default)]
+    pub data: Vec<Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_size: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+}
+
+/// Producer-side stream callback. Implementations must emit contiguous frames
+/// beginning at sequence zero and exactly one terminal frame.
+pub trait ActionStream: Send + Sync {
+    fn write(
+        &self,
+        cancellation: &ActionCancellation,
+        emit: &mut dyn FnMut(ActionStreamFrame) -> Result<(), ActionError>,
+    ) -> Result<(), ActionError>;
+}
+
+impl<F> ActionStream for F
+where
+    F: Fn(
+            &ActionCancellation,
+            &mut dyn FnMut(ActionStreamFrame) -> Result<(), ActionError>,
+        ) -> Result<(), ActionError>
+        + Send
+        + Sync,
+{
+    fn write(
+        &self,
+        cancellation: &ActionCancellation,
+        emit: &mut dyn FnMut(ActionStreamFrame) -> Result<(), ActionError>,
+    ) -> Result<(), ActionError> {
+        self(cancellation, emit)
+    }
 }
 
 /// Execution context passed to [`ActionNodeProvider::execute`]. Port of .NET `ActionContext`.
@@ -119,6 +179,8 @@ pub struct ActionContext {
     pub spec: ActionSpec,
     pub timeout_ms: u32,
     pub priority: String,
+    /// Exact serialized ActionFrame payload length at the decoder boundary.
+    pub wire_input_bytes: u64,
     pub cancellation: ActionCancellation,
 }
 
@@ -426,6 +488,7 @@ pub struct IdempotentEntry {
     pub action_id: String,
     pub params_hash: String,
     pub result: Option<Value>,
+    pub stream_frames: Option<Vec<ActionStreamFrame>>,
     pub anchor_ref: Option<String>,
     pub task_id: Option<String>,
     pub expires_at: OffsetDateTime,
@@ -822,6 +885,7 @@ impl ActionNodeApp {
             spec: spec.clone(),
             timeout_ms: effective_timeout,
             priority: priority.clone(),
+            wire_input_bytes: req.body.len() as u64,
             cancellation: ActionCancellation::new(),
         };
         if let Err(error) = self.provider.authorize(&frame, &admission_context) {
@@ -859,6 +923,15 @@ impl ActionNodeApp {
                         .unwrap_or_else(|| "pending".into());
                     return self.write_async_response(task_id, &status, &frame.request_id, None);
                 }
+                if let Some(frames) = cached.stream_frames {
+                    return self
+                        .write_stream(
+                            &ReplayActionStream(frames),
+                            &admission_context.cancellation,
+                            &frame.request_id,
+                        )
+                        .0;
+                }
                 return self.write_caps(
                     &cached.result,
                     cached.anchor_ref.as_deref(),
@@ -885,6 +958,7 @@ impl ActionNodeApp {
                         action_id: frame.action_id.clone(),
                         params_hash: params_hash.clone(),
                         result: None,
+                        stream_frames: None,
                         anchor_ref: None,
                         task_id: Some(task_id.clone()),
                         expires_at: now_utc() + self.opt.idempotency_ttl,
@@ -957,6 +1031,31 @@ impl ActionNodeApp {
             }
         };
 
+        if let Some(stream) = result.stream.as_ref() {
+            let (response, completed) =
+                self.write_stream(stream.as_ref(), &ctx.cancellation, &frame.request_id);
+            if let (Some(key), Some(frames)) = (&frame.idempotency_key, completed) {
+                let anchor = result
+                    .anchor_ref
+                    .clone()
+                    .or_else(|| spec.result_anchor.clone());
+                self.idempotency.try_store(
+                    &cache_scope,
+                    key,
+                    IdempotentEntry {
+                        action_id: frame.action_id.clone(),
+                        params_hash,
+                        result: None,
+                        stream_frames: Some(frames),
+                        anchor_ref: anchor,
+                        task_id: None,
+                        expires_at: now_utc() + self.opt.idempotency_ttl,
+                    },
+                );
+            }
+            return response;
+        }
+
         if let Some(key) = &frame.idempotency_key {
             let anchor = result
                 .anchor_ref
@@ -969,6 +1068,7 @@ impl ActionNodeApp {
                     action_id: frame.action_id.clone(),
                     params_hash,
                     result: result.result.clone(),
+                    stream_frames: None,
                     anchor_ref: anchor,
                     task_id: None,
                     expires_at: now_utc() + self.opt.idempotency_ttl,
@@ -1277,6 +1377,120 @@ impl ActionNodeApp {
             body: serde_json::to_vec(&Value::Object(caps)).unwrap_or_default(),
         }
     }
+
+    fn write_stream(
+        &self,
+        stream: &dyn ActionStream,
+        cancellation: &ActionCancellation,
+        request_id: &Option<String>,
+    ) -> (NodeResponse, Option<Vec<ActionStreamFrame>>) {
+        let stream_id = gen_hex(16);
+        let mut emitted = Vec::new();
+        let mut body = Vec::new();
+        let mut next_seq = 0u64;
+        let mut terminal = false;
+        let mut emit = |mut supplied: ActionStreamFrame| -> Result<(), ActionError> {
+            if cancellation.is_cancelled() {
+                return Err(ActionError::internal("action stream was cancelled"));
+            }
+            if terminal {
+                return Err(ActionError::internal(
+                    "action stream emitted frames after its terminal frame",
+                ));
+            }
+            if supplied.seq != next_seq {
+                return Err(ActionError::internal(
+                    "action stream sequence is not contiguous from zero",
+                ));
+            }
+            if supplied.error_code.is_some() && !supplied.is_last {
+                return Err(ActionError::internal(
+                    "action stream error_code is terminal-only",
+                ));
+            }
+            supplied.stream_id = stream_id.clone();
+            let encoded = serde_json::to_vec(&supplied).map_err(|error| {
+                ActionError::internal(format!("serialize stream frame: {error}"))
+            })?;
+            body.extend_from_slice(&encoded);
+            body.push(b'\n');
+            next_seq += 1;
+            terminal = supplied.is_last;
+            emitted.push(supplied);
+            Ok(())
+        };
+
+        let mut failure = stream.write(cancellation, &mut emit).err();
+        drop(emit);
+        if failure.is_none() && !terminal {
+            failure = Some(ActionError::internal(
+                "action stream ended without a terminal frame",
+            ));
+        }
+        if let Some(error) = &failure {
+            if !terminal && !cancellation.is_cancelled() {
+                let terminal_frame = ActionStreamFrame {
+                    stream_id: stream_id.clone(),
+                    seq: next_seq,
+                    is_last: true,
+                    error_code: Some(error.error_code.clone()),
+                    ..Default::default()
+                };
+                if let Ok(encoded) = serde_json::to_vec(&terminal_frame) {
+                    body.extend_from_slice(&encoded);
+                    body.push(b'\n');
+                    emitted.push(terminal_frame);
+                }
+            }
+        }
+
+        let completed = if failure.is_none()
+            && !emitted.is_empty()
+            && emitted
+                .last()
+                .is_some_and(|frame| frame.error_code.is_none())
+        {
+            Some(emitted)
+        } else {
+            None
+        };
+        let mut headers = vec![
+            ("content-type".into(), "application/x-ndjson".into()),
+            (
+                http_headers::NODE_TYPE.to_ascii_lowercase(),
+                NODE_TYPE_ACTION.into(),
+            ),
+        ];
+        if let Some(request_id) = request_id {
+            headers.push((
+                http_headers::REQUEST_ID.to_ascii_lowercase(),
+                request_id.clone(),
+            ));
+        }
+        (
+            NodeResponse {
+                status: 200,
+                headers,
+                body,
+            },
+            completed,
+        )
+    }
+}
+
+struct ReplayActionStream(Vec<ActionStreamFrame>);
+
+impl ActionStream for ReplayActionStream {
+    fn write(
+        &self,
+        _cancellation: &ActionCancellation,
+        emit: &mut dyn FnMut(ActionStreamFrame) -> Result<(), ActionError>,
+    ) -> Result<(), ActionError> {
+        for frame in &self.0 {
+            emit(frame.clone())?;
+        }
+        Ok(())
+    }
 }
 
 // ── Free helpers ───────────────────────────────────────────────────────────────
@@ -1364,9 +1578,16 @@ fn build_manifest(opt: &ActionNodeOptions, prefix: &str) -> Value {
     }
     m.insert("wire_formats".into(), json!(["ncp-capsule", "json"]));
     m.insert("preferred_format".into(), Value::String("json".into()));
+    let supports_stream = opt
+        .profiles
+        .get("llm")
+        .and_then(Value::as_object)
+        .and_then(|profile| profile.get("supports_stream"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     m.insert(
         "capabilities".into(),
-        json!({ "query": false, "stream": false, "token_budget_hint": true }),
+        json!({ "query": false, "stream": supports_stream, "token_budget_hint": true }),
     );
     m.insert(
         "auth".into(),

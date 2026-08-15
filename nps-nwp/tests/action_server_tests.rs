@@ -30,6 +30,7 @@ impl ActionNodeProvider for EchoProvider {
         }
         Ok(ActionExecutionResult {
             result: Some(json!({ "echoed": frame.params.clone().unwrap_or(Value::Null) })),
+            stream: None,
             anchor_ref: None,
             token_est: 0,
         })
@@ -427,6 +428,7 @@ async fn timeout_is_clamped_to_spec_max() {
         ) -> Result<ActionExecutionResult, ActionError> {
             Ok(ActionExecutionResult {
                 result: Some(json!({ "timeout_ms": ctx.timeout_ms })),
+                stream: None,
                 anchor_ref: None,
                 token_est: 0,
             })

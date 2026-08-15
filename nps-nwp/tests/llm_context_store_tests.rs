@@ -4,6 +4,7 @@
 use nps_nwp::*;
 use serde_json::Value;
 use std::collections::{HashSet, VecDeque};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
@@ -11,6 +12,30 @@ use time::{Duration, OffsetDateTime};
 const ID_1: &str = "AQIDBAUGBwgJCgsMDQ4PEA";
 const ID_2: &str = "ERITFBUWFxgZGhscHR4fIA";
 const ID_3: &str = "ISIjJCUmJygpKissLS4vMA";
+
+fn repo_file(relative: &str) -> PathBuf {
+    let mut current = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    loop {
+        let candidate = current.join(relative);
+        if candidate.is_file() {
+            return candidate;
+        }
+        assert!(
+            current.pop(),
+            "unable to locate repository file: {relative}"
+        );
+    }
+}
+
+fn shared_fixture() -> Value {
+    serde_json::from_str(
+        &std::fs::read_to_string(repo_file(
+            "spec/conformance/nwp/llm_context_vectors.json",
+        ))
+        .expect("shared fixture file"),
+    )
+    .expect("shared fixture JSON")
+}
 
 fn alice() -> LlmContextOwner {
     LlmContextOwner {
@@ -104,10 +129,7 @@ impl Harness {
 
 #[test]
 fn shared_fixture_has_exactly_the_implemented_vectors() {
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../spec/conformance/nwp/llm_context_vectors.json"
-    ))
-    .expect("shared fixture JSON");
+    let fixture = shared_fixture();
     let actual: HashSet<_> = fixture["vectors"]
         .as_array()
         .expect("vectors")
@@ -519,15 +541,245 @@ fn reservations_and_snapshots_are_defensive_copies() {
 }
 
 fn assert_vector(id: &str) {
-    let fixture: Value = serde_json::from_str(include_str!(
-        "../../../../spec/conformance/nwp/llm_context_vectors.json"
-    ))
-    .unwrap();
-    assert!(fixture["vectors"]
+    let fixture = shared_fixture();
+    let vector = fixture["vectors"]
         .as_array()
         .unwrap()
         .iter()
-        .any(|vector| vector["id"] == id));
+        .find(|vector| vector["id"] == id)
+        .unwrap_or_else(|| panic!("shared vector {id} is missing"));
+    assert_fixture_contract(vector);
+}
+
+fn assert_fixture_contract(vector: &Value) {
+    let id = text(vector, "id");
+    let input = &vector["input"];
+    let expected = &vector["expected"];
+    assert!(input.as_object().is_some_and(|value| !value.is_empty()));
+    assert!(expected.as_object().is_some_and(|value| !value.is_empty()));
+    match &id[id.len() - 3..] {
+        "001" => {
+            assert!(input["params"].get("context").is_none());
+            assert_eq!(text(expected, "mode"), "stateless");
+            assert!(boolean(expected, "dispatched") && !boolean(expected, "context_mutated"));
+        }
+        "002" => {
+            assert_eq!(text(expected, "owner_nid"), text(input, "owner_nid"));
+            assert_eq!(number(expected, "version"), 1);
+            assert!(boolean(expected, "committed"));
+        }
+        "003" => {
+            assert_eq!(
+                number(expected, "version"),
+                number(&input["pre_state"], "version") + 1
+            );
+            assert_eq!(
+                number(expected, "accepted_delta_message_count"),
+                array_len(&input["params"], "messages")
+            );
+            assert_eq!(
+                number(expected, "post_message_count"),
+                array_len(&input["pre_state"], "messages")
+                    + array_len(&input["params"], "messages")
+                    + 1
+            );
+        }
+        "004" => {
+            assert_eq!(
+                number(expected, "post_version"),
+                number(&input["pre_state"], "version")
+            );
+            assert_eq!(
+                number(&expected["hint"], "current_version"),
+                number(&input["pre_state"], "version")
+            );
+            assert_eq!(
+                text(expected, "error"),
+                error_codes::LLM_CONTEXT_VERSION_CONFLICT
+            );
+        }
+        "005" => {
+            assert_eq!(
+                number(expected, "parent_version"),
+                number(&input["request"], "base_version")
+            );
+            assert_eq!(
+                number(expected, "post_parent_version"),
+                number(input, "parent_version_at_child_commit")
+            );
+            assert_eq!(number(expected, "version"), 1);
+        }
+        "006" => {
+            assert_eq!(
+                number(expected, "version"),
+                number(&input["pre_state"], "version") + 1
+            );
+            assert_eq!(
+                text(expected, "resolved_model"),
+                text(&input["request"], "model")
+            );
+        }
+        "007" => {
+            assert_eq!(
+                number(expected, "post_version"),
+                number(&input["pre_state"], "version")
+            );
+            assert_eq!(
+                text(expected, "error"),
+                error_codes::LLM_CONTEXT_BINDING_MISMATCH
+            );
+            assert!(
+                !boolean(expected, "provider_dispatched")
+                    && !boolean(expected, "stateless_fallback")
+            );
+        }
+        "008" => {
+            assert_ne!(text(input, "owner_nid"), text(input, "caller_nid"));
+            assert!(!strings(input, "caller_capabilities").contains(&CAPABILITY_LLM_CONTEXT));
+            assert_eq!(text(expected, "error"), error_codes::LLM_CONTEXT_FORBIDDEN);
+        }
+        "009" => {
+            assert_eq!(
+                number(expected, "post_version"),
+                number(&input["pre_state"], "version")
+            );
+            assert!(!boolean(expected, "committed") && boolean(expected, "reservation_released"));
+        }
+        "010" => {
+            let sequence = input["status_sequence"].as_array().unwrap();
+            let terminal = sequence.last().unwrap();
+            assert!(!boolean(&expected["running_status"], "context_id_present"));
+            assert_eq!(
+                text(&expected["completed_status"], "context_id"),
+                text(terminal, "context_id")
+            );
+            assert_eq!(
+                number(&expected["completed_status"], "version"),
+                number(terminal, "version")
+            );
+        }
+        "011" => {
+            assert_eq!(
+                number(&expected["release_receipt"], "version"),
+                number(&input["pre_state"], "version") + 1
+            );
+            assert_eq!(
+                number(&expected["expiry_tombstone"], "version"),
+                number(&input["expiry_branch"], "active_version")
+            );
+        }
+        "012" => {
+            let usage = &input["usage"];
+            assert_eq!(
+                number(usage, "input_tokens"),
+                number(usage, "reused_tokens") + number(usage, "evaluated_tokens")
+            );
+            assert!(
+                number(usage, "wire_input_bytes") < number(input, "stateless_wire_input_bytes")
+            );
+            assert!(
+                boolean(expected, "usage_equation_valid")
+                    && boolean(expected, "wire_input_smaller_than_stateless")
+            );
+        }
+        "013" => {
+            let context = &input["manifest"]["context"];
+            assert_eq!(context["operations"], input["implemented_operations"]);
+            assert_eq!(
+                text(context, "persistence"),
+                text(input, "implemented_persistence")
+            );
+            assert!(boolean(expected, "manifest_valid"));
+            assert_eq!(
+                text(expected, "requires_capability"),
+                CAPABILITY_LLM_CONTEXT
+            );
+        }
+        "014" => {
+            assert_eq!(text(input, "persistence"), "process");
+            assert_eq!(text(input, "event"), "process_restart");
+            assert_eq!(text(expected, "error"), error_codes::LLM_CONTEXT_NOT_FOUND);
+            assert!(
+                !boolean(expected, "replacement_created")
+                    && !boolean(expected, "stateless_fallback")
+            );
+        }
+        "015" => {
+            let original = &input["original"];
+            assert_eq!(
+                strings(original, "chunks").concat(),
+                text(expected, "ordered_content")
+            );
+            assert_ne!(text(original, "stream_id"), text(input, "replay_stream_id"));
+            assert_eq!(
+                number(expected, "provider_invocations")
+                    + number(expected, "additional_context_commits"),
+                0
+            );
+        }
+        "016" => {
+            assert_eq!(text(input, "authorization_at_admission"), "valid");
+            assert_eq!(text(input, "authorization_at_commit"), "revoked");
+            assert_eq!(
+                number(expected, "post_version"),
+                number(&input["pre_state"], "version")
+            );
+            assert_eq!(text(expected, "error"), error_codes::AUTH_NID_REVOKED);
+        }
+        "017" => {
+            assert_eq!(
+                number(input, "live_contexts"),
+                number(input, "max_contexts_per_principal")
+            );
+            assert_eq!(
+                text(expected, "error"),
+                error_codes::LLM_CONTEXT_LIMIT_EXCEEDED
+            );
+            assert!(!boolean(expected, "context_allocated"));
+        }
+        "018" => {
+            assert!(!strings(input, "advertised_operations")
+                .contains(&text(&input["request"], "operation")));
+            assert_eq!(
+                text(expected, "error"),
+                error_codes::LLM_CONTEXT_OPERATION_UNSUPPORTED
+            );
+        }
+        "019" => {
+            assert!(!boolean(input, "idempotency_key_present"));
+            assert_eq!(text(expected, "error"), error_codes::ACTION_PARAMS_INVALID);
+            assert!(
+                !boolean(expected, "context_allocated")
+                    && !boolean(expected, "provider_dispatched")
+            );
+        }
+        _ => panic!("unimplemented fixture contract: {id}"),
+    }
+}
+
+fn text<'a>(value: &'a Value, field: &str) -> &'a str {
+    value[field].as_str().unwrap()
+}
+
+fn number(value: &Value, field: &str) -> u64 {
+    value[field].as_u64().unwrap()
+}
+
+fn boolean(value: &Value, field: &str) -> bool {
+    value[field].as_bool().unwrap()
+}
+
+fn array_len(value: &Value, field: &str) -> u64 {
+    value[field].as_array().unwrap().len() as u64
+}
+
+fn strings<'a>(value: &'a Value, field: &str) -> Vec<&'a str> {
+    value[field]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item.as_str().unwrap())
+        .collect()
 }
 
 fn assert_error(error: &LlmContextStoreError, expected: &str) {
