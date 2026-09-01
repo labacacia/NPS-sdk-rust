@@ -16,7 +16,7 @@ version     = "1.0.0-alpha.18"
 edition     = "2021"
 license     = "Apache-2.0"
 authors     = ["Ori Lynn <iamzerolin@gmail.com>"]
-repository  = "https://github.com/labacacia/NPS-sdk-rust"
+repository  = "https://github.com/labacacia/NPS-SDK-Rust"
 homepage    = "https://nps.labacacia.com"
 readme      = "README.md"
 
