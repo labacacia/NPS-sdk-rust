@@ -1389,39 +1389,39 @@ impl ActionNodeApp {
         let mut body = Vec::new();
         let mut next_seq = 0u64;
         let mut terminal = false;
-        let mut emit = |mut supplied: ActionStreamFrame| -> Result<(), ActionError> {
-            if cancellation.is_cancelled() {
-                return Err(ActionError::internal("action stream was cancelled"));
-            }
-            if terminal {
-                return Err(ActionError::internal(
-                    "action stream emitted frames after its terminal frame",
-                ));
-            }
-            if supplied.seq != next_seq {
-                return Err(ActionError::internal(
-                    "action stream sequence is not contiguous from zero",
-                ));
-            }
-            if supplied.error_code.is_some() && !supplied.is_last {
-                return Err(ActionError::internal(
-                    "action stream error_code is terminal-only",
-                ));
-            }
-            supplied.stream_id = stream_id.clone();
-            let encoded = serde_json::to_vec(&supplied).map_err(|error| {
-                ActionError::internal(format!("serialize stream frame: {error}"))
-            })?;
-            body.extend_from_slice(&encoded);
-            body.push(b'\n');
-            next_seq += 1;
-            terminal = supplied.is_last;
-            emitted.push(supplied);
-            Ok(())
+        let mut failure = {
+            let mut emit = |mut supplied: ActionStreamFrame| -> Result<(), ActionError> {
+                if cancellation.is_cancelled() {
+                    return Err(ActionError::internal("action stream was cancelled"));
+                }
+                if terminal {
+                    return Err(ActionError::internal(
+                        "action stream emitted frames after its terminal frame",
+                    ));
+                }
+                if supplied.seq != next_seq {
+                    return Err(ActionError::internal(
+                        "action stream sequence is not contiguous from zero",
+                    ));
+                }
+                if supplied.error_code.is_some() && !supplied.is_last {
+                    return Err(ActionError::internal(
+                        "action stream error_code is terminal-only",
+                    ));
+                }
+                supplied.stream_id = stream_id.clone();
+                let encoded = serde_json::to_vec(&supplied).map_err(|error| {
+                    ActionError::internal(format!("serialize stream frame: {error}"))
+                })?;
+                body.extend_from_slice(&encoded);
+                body.push(b'\n');
+                next_seq += 1;
+                terminal = supplied.is_last;
+                emitted.push(supplied);
+                Ok(())
+            };
+            stream.write(cancellation, &mut emit).err()
         };
-
-        let mut failure = stream.write(cancellation, &mut emit).err();
-        drop(emit);
         if failure.is_none() && !terminal {
             failure = Some(ActionError::internal(
                 "action stream ended without a terminal frame",

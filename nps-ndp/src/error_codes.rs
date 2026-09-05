@@ -34,6 +34,8 @@ pub const CLUSTER_SPLIT: &str = "NDP-CLUSTER-SPLIT";
 
 // ── Registry ──────────────────────────────────────────────────────────────────
 pub const REGISTRY_UNAVAILABLE: &str = "NDP-REGISTRY-UNAVAILABLE";
+pub const STATE_UNAVAILABLE: &str = "NDP-STATE-UNAVAILABLE";
+pub const STATE_CORRUPT: &str = "NDP-STATE-CORRUPT";
 
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
@@ -65,6 +67,8 @@ pub fn to_nps_status(code: &str) -> &'static str {
         CLUSTER_SPLIT => "NPS-CLIENT-CONFLICT",
 
         REGISTRY_UNAVAILABLE => "NPS-SERVER-UNAVAILABLE",
+        STATE_UNAVAILABLE => "NPS-SERVER-UNAVAILABLE",
+        STATE_CORRUPT => "NPS-SERVER-INTERNAL",
 
         _ => "NPS-SERVER-INTERNAL",
     }

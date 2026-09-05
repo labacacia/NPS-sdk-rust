@@ -66,6 +66,8 @@ pub const CERT_PARENT_REVOKED: &str = "NIP-CERT-PARENT-REVOKED";
 
 // ── OCSP staple ───────────────────────────────────────────────────────────────
 pub const OCSP_STAPLE_EXPIRED: &str = "NIP-OCSP-STAPLE-EXPIRED";
+pub const OCSP_UNKNOWN: &str = "NIP-OCSP-UNKNOWN";
+pub const REVOCATION_STATE_STALE: &str = "NIP-REVOCATION-STATE-STALE";
 
 // ── NIP v0.10 — node_roles ────────────────────────────────────────────────────
 pub const CERT_NODE_ROLES_MISMATCH: &str = "NIP-CERT-NODE-ROLES-MISMATCH";
@@ -104,6 +106,8 @@ pub fn to_nps_status(code: &str) -> &'static str {
 
         OCSP_UNAVAILABLE => "NPS-SERVER-UNAVAILABLE",
         OCSP_STAPLE_EXPIRED => "NPS-AUTH-UNAUTHENTICATED",
+        OCSP_UNKNOWN => "NPS-AUTH-UNAUTHENTICATED",
+        REVOCATION_STATE_STALE => "NPS-SERVER-UNAVAILABLE",
 
         TRUST_FRAME_INVALID => "NPS-CLIENT-BAD-FRAME",
         TRUST_FRAME_EXPIRED => "NPS-AUTH-UNAUTHENTICATED",
