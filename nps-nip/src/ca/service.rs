@@ -279,7 +279,7 @@ impl<S: NipCaStore> NipCaService<S> {
             not_after: exp_sys,
             serial_number: &leaf_serial,
             attested_node_roles: None,
-            attested_capabilities: Some(&capabilities),
+            attested_capabilities: Some(capabilities),
         })
         .map_err(|e| NipCaError::new(e, error_codes::CERT_FORMAT_INVALID))?;
 

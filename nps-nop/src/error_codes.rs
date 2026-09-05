@@ -49,6 +49,9 @@ pub const CLAIM_CONFLICT: &str = "NOP-CLAIM-CONFLICT";
 pub const SPAWN_SPEC_INVALID: &str = "NOP-SPAWN-SPEC-INVALID";
 pub const RUNTIME_IDLE_TIMEOUT: &str = "NOP-RUNTIME-IDLE-TIMEOUT";
 pub const RUNTIME_MAX_RUNTIME: &str = "NOP-RUNTIME-MAX-RUNTIME";
+pub const REPLAY_CONFLICT: &str = "NOP-REPLAY-CONFLICT";
+pub const REPLAY_LIMIT: &str = "NOP-REPLAY-LIMIT";
+pub const AGGREGATION_INVALID: &str = "NOP-AGGREGATION-INVALID";
 
 // ── Mapping to NPS status ──────────────────────────────────────────────────────
 
@@ -91,6 +94,9 @@ pub fn to_nps_status(code: &str) -> &'static str {
         CLAIM_CONFLICT => "NPS-CLIENT-CONFLICT",
         SPAWN_SPEC_INVALID => "NPS-CLIENT-BAD-PARAM",
         RUNTIME_IDLE_TIMEOUT | RUNTIME_MAX_RUNTIME => "NPS-SERVER-TIMEOUT",
+        REPLAY_CONFLICT => "NPS-CLIENT-CONFLICT",
+        REPLAY_LIMIT => "NPS-LIMIT-RESOURCE",
+        AGGREGATION_INVALID => "NPS-CLIENT-BAD-PARAM",
 
         _ => "NPS-SERVER-INTERNAL",
     }

@@ -35,6 +35,7 @@ pub const PREAMBLE_INVALID: &str = "NCP-PREAMBLE-INVALID";
 // ── Keepalive (v0.8) ──────────────────────────────────────────────────────────
 pub const KEEPALIVE_TIMEOUT: &str = "NCP-KEEPALIVE-TIMEOUT";
 pub const REKEY_REQUIRED: &str = "NCP-REKEY-REQUIRED";
+pub const EARLY_DATA_REJECTED: &str = "NCP-EARLY-DATA-REJECTED";
 
 // ── Native-mode TLS binding (NPS-RFC-0006 §6.3–§6.4) ─────────────────────────
 /// The mTLS client-certificate NID does not match the session `IdentFrame` NID,
@@ -77,6 +78,7 @@ pub fn to_nps_status(code: &str) -> &'static str {
         PREAMBLE_INVALID => "NPS-PROTO-PREAMBLE-INVALID",
         KEEPALIVE_TIMEOUT => "NPS-SERVER-TIMEOUT",
         REKEY_REQUIRED => "NPS-CLIENT-BAD-FRAME",
+        EARLY_DATA_REJECTED => "NPS-PROTO-VERSION-INCOMPATIBLE",
 
         NID_MISMATCH => "NPS-AUTH-UNAUTHENTICATED",
 
