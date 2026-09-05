@@ -15,7 +15,7 @@ Crate group: `com.labacacia.nps` namespace | Rust edition 2021 | Cargo workspace
 
 ## Status
 
-**v1.0.0-alpha.18 release — portable protocol conformance**
+**v1.0.0-alpha.19 release candidate — portable protocol conformance**
 
 Covers all five NPS protocols: NCP + NWP + NIP + NDP + NOP, plus **full NPS-RFC-0002 X.509 + ACME `agent-01` NID certificate primitives** (`nps_nip::x509` + `nps_nip::acme`).
 
@@ -205,10 +205,10 @@ let results = catalog_for_profile(NODE_L1)?
 let manifest = NpsConformanceManifest::create(
     NODE_L1,
     "my-node",
-    "1.0.0-alpha.18",
+    "1.0.0-alpha.19",
     "urn:nps:node:example.com:my-node",
     "labacacia-fixture",
-    "1.0.0-alpha.18",
+    "1.0.0-alpha.19",
     results,
     "ci",
 );
